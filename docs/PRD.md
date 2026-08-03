@@ -1,6 +1,6 @@
 # BLOCK MANOR — Product Requirements Document (Source of Truth)
 
-**Version:** 1.4 · **Date:** 2026-08-04 · **Status:** Approved for build
+**Version:** 1.5 · **Date:** 2026-08-04 · **Status:** Approved for build
 **Product type:** Hybrid-casual mobile puzzle game · **Platforms:** Android + iOS
 **Stack:** React Native + Expo + react-native-skia · TypeScript everywhere · Firebase backend
 
@@ -25,6 +25,7 @@
 | 1.2 | 2026-08-04 | Added §15.1 complete audio manifest (named SFX inventory, mixing rules, size budget) |
 | 1.3 | 2026-08-04 | Added purchase result states (§10.3), in-app review prompt (§12.10), soft update nudge (§12.11) to match final design pack |
 | 1.4 | 2026-08-04 | Coherence audit fixes: §0.2a stage-rule scope (B) · §8.2/§8.5 daily sequence exhaustion (C) · §0.5 + §13 flag scope (D) · §13 unregistered [RC] keys (E) · §8.6 streak credit on abandonment (F) · §16.1 canonical screen names (G) · §4.3 PRNG pinned to mulberry32 (H) · version/date/section-numbering normalization (I) · §5 level generator + bot harness named as Stage 0 tooling |
+| 1.5 | 2026-08-04 | §9–§10 LiveOps tunability sweep — 17 bare literals promoted to §13 RC keys: `rv_life_daily_cap · wheel_ad_spins · wheel_free_spins · wheel_prize_table · rv_double_coins_multiplier · streak_repair_ads · starting_coin_balance · lives_max · life_forfeit_min_moves · relief_clear_cells · continue_max_per_attempt · interstitial_iap_suppress_h · starter_pack_offer_ttl_h · starter_pack_repeat_level · remove_ads_prompt_cooldown_d · streak_freeze_max · iap_pending_timeout_s`. §13 ads/IAP groups split. Design constants deliberately NOT promoted: §7.4 juice timings and all animation/layout numbers stay code-side tokens (`src/game/juice.ts`), store price points stay store-managed, and content-tied level numbers (chest cadence, booster showcase levels L12/18/26) stay in `packages/content` |
 
 ---
 
@@ -314,7 +315,7 @@ Client submits `{date, moves[], claimedScore}` via callable. Server re-runs `sim
 ### 8.6 Streak (counter in Stage 1; economy in Stage 2)
 - Streak +1 requires a **submitted attempt** for that UTC day — playing, not winning; score is irrelevant. A missed UTC day resets to 0. Server-authoritative (`users/{uid}.streak`), client-displayed flame + calendar month view.
 - **Abandonment:** a run abandoned mid-play (app kill, §8.3) earns the streak once its move log is submitted, provided `moves.length ≥ daily_streak_min_moves [RC, 3]`. Below that threshold the attempt is still consumed (§8.3) but no streak is granted — opening the board and quitting is not a ritual.
-- Stage 2 adds: **Streak Freeze** (item, auto-consumes on first missed day, max 2 equipped, earned at streak milestones 7/30/100 or ₹49) and **Streak Repair** (restore within 48h of break: watch 3 rewarded ads OR ₹89 `[RC streak_repair_price]`).
+- Stage 2 adds: **Streak Freeze** (item, auto-consumes on first missed day, max `[RC streak_freeze_max, 2]` equipped, earned at streak milestones 7/30/100 or ₹49) and **Streak Repair** (restore within 48h of break: watch 3 rewarded ads OR ₹89 `[RC streak_repair_price]`).
 - Milestones 7/30/100: celebration screen + cosmetic flame upgrades (bronze/silver/gold flame).
 
 ### 8.7 Share card & notifications
@@ -332,10 +333,10 @@ Same board verified on 2 devices + server logs; attempt-consumption on app-kill 
 - Sources: level win `[RC coins_level_win_base, 40] + [RC coins_per_star, 10] × stars`; chest every 10 levels `[RC coins_chest, 150]`; daily board completion `[RC coins_daily_complete, 50]`; rewarded ads (§10.1); IAP.
 - Sinks: continue, escalating per level attempt — `[RC continue_price_1, 900] / [RC continue_price_2, 1200] / [RC continue_price_3, 1600]`; boosters `[RC booster_price_hammer, 600] / [RC booster_price_broom, 800] / [RC booster_price_hourglass, 500]`; life refill `[RC life_refill_price, 900]`.
 - Wallet server-authoritative from Stage 2: balance in `users/{uid}.wallet`, mutations ONLY via callables (`grantCoins`, `spendCoins`) with idempotency keys; client optimistic with rollback.
-- New-player balance: 500. Target economy pressure: an average non-payer should hit a can't-afford-continue moment first between levels 18–25 (validated via §9.5 simulation).
+- New-player balance: `[RC starting_coin_balance, 500]`. Target economy pressure: an average non-payer should hit a can't-afford-continue moment first between levels 18–25 (validated via §9.5 simulation).
 
 ### 9.2 Lives
-- 5 max; -1 on level FAIL (not on quit-before-3-moves); +1 per `life_regen_minutes [RC, 30]`; full refill on level-chapter completion. Out-of-lives sheet: timer, "Refill 🪙" at `[RC life_refill_price, 900]`, rewarded ad +1 (2/day), (Stage 4: ask team). Endless mode and Daily Board never consume lives.
+- `[RC lives_max, 5]` max; -1 on level FAIL (not on a quit before `[RC life_forfeit_min_moves, 3]` moves); +1 per `life_regen_minutes [RC, 30]`; full refill on level-chapter completion. Out-of-lives sheet: timer, "Refill 🪙" at `[RC life_refill_price, 900]`, rewarded ad +1 (`[RC rv_life_daily_cap, 2]` per day), (Stage 4: ask team). Endless mode and Daily Board never consume lives.
 
 ### 9.3 Boosters
 - `hammer`: tap any single cell → destroy (counts as a "hit" for crate2/chain). `broom`: clear one chosen row. `hourglass`: redraw current tray (new seeded draw).
@@ -345,11 +346,11 @@ Same board verified on 2 devices + server logs; attempt-consumption on app-kill 
 
 ### 9.4 Fail → Continue flow (the monetization moment)
 Sequence on board-death with goals unmet:
-1. Fail screen (§7.5 layout) now shows: streak flame guttering animation (if win-streak ≥2), goal progress, **"Continue — {continue_price_N} 🪙"** primary (price from the `continue_price_1` / `continue_price_2` / `continue_price_3` tier keys per §9.1 — never a literal in the button copy) (grants: clear 12 cells around densest region via engine `reliefClear()` + tray redraw), "Second chance 📺 free" secondary (`[RC second_chance_daily_cap, 1]` per day, same effect), tiny grey "Give up".
+1. Fail screen (§7.5 layout) now shows: streak flame guttering animation (if win-streak ≥2), goal progress, **"Continue — {continue_price_N} 🪙"** primary (price from the `continue_price_1` / `continue_price_2` / `continue_price_3` tier keys per §9.1 — never a literal in the button copy) (grants: clear `[RC relief_clear_cells, 12]` cells around the densest region via engine `reliefClear()` + tray redraw), "Second chance 📺 free" secondary (`[RC second_chance_daily_cap, 1]` per day, same effect), tiny grey "Give up".
 2. Continue accepted → `continues_used++`; next continue this level costs tier-2 price.
 3. Insufficient balance → §9.4b out-of-coins sheet: compact 2-bundle store slides over (smallest bundle highlighted "covers your continue"), full store link. Cancel → back to fail screen.
 4. Give up → if win-streak ≥2, confirm dialog "Your x4 streak will end" with keep-trying default.
-- Analytics on every branch (§14). Max 3 paid continues per level attempt, then only retry.
+- Analytics on every branch (§14). Max `[RC continue_max_per_attempt, 3]` paid continues per level attempt, then only retry.
 
 ### 9.5 Economy validation (required before Stage-2 DoD)
 Extend the bot harness: simulate 2,000 synthetic non-payer players through L1–60 with defined skill distribution; report: median coin balance by level, % hitting zero-balance moment and where, life-blocked sessions/day. Tune the §13 economy values until the §9.1 pressure target is met. Report committed to `packages/content/_economy_report.json`; re-run on every economy-value PR (CI job).
@@ -359,22 +360,22 @@ Extend the bot harness: simulate 2,000 synthetic non-payer players through L1–
 ## 10. STAGE 2 FEATURES — MONETIZATION
 
 ### 10.1 Rewarded ads ("The Projector Room" + inline placements)
-Inline: double-coins on win screen (📺 x2) · second-chance continue (1/day) · +1 life (2/day) · streak-repair (3 ads). Hub: Projector Room screen with daily wheel (1 free spin + 1 ad spin; prizes: 50–300 coins, 1 booster, 1 life; odds disclosed on tap per P6).
+Inline: double-coins on win screen (📺 ×`[RC rv_double_coins_multiplier, 2]`) · second-chance continue (`[RC second_chance_daily_cap, 1]`/day, §9.4) · +1 life (`[RC rv_life_daily_cap, 2]`/day, §9.2) · streak-repair (`[RC streak_repair_ads, 3]` ads, §8.6). Hub: Projector Room screen with daily wheel (`[RC wheel_free_spins, 1]` free spin + `[RC wheel_ad_spins, 1]` ad spin; prize set and odds from `[RC wheel_prize_table]` — default 50–300 coins, 1 booster, 1 life; odds disclosed on tap per P6, and the disclosure UI reads the live table, never a hardcoded copy).
 Caps: `rv_daily_cap [RC, 8]` per user. Target 3–5 completed RV/DAU. AdMob rewarded units, server-side verification callbacks credit the wallet (§9.1) — never client-granted.
 
 ### 10.2 Interstitials
-Only after level END (win or fail→gave-up), never mid-game, never after Daily Board. Start at level `interstitial_min_level [RC, 12]`, min gap `interstitial_cooldown_s [RC, 180]`, max `interstitial_daily_cap [RC, 10]`, suppressed 24h after any IAP and permanently by remove-ads. These four knobs are THE lever balancing ads ARPDAU vs retention — tune via A/B in soft launch.
+Only after level END (win or fail→gave-up), never mid-game, never after Daily Board. Start at level `interstitial_min_level [RC, 12]`, min gap `interstitial_cooldown_s [RC, 180]`, max `interstitial_daily_cap [RC, 10]`, suppressed for `[RC interstitial_iap_suppress_h, 24]` hours after any IAP and permanently by remove-ads. These four knobs are THE lever balancing ads ARPDAU vs retention — tune via A/B in soft launch.
 
 ### 10.3 IAP catalog (RevenueCat; prices via store price tiers, INR anchors)
 | SKU | Contents | Price | Trigger |
 |---|---|---|---|
-| `starter_pack` | 1,000 coins + 3 boosters (1 each) + Golden Door Knocker cosmetic + 7d ad-free | ₹89 | One-shot offer on first fail at L15±2, 24h timer, reappears once at L25 if unpurchased |
+| `starter_pack` | 1,000 coins + 3 boosters (1 each) + Golden Door Knocker cosmetic + 7d ad-free | ₹89 | One-shot offer on first fail at `starter_pack_trigger_level` ±2, `[RC starter_pack_offer_ttl_h, 24]` timer, reappears once at `[RC starter_pack_repeat_level, 25]` if unpurchased |
 | `coins_s / m / l / xl` | 1,100 / 3,600 / 12,000 / 33,000 coins | ₹89 / 269 / 799 / 1,999 | store; `m` badged MOST POPULAR |
-| `remove_ads` | no interstitials/banners forever (RV stays) | ₹199 | store + post-interstitial "tired of ads?" link (max 1/week) |
-| `streak_freeze` | 1 freeze (max 2 held) | ₹49 | streak screen |
+| `remove_ads` | no interstitials/banners forever (RV stays) | ₹199 | store + post-interstitial "tired of ads?" link (max once per `[RC remove_ads_prompt_cooldown_d, 7]` days) |
+| `streak_freeze` | 1 freeze (max `[RC streak_freeze_max, 2]` held — same key gates §8.6) | ₹49 | streak screen |
 | `chapter_bundle_N` *(S3)* | chapter-themed coins+boosters+cosmetic for returning payers | ₹269 | shown once per chapter to users with ≥1 prior purchase, ≥7d since last purchase; full spec in Stage-3 amendment |
 - Restore purchases mandatory (both stores). All purchases server-validated via RevenueCat webhooks → wallet grant.
-- **Purchase result states:** success → calm receipt screen (contents animate into HUD counters, order line, no upsell); failure/cancel → "you haven't been charged" card with Retry + support link, no guilt framing. Pending-webhook edge: show "delivering…" state ≤10s then optimistic grant with server reconciliation.
+- **Purchase result states:** success → calm receipt screen (contents animate into HUD counters, order line, no upsell); failure/cancel → "you haven't been charged" card with Retry + support link, no guilt framing. Pending-webhook edge: show "delivering…" state for up to `[RC iap_pending_timeout_s, 10]` seconds, then optimistic grant with server reconciliation.
 - No gacha/loot boxes anywhere; wheel prizes are ad-gated not paid (keeps store rating simple + P6).
 
 ### 10.4 Store compliance checklist
@@ -417,8 +418,9 @@ Sky Race (async ladder vs matched ghost), 72h collection events (special tiles o
 **Flags:** `flag_daily_board(S1,on) · flag_endless(S1,on) · flag_share_card(S1,on) · flag_push(S1,on) · flag_economy(S2) · flag_ads(S2) · flag_iap(S2) · flag_manor(S3) · flag_events(S4)`
 **Engine & scoring:** `mercy_threshold .55 · mercy_small_prob .65 · score_clear_base 10 · combo_step .25 · perfect_clear_bonus 300`
 **Daily board:** `daily_piece_count 60 · daily_streak_min_moves 3 · daily_push_hour 8 · streak_repair_price 89`
-**Economy (S2):** `coins_level_win_base 40 · coins_per_star 10 · coins_chest 150 · coins_daily_complete 50 · continue_price_1 900 · continue_price_2 1200 · continue_price_3 1600 · second_chance_daily_cap 1 · booster_price_hammer 600 · booster_price_broom 800 · booster_price_hourglass 500 · life_refill_price 900 · life_regen_minutes 30 · winstreak_thresholds "2:1,3:2,5:2+200"`
-**Ads & IAP (S2):** `interstitial_min_level 12 · interstitial_cooldown_s 180 · interstitial_daily_cap 10 · rv_daily_cap 8 · starter_pack_trigger_level 15`
+**Economy (S2):** `starting_coin_balance 500 · coins_level_win_base 40 · coins_per_star 10 · coins_chest 150 · coins_daily_complete 50 · continue_price_1 900 · continue_price_2 1200 · continue_price_3 1600 · continue_max_per_attempt 3 · second_chance_daily_cap 1 · relief_clear_cells 12 · booster_price_hammer 600 · booster_price_broom 800 · booster_price_hourglass 500 · lives_max 5 · life_refill_price 900 · life_regen_minutes 30 · life_forfeit_min_moves 3 · winstreak_thresholds "2:1,3:2,5:2+200"`
+**Ads (S2):** `interstitial_min_level 12 · interstitial_cooldown_s 180 · interstitial_daily_cap 10 · interstitial_iap_suppress_h 24 · rv_daily_cap 8 · rv_life_daily_cap 2 · rv_double_coins_multiplier 2 · streak_repair_ads 3 · wheel_free_spins 1 · wheel_ad_spins 1 · wheel_prize_table (JSON: prize set + odds; the §10.1 odds disclosure renders from this key)`
+**IAP (S2):** `starter_pack_trigger_level 15 · starter_pack_offer_ttl_h 24 · starter_pack_repeat_level 25 · remove_ads_prompt_cooldown_d 7 · streak_freeze_max 2 · iap_pending_timeout_s 10`
 **App lifecycle:** `min_supported_version · latest_version · maintenance_mode false · review_prompt_enabled true`
 Rules: fetch on cold start + 6h TTL; snapshot into `useConfigStore`; A/B experiments via Firebase A/B on these keys only.
 **Registry completeness rule:** every `[RC]` marker anywhere in this document MUST carry an explicit key name and appear in this registry with its default. An unnamed `[RC]` is a spec defect — flag it as PRD-AMENDMENT-NEEDED rather than inventing a key at the call site.
