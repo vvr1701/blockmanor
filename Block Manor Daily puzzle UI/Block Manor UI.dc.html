@@ -1,0 +1,1870 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0A0E1A}
+@keyframes bm-flicker{0%,100%{opacity:.85;transform:scale(1)}50%{opacity:1;transform:scale(1.06)}}
+@keyframes bm-pulse{0%,100%{transform:scale(1);box-shadow:0 6px 0 #B8801F,0 10px 22px rgba(245,196,81,.35)}50%{transform:scale(1.025);box-shadow:0 6px 0 #B8801F,0 14px 32px rgba(245,196,81,.55)}}
+@keyframes bm-sparkle{0%,100%{opacity:.25;transform:scale(.7)}50%{opacity:1;transform:scale(1.15)}}
+@keyframes bm-glow{0%,100%{opacity:.45}50%{opacity:.85}}
+</style>
+</helmet>
+
+<div style="padding:64px 72px 40px;background:radial-gradient(1400px 800px at 12% 0%,#1B2547 0%,#0A0E1A 68%);font-family:'Nunito',system-ui,sans-serif;min-width:max-content">
+
+  <div style="display:flex;align-items:flex-end;gap:22px;margin:0 0 12px">
+    <div style="font-family:'Baloo 2',system-ui;font-weight:800;font-size:44px;line-height:1;color:#F7E9C8;letter-spacing:-.01em">Systems &amp; LiveOps</div>
+    <div style="font-size:13px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#F5C451;padding-bottom:6px">UI spec v2 · groups A–E</div>
+  </div>
+  <div style="font-size:14.5px;line-height:1.6;color:rgba(247,233,200,.55);max-width:860px;margin:0 0 8px">Everything the core loop hangs off: progression and stage variety, the daily ritual as a standalone habit, the manor meta and story, liveops competition, and the economy. Same palette, buttons and block system as v1 — the core player flow sits below this section.</div>
+
+  <!-- ═══ GROUP A ═══ -->
+  <div style="display:flex;align-items:baseline;gap:14px;margin:52px 0 20px">
+    <div style="font-family:'Baloo 2';font-weight:800;font-size:32px;color:#F5C451;line-height:1">A</div>
+    <div style="font-family:'Baloo 2';font-weight:800;font-size:26px;color:#F7E9C8">Level progression &amp; stages</div>
+    <div style="font-size:13px;color:rgba(247,233,200,.42)">how the core loop is paced</div>
+  </div>
+  <div style="display:flex;gap:44px;align-items:flex-start">
+
+    <div style="flex:none;width:390px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-family:'Baloo 2';font-weight:700;font-size:13px;color:#0E1424;background:#F5C451;border-radius:20px;padding:3px 12px">A1</div>
+        <div style="font-family:'Baloo 2';font-weight:600;font-size:19px;color:#F7E9C8">Level Map</div>
+      </div>
+      <div style="width:390px;height:844px;border-radius:46px;position:relative;overflow:hidden;background:#0E1424;box-shadow:0 0 0 10px #1B2236,0 0 0 11px #414A69,0 30px 70px rgba(0,0,0,.6)">
+        <div style="position:absolute;inset:0;background:radial-gradient(420px 320px at 50% 88%,#233A2C 0%,#151E33 55%,#0C1120 100%)"></div>
+        <div style="position:relative;height:100%;display:flex;flex-direction:column">
+          <div style="height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13px;font-weight:800;color:#F7E9C8"><span>10:18</span><div style="display:flex;gap:6px;align-items:center"><div style="width:16px;height:9px;border-radius:2px;border:1.5px solid rgba(247,233,200,.7)"></div><div style="width:16px;height:9px;border-radius:2px;background:rgba(247,233,200,.7)"></div></div></div>
+          <div style="padding:2px 16px 0">
+            <div style="border-radius:20px;padding:12px 16px;background:linear-gradient(180deg,#3A2A1C,#241A12);border:1px solid rgba(245,196,81,.3);text-align:center;box-shadow:0 8px 22px rgba(0,0,0,.4)">
+              <div style="font-size:10.5px;font-weight:900;letter-spacing:.18em;text-transform:uppercase;color:rgba(245,196,81,.75)">Chapter 1</div>
+              <div style="font-family:'Baloo 2';font-weight:800;font-size:22px;color:#F7E9C8;margin-top:1px">The Overgrown Gardens</div>
+              <div style="margin-top:9px;height:9px;border-radius:6px;background:rgba(0,0,0,.45);overflow:hidden"><div style="width:58%;height:100%;border-radius:6px;background:linear-gradient(90deg,#F7D477,#E7A82F);box-shadow:0 0 12px rgba(245,196,81,.55)"></div></div>
+              <div style="margin-top:6px;font-size:11px;font-weight:800;color:rgba(247,233,200,.5)">23 of 40 levels · next chest at 30</div>
+            </div>
+          </div>
+          <div style="margin:12px 14px 0;height:552px;position:relative;border-radius:24px;overflow:hidden;background:linear-gradient(180deg,#1E2B22 0%,#16203A 60%,#111834 100%);box-shadow:inset 0 0 70px rgba(0,0,0,.55)">
+            <sc-for list="{{ landmarks }}" as="l" hint-placeholder-count="4">
+              <div style="{{ l.style }}"><span style="{{ hatchLbl }}">{{ l.name }}</span></div>
+            </sc-for>
+            <sc-for list="{{ pathDots }}" as="d" hint-placeholder-count="82">
+              <div style="{{ d.style }}"></div>
+            </sc-for>
+            <sc-for list="{{ mapNodes }}" as="n" hint-placeholder-count="10">
+              <div style="{{ n.pos }}">
+                <div style="{{ n.stars }}">
+                  <sc-for list="{{ n.starList }}" as="s" hint-placeholder-count="3"><div style="{{ s.style }}"></div></sc-for>
+                </div>
+                <div style="{{ n.medal }}"><div style="{{ n.lid }}"></div><span style="{{ n.num }}">{{ n.label }}</span></div>
+                <div style="{{ n.tag }}">{{ n.tagText }}</div>
+              </div>
+            </sc-for>
+            <div style="position:absolute;left:0;right:0;top:0;height:70px;background:linear-gradient(180deg,#111834,transparent);pointer-events:none"></div>
+          </div>
+          <div style="flex:1"></div>
+          <div style="padding:0 16px 26px;display:flex;align-items:center;gap:9px">
+            <div style="display:flex;align-items:center;gap:7px;background:rgba(9,13,26,.62);border:1px solid rgba(245,196,81,.3);border-radius:15px;padding:7px 13px 7px 9px"><div style="width:18px;height:18px;border-radius:50%;background:linear-gradient(180deg,#FFF0BE,#D9A128)"></div><span style="font-size:13.5px;font-weight:900;color:#FFD98A">740</span></div>
+            <div style="display:flex;align-items:center;gap:7px;background:rgba(9,13,26,.62);border:1px solid rgba(245,196,81,.3);border-radius:15px;padding:7px 13px 7px 9px"><div style="width:17px;height:17px;background:#F5C451;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)"></div><span style="font-size:13.5px;font-weight:900;color:#FFD98A">4</span></div>
+            <div style="flex:1"></div>
+            <div style="padding:11px 26px;border-radius:18px;background:linear-gradient(180deg,#F7D477,#E7A82F);box-shadow:0 5px 0 #B8801F;font-family:'Baloo 2';font-weight:800;font-size:17px;color:#3A2609">Play 24</div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:12px;line-height:1.5;color:rgba(247,233,200,.45)">Vertical scroll, current node auto-centred on entry. Chest nodes sit between levels so the 10-level rhythm is visible without counting.</div>
+    </div>
+
+    <div style="flex:none;width:390px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-family:'Baloo 2';font-weight:700;font-size:13px;color:#0E1424;background:#F5C451;border-radius:20px;padding:3px 12px">A2</div>
+        <div style="font-family:'Baloo 2';font-weight:600;font-size:19px;color:#F7E9C8">Stage Types</div>
+      </div>
+      <div style="width:390px;height:844px;border-radius:46px;position:relative;overflow:hidden;background:#0E1424;box-shadow:0 0 0 10px #1B2236,0 0 0 11px #414A69,0 30px 70px rgba(0,0,0,.6)">
+        <div style="position:absolute;inset:0;background:radial-gradient(420px 300px at 50% 10%,#26325A 0%,#141B31 55%,#0C1120 100%)"></div>
+        <div style="position:relative;height:100%;display:flex;flex-direction:column">
+          <div style="height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13px;font-weight:800;color:#F7E9C8"><span>10:20</span><div style="display:flex;gap:6px;align-items:center"><div style="width:16px;height:9px;border-radius:2px;border:1.5px solid rgba(247,233,200,.7)"></div><div style="width:16px;height:9px;border-radius:2px;background:rgba(247,233,200,.7)"></div></div></div>
+          <div style="padding:4px 18px 0">
+            <div style="font-family:'Baloo 2';font-weight:800;font-size:25px;color:#F7E9C8">Stage types</div>
+            <div style="font-size:12.5px;font-weight:700;color:rgba(247,233,200,.5);margin-top:2px">Four goal families rotate across Chapter 1–3.</div>
+          </div>
+          <div style="padding:14px 16px 0;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <sc-for list="{{ typeBoards }}" as="b" hint-placeholder-count="4">
+              <div style="border-radius:20px;padding:12px 11px;background:linear-gradient(180deg,rgba(58,42,28,.85),rgba(30,22,15,.9));border:1px solid rgba(245,196,81,.18)">
+                <div style="display:flex;align-items:center;gap:7px">
+                  <div style="{{ b.dot }}"></div>
+                  <div style="font-family:'Baloo 2';font-weight:800;font-size:14px;color:#F7E9C8;line-height:1.15">{{ b.t }}</div>
+                </div>
+                <div style="margin-top:9px;display:flex;align-items:center;gap:8px">
+                  <div style="flex:1;height:8px;border-radius:5px;background:rgba(0,0,0,.45);overflow:hidden"><div style="{{ b.bar }}"></div></div>
+                  <div style="font-size:10.5px;font-weight:900;color:#F5C451;white-space:nowrap">{{ b.g }}</div>
+                </div>
+                <div style="margin-top:10px;padding:8px;border-radius:12px;background:rgba(9,13,26,.72);box-shadow:inset 0 2px 8px rgba(0,0,0,.6)">
+                  <div style="display:grid;grid-template-columns:repeat(8,14px);gap:2px;justify-content:center">
+                    <sc-for list="{{ b.cells }}" as="c" hint-placeholder-count="64">
+                      <div style="{{ c.style }}"><div style="{{ c.inner }}"></div></div>
+                    </sc-for>
+                  </div>
+                </div>
+                <div style="margin-top:9px;font-size:10.5px;line-height:1.4;color:rgba(247,233,200,.45);text-wrap:pretty">{{ b.rule }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="flex:1"></div>
+          <div style="margin:0 16px 26px;padding:12px 14px;border-radius:18px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)">
+            <div style="font-size:12px;font-weight:900;color:#F7E9C8">Mixing rule</div>
+            <div style="font-size:11.5px;line-height:1.5;color:rgba(247,233,200,.5);margin-top:3px">Never more than two goal types on one board. Ivy is always the second type — it creates the urgency, the others create the puzzle.</div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:12px;line-height:1.5;color:rgba(247,233,200,.45)">Reference sheet for the Unity build — obstacle art, goal-bar copy and progress states for all four families.</div>
+    </div>
+
+    <div style="flex:none;width:390px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-family:'Baloo 2';font-weight:700;font-size:13px;color:#0E1424;background:#F5C451;border-radius:20px;padding:3px 12px">A3</div>
+        <div style="font-family:'Baloo 2';font-weight:600;font-size:19px;color:#F7E9C8">Difficulty Blueprint</div>
+      </div>
+      <div style="width:390px;height:844px;border-radius:46px;position:relative;overflow:hidden;background:#0E1424;box-shadow:0 0 0 10px #1B2236,0 0 0 11px #414A69,0 30px 70px rgba(0,0,0,.6)">
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg,#132347,#0C1120)"></div>
+        <div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,rgba(247,233,200,.055) 0 1px,transparent 1px 22px),repeating-linear-gradient(90deg,rgba(247,233,200,.055) 0 1px,transparent 1px 22px)"></div>
+        <div style="position:relative;height:100%;display:flex;flex-direction:column">
+          <div style="height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13px;font-weight:800;color:#F7E9C8"><span>10:22</span><div style="display:flex;gap:6px;align-items:center"><div style="width:16px;height:9px;border-radius:2px;border:1.5px solid rgba(247,233,200,.7)"></div><div style="width:16px;height:9px;border-radius:2px;background:rgba(247,233,200,.7)"></div></div></div>
+          <div style="margin:6px 16px 0;border:1.5px solid rgba(247,233,200,.28);border-radius:20px;padding:16px 14px 14px">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0 2px">
+              <div>
+                <div style="font-family:'Baloo 2';font-weight:800;font-size:20px;color:#F7E9C8">Difficulty — Levels 1–50</div>
+                <div style="font-size:10.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:rgba(247,233,200,.4);margin-top:2px">Ashfield Estate · sheet 1 of 3</div>
+              </div>
+              <div style="font-size:10px;font-weight:900;color:rgba(247,233,200,.35);border:1px solid rgba(247,233,200,.25);border-radius:8px;padding:3px 7px">Rev. C</div>
+            </div>
+            <div style="margin-top:18px;height:230px;position:relative;padding-left:2px">
+              <sc-for list="{{ zones }}" as="z" hint-placeholder-count="2">
+                <div style="{{ z.style }}"></div>
+              </sc-for>
+              <div style="position:absolute;left:0;right:0;bottom:0;display:flex;align-items:flex-end;gap:2px;height:230px">
+                <sc-for list="{{ diffBars }}" as="b" hint-placeholder-count="50">
+                  <div style="{{ b.style }}"></div>
+                </sc-for>
+              </div>
+              <sc-for list="{{ pins }}" as="p" hint-placeholder-count="3">
+                <div style="{{ p.style }}"><div style="{{ p.dot }}">{{ p.n }}</div></div>
+              </sc-for>
+            </div>
+            <div style="margin-top:6px;height:1.5px;background:rgba(247,233,200,.28)"></div>
+            <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;font-weight:800;color:rgba(247,233,200,.4)">
+              <span>L1</span><span>L10</span><span>L20</span><span>L30</span><span>L40</span><span>L50</span>
+            </div>
+            <div style="display:flex;gap:14px;margin-top:12px;padding-top:11px;border-top:1px dashed rgba(247,233,200,.2)">
+              <div style="display:flex;align-items:center;gap:6px"><div style="width:10px;height:10px;border-radius:3px;background:rgba(79,174,132,.5)"></div><span style="font-size:10.5px;font-weight:800;color:rgba(247,233,200,.5)">Boosters unlock L8</span></div>
+              <div style="display:flex;align-items:center;gap:6px"><div style="width:10px;height:10px;border-radius:3px;background:rgba(226,87,76,.5)"></div><span style="font-size:10.5px;font-weight:800;color:rgba(247,233,200,.5)">Coin pressure L22+</span></div>
+            </div>
+          </div>
+          <div style="margin:14px 16px 0;display:flex;flex-direction:column;gap:10px">
+            <sc-for list="{{ pinLegend }}" as="p" hint-placeholder-count="3">
+              <div style="display:flex;gap:11px;align-items:flex-start;padding:11px 13px;border-radius:16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)">
+                <div style="{{ p.dot }}">{{ p.n }}</div>
+                <div style="flex:1;font-size:12px;line-height:1.5;font-weight:700;color:rgba(247,233,200,.7);text-wrap:pretty">{{ p.txt }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="flex:1"></div>
+          <div style="margin:0 16px 26px;padding:12px 14px;border-radius:16px;background:rgba(245,196,81,.1);border:1px solid rgba(245,196,81,.3);font-size:11.5px;line-height:1.5;font-weight:700;color:#F7E9C8">Target: 82% of players reach L15 in session 1–2. First fail lands there by design — every monetisation beat downstream depends on it.</div>
+        </div>
+      </div>
+      <div style="font-size:12px;line-height:1.5;color:rgba(247,233,200,.45)">Design doc surfaced as an in-world artefact — usable in the pitch deck as-is.</div>
+    </div>
+
+    <div style="flex:none;width:390px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-family:'Baloo 2';font-weight:700;font-size:13px;color:#0E1424;background:#F5C451;border-radius:20px;padding:3px 12px">A4</div>
+        <div style="font-family:'Baloo 2';font-weight:600;font-size:19px;color:#F7E9C8">Pre-Level</div>
+      </div>
+      <div style="width:390px;height:844px;border-radius:46px;position:relative;overflow:hidden;background:#0E1424;box-shadow:0 0 0 10px #1B2236,0 0 0 11px #414A69,0 30px 70px rgba(0,0,0,.6)">
+        <div style="position:absolute;inset:0;background:radial-gradient(420px 320px at 50% 80%,#233A2C 0%,#151E33 55%,#0C1120 100%)"></div>
+        <div style="position:absolute;inset:0;background:rgba(8,11,22,.7)"></div>
+        <div style="position:relative;height:100%;display:flex;flex-direction:column">
+          <div style="height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13px;font-weight:800;color:rgba(247,233,200,.8)"><span>10:24</span><div style="display:flex;gap:6px;align-items:center"><div style="width:16px;height:9px;border-radius:2px;border:1.5px solid rgba(247,233,200,.6)"></div><div style="width:16px;height:9px;border-radius:2px;background:rgba(247,233,200,.6)"></div></div></div>
+          <div style="flex:1"></div>
+          <div style="margin:0 20px;border-radius:30px;padding:26px 22px 24px;background:linear-gradient(180deg,#FBF3E2,#EBDCBD);box-shadow:0 22px 54px rgba(0,0,0,.6);position:relative">
+            <div style="position:absolute;top:-14px;right:18px;width:30px;height:30px;border-radius:50%;background:rgba(42,30,18,.1);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:rgba(42,30,18,.45)">✕</div>
+            <div style="text-align:center">
+              <div style="font-size:11px;font-weight:900;letter-spacing:.18em;text-transform:uppercase;color:#9C7A3C">Chapter 1 · The Overgrown Gardens</div>
+              <div style="font-family:'Baloo 2';font-weight:800;font-size:42px;line-height:1.1;color:#2A1E12;margin-top:2px">Level 24</div>
+              <div style="display:flex;gap:3px;justify-content:center;margin-top:6px">
+                <div style="width:18px;height:18px;background:rgba(42,30,18,.16);clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)"></div>
+                <div style="width:18px;height:18px;background:rgba(42,30,18,.16);clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)"></div>
+                <div style="width:18px;height:18px;background:rgba(42,30,18,.16);clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)"></div>
+              </div>
+            </div>
+            <div style="margin-top:18px;display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:18px;background:rgba(42,30,18,.07)">
+              <div style="width:44px;height:44px;border-radius:11px;background:linear-gradient(180deg,#B98453,#7A4E2B);box-shadow:inset 0 2px 0 rgba(255,255,255,.25),inset 0 -3px 0 rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center"><div style="width:26px;height:5px;background:rgba(0,0,0,.35);transform:rotate(-40deg);border-radius:2px"></div></div>
+              <div style="flex:1"><div style="font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:#9C7A3C">Goal</div><div style="font-family:'Baloo 2';font-weight:800;font-size:20px;color:#2A1E12;line-height:1.15">Clear 12 crates</div></div>
+              <div style="font-size:12px;font-weight:900;color:#7A5C2E;text-align:right;line-height:1.3">30<br><span style="font-size:10px;font-weight:800;color:rgba(42,30,18,.45)">moves</span></div>
+            </div>
+            <div style="margin-top:16px;display:flex;align-items:center;gap:9px">
+              <div style="display:flex;align-items:center;gap:7px;background:linear-gradient(180deg,#F7D477,#E7A82F);border-radius:14px;padding:6px 13px 6px 8px;box-shadow:0 3px 0 #B8801F">
+                <div style="width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 50% 65%,#FFF0BE,#F0803C 60%,#C1401F);animation:bm-flicker 1.4s ease-in-out infinite"></div>
+                <span style="font-size:13.5px;font-weight:900;color:#3A2609">Streak x3</span>
+              </div>
+              <div style="flex:1;font-size:11.5px;line-height:1.4;font-weight:700;color:rgba(42,30,18,.55)">Two boosters are on the house — win to keep the streak.</div>
+            </div>
+            <div style="margin-top:16px;display:flex;gap:14px;justify-content:center">
+              <sc-for list="{{ boosterSlots }}" as="s" hint-placeholder-count="3">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:7px">
+                  <div style="{{ s.tile }}"><div style="{{ s.icon }}"></div><span style="{{ s.plus }}">+</span></div>
+                  <div style="{{ s.label }}">{{ s.name }}</div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="margin-top:20px;padding:19px;border-radius:22px;text-align:center;background:linear-gradient(180deg,#F7D477,#E7A82F);box-shadow:0 7px 0 #B8801F,0 14px 30px rgba(0,0,0,.25);font-family:'Baloo 2';font-weight:800;font-size:26px;color:#3A2609;letter-spacing:.02em;animation:bm-pulse 2.4s ease-in-out infinite">PLAY</div>
+          </div>
+          <div style="flex:1"></div>
+          <div style="padding:0 20px 30px;display:flex;align-items:center;justify-content:center;gap:8px">
+            <div style="width:18px;height:18px;border-radius:50%;background:linear-gradient(180deg,#FFF0BE,#D9A128)"></div>
+            <span style="font-size:13px;font-weight:800;color:rgba(247,233,200,.65)">740</span>
+            <div style="width:17px;height:17px;background:#F5C451;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);margin-left:10px"></div>
+            <span style="font-size:13px;font-weight:800;color:rgba(247,233,200,.65)">4</span>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:12px;line-height:1.5;color:rgba(247,233,200,.45)">The third slot is the ask — tapping it opens the booster shelf, which is where pre-level coin spend happens.</div>
+    </div>
+  </div>
+
+  <!-- ═══ GROUP B ═══ -->
+  <div style="display:flex;align-items:baseline;gap:14px;margin:60px 0 20px">
+    <div style="font-family:'Baloo 2';font-weight:800;font-size:32px;color:#F5C451;line-height:1">B</div>
+    <div style="font-family:'Baloo 2';font-weight:800;font-size:26px;color:#F7E9C8">The daily ritual</div>
+    <div style="font-size:13px;color:rgba(247,233,200,.42)">the habit that runs without the meta</div>
+  </div>
+  <div style="display:flex;gap:44px;align-items:flex-start">
+
+    <div style="flex:none;width:390px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-family:'Baloo 2';font-weight:700;font-size:13px;color:#0E1424;background:#F5C451;border-radius:20px;padding:3px 12px">B1</div>
+        <div style="font-family:'Baloo 2';font-weight:600;font-size:19px;color:#F7E9C8">Daily Gate</div>
+      </div>
+      <div style="width:390px;height:844px;border-radius:46px;position:relative;overflow:hidden;background:#0E1424;box-shadow:0 0 0 10px #1B2236,0 0 0 11px #414A69,0 30px 70px rgba(0,0,0,.6)">
+        <div style="position:absolute;inset:0;background:radial-gradient(400px 340px at 50% 26%,#2C2145 0%,#151B33 55%,#0C1120 100%)"></div>
+        <div style="position:absolute;top:150px;left:50%;width:300px;height:300px;margin-left:-150px;border-radius:50%;background:radial-gradient(circle,rgba(245,196,81,.2),transparent 70%);animation:bm-glow 3.4s ease-in-out infinite"></div>
+        <div style="position:relative;height:100%;display:flex;flex-direction:column">
+          <div style="height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13px;font-weight:800;color:#F7E9C8"><span>9:41</span><div style="display:flex;gap:6px;align-items:center"><div style="width:16px;height:9px;border-radius:2px;border:1.5px solid rgba(247,233,200,.7)"></div><div style="width:16px;height:9px;border-radius:2px;background:rgba(247,233,200,.7)"></div></div></div>
+          <div style="text-align:center;padding:18px 24px 0">
+            <div style="font-size:11.5px;font-weight:900;letter-spacing:.2em;text-transform:uppercase;color:rgba(245,196,81,.8)">Daily Board</div>
+            <div style="font-family:'Baloo 2';font-weight:800;font-size:34px;line-height:1.15;color:#F7E9C8;margin-top:4px">Today's Board<br>July 30</div>
+            <div style="display:inline-flex;align-items:center;gap:8px;margin-top:10px;background:rgba(245,196,81,.13);border:1px solid rgba(245,196,81,.32);border-radius:15px;padding:6px 14px">
+              <div style="width:7px;height:7px;border-radius:50%;background:#F5C451;animation:bm-sparkle 1.4s ease-in-out infinite"></div>
+              <span style="font-size:13.5px;font-weight:900;color:#F5C451">Resets in {{ dailyClock }}</span>
+            </div>
+          </div>
+          <div style="margin:20px auto 0;width:262px;height:190px;border-radius:22px;background:repeating-linear-gradient(135deg,rgba(247,233,200,.13) 0 8px,rgba(247,233,200,.035) 8px 16px);border:1px solid rgba(247,233,200,.2);display:flex;align-items:flex-end;justify-content:center;padding-bottom:10px;box-shadow:0 0 60px rgba(245,196,81,.18)">
+            <span style="font:600 10px ui-monospace,Menlo,monospace;color:rgba(247,233,200,.5);text-align:center">daily key art —<br>lit manor doorway</span>
+          </div>
+          <div style="margin:18px 20px 0;padding:12px 16px;border-radius:16px;background:linear-gradient(180deg,rgba(245,196,81,.2),rgba(245,196,81,.06));border:1px solid rgba(245,196,81,.32);text-align:center">
+            <div style="font-family:'Baloo 2';font-weight:800;font-size:16px;color:#F7E9C8">One attempt — same board as the whole world</div>
+          </div>
+          <div style="margin:14px 20px 0;display:flex;gap:10px">
+            <div style="flex:1;padding:12px;border-radius:16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);text-align:center">
+              <div style="font-size:10.5px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:rgba(247,233,200,.4)">Yesterday</div>
+              <div style="font-family:'Baloo 2';font-weight:800;font-size:21px;color:#4FAE84;margin-top:2px">Top 18%</div>
+            </div>
+            <div style="flex:1;padding:12px;border-radius:16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);text-align:center">
+              <div style="font-size:10.5px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:rgba(247,233,200,.4)">Streak</div>
+              <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-top:2px">
+                <div style="width:18px;height:18px;border-radius:50%;background:radial-gradient(circle at 50% 65%,#FFE08A,#F0803C 60%,#C1401F);animation:bm-flicker 1.6s ease-in-out infinite"></div>
+                <span style="font-family:'Baloo 2';font-weight:800;font-size:21px;color:#FFD98A">{{ streakDays }} days</span>
+              </div>
+            </div>
+          </div>
+          <div style="margin:14px 20px 0;padding:12px 14px;border-radius:18px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07)">
+            <div style="font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:rgba(247,233,200,.4);margin-bottom:9px">Friends already played</div>
+            <div style="display:flex;justify-content:space-around">
+              <sc-for list="{{ friends }}" as="f" hint-placeholder-count="3">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:5px">
+                  <div style="width:38px;height:38px;border-radius:50%;border:2px solid #F5C451;background:{{ f.av }}"></div>
+                  <div style="font-size:11px;font-weight:900;color:rgba(247,233,200,.75)">{{ f.score }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="flex:1"></div>
+          <div style="padding:0 20px 30px">
+            <div style="padding:19px;border-radius:22px;text-align:center;background:linear-gradient(180deg,#F7D477,#E7A82F);box-shadow:0 7px 0 #B8801F,0 14px 32px rgba(245,196,81,.35);font-family:'Baloo 2';font-weight:800;font-size:21px;color:#3A2609;animation:bm-pulse 2.3s ease-in-out infinite">PLAY TODAY'S BOARD</div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:12px;line-height:1.5;color:rgba(247,233,200,.45)">Hard gate — no way past it without playing or backing out, so the daily is never accidentally skipped.</div>
+    </div>
+
+    <div style="flex:none;width:390px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-family:'Baloo 2';font-weight:700;font-size:13px;color:#0E1424;background:#F5C451;border-radius:20px;padding:3px 12px">B2</div>
+        <div style="font-family:'Baloo 2';font-weight:600;font-size:19px;color:#F7E9C8">Share Asset</div>
+      </div>
+      <div style="width:390px;height:844px;border-radius:46px;position:relative;overflow:hidden;background:#0E1424;box-shadow:0 0 0 10px #1B2236,0 0 0 11px #414A69,0 30px 70px rgba(0,0,0,.6)">
+        <div style="position:absolute;inset:0;background:radial-gradient(420px 300px at 50% 12%,#26325A 0%,#141B31 55%,#0C1120 100%)"></div>
+        <div style="position:relative;height:100%;display:flex;flex-direction:column">
+          <div style="height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13px;font-weight:800;color:#F7E9C8"><span>9:53</span><div style="display:flex;gap:6px;align-items:center"><div style="width:16px;height:9px;border-radius:2px;border:1.5px solid rgba(247,233,200,.7)"></div><div style="width:16px;height:9px;border-radius:2px;background:rgba(247,233,200,.7)"></div></div></div>
+          <div style="padding:4px 20px 0">
+            <div style="font-family:'Baloo 2';font-weight:800;font-size:22px;color:#F7E9C8">Share card</div>
+            <div style="font-size:11.5px;font-weight:800;color:rgba(247,233,200,.45);margin-top:1px">1080×1080 export · spoiler-free</div>
+          </div>
+          <div style="margin:12px 20px 0;border-radius:24px;padding:14px 16px 12px;background:linear-gradient(180deg,#FBF3E2,#EFE1C4);box-shadow:0 14px 34px rgba(0,0,0,.5)">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <div style="display:flex;align-items:center;gap:8px">
+                <div style="width:26px;height:26px;border-radius:8px;background:linear-gradient(180deg,#F7D477,#C9902F);box-shadow:inset 0 2px 0 rgba(255,255,255,.5)"></div>
+                <div style="font-family:'Baloo 2';font-weight:800;font-size:16px;color:#2A1E12">Block Manor</div>
+              </div>
+              <div style="font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:#9C7A3C">#DAILY 214</div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(8,24px);gap:3px;justify-content:center;margin:12px 0 2px">
+              <sc-for list="{{ shareBig }}" as="c" hint-placeholder-count="64">
+                <div style="{{ c.style }}"></div>
+              </sc-for>
+            </div>
+            <div style="text-align:center;margin-top:10px">
+              <div style="font-family:'Baloo 2';font-weight:800;font-size:38px;line-height:1;color:#2A1E12">8,420</div>
+              <div style="font-size:13px;font-weight:900;color:#7A5C2E;margin-top:4px">Top 11% · 🔥 {{ streakDays }} day streak</div>
+              <div style="font-size:11px;font-weight:700;color:rgba(42,30,18,.45);margin-top:6px">blockmanor.game — July 30</div>
+            </div>
+          </div>
+          <div style="padding:13px 20px 0;font-size:11px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:rgba(247,233,200,.38)">In a WhatsApp chat</div>
+          <div style="margin:9px 20px 0;border-radius:20px;padding:12px;background:#0D1B14;border:1px solid rgba(255,255,255,.06)">
+            <div style="display:flex;justify-content:flex-end">
+              <div style="max-width:250px;border-radius:16px 16px 4px 16px;background:#1F4A38;padding:8px 8px 6px">
+                <div style="border-radius:11px;background:#FBF3E2;padding:10px 10px 8px">
+                  <div style="display:grid;grid-template-columns:repeat(8,12px);gap:2px;justify-content:center">
+                    <sc-for list="{{ shareSmall }}" as="c" hint-placeholder-count="64">
+                      <div style="{{ c.style }}"></div>
+                    </sc-for>
+                  </div>
+                  <div style="text-align:center;margin-top:8px">
+                    <div style="font-family:'Baloo 2';font-weight:800;font-size:20px;line-height:1;color:#2A1E12">8,420</div>
+                    <div style="font-size:9.5px;font-weight:900;color:#7A5C2E;margin-top:3px">Top 11% · 🔥 {{ streakDays }} · Block Manor</div>
+                  </div>
+                </div>
+                <div style="font-size:12px;font-weight:600;color:#E6F3EC;padding:7px 4px 0;line-height:1.4">beat that 😤 blockmanor.game/d214</div>
+                <div style="text-align:right;font-size:9.5px;font-weight:700;color:rgba(230,243,236,.5);padding-right:2px">9:53 ✓✓</div>
+              </div>
+            </div>
+          </div>
+          <div style="flex:1"></div>
+          <div style="margin:0 20px 26px;padding:11px 14px;border-radius:16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);font-size:11.5px;line-height:1.45;font-weight:700;color:rgba(247,233,200,.55);text-wrap:pretty">Colours encode block types, never positions — the board can't be reverse-engineered. The link deep-links into today's board.</div>
+        </div>
+      </div>
+      <div style="font-size:12px;line-height:1.5;color:rgba(247,233,200,.45)">The whole acquisition loop lives in this one image. It must read at thumbnail size in a chat list.</div>
+    </div>
+
+    <div style="flex:none;width:390px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-family:'Baloo 2';font-weight:700;font-size:13px;color:#0E1424;background:#F5C451;border-radius:20px;padding:3px 12px">B3</div>
+        <div style="font-family:'Baloo 2';font-weight:600;font-size:19px;color:#F7E9C8">Streak Calendar</div>
+      </div>
+      <div style="width:390px;height:844px;border-radius:46px;position:relative;overflow:hidden;background:#0E1424;box-shadow:0 0 0 10px #1B2236,0 0 0 11px #414A69,0 30px 70px rgba(0,0,0,.6)">
+        <div style="position:absolute;inset:0;background:radial-gradient(400px 320px at 50% 18%,#3A2A45 0%,#151B33 55%,#0C1120 100%)"></div>
+        <div style="position:relative;height:100%;display:flex;flex-direction:column">
+          <div style="height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13px;font-weight:800;color:#F7E9C8"><span>9:55</span><div style="display:flex;gap:6px;align-items:center"><div style="width:16px;height:9px;border-radius:2px;border:1.5px solid rgba(247,233,200,.7)"></div><div style="width:16px;height:9px;border-radius:2px;background:rgba(247,233,200,.7)"></div></div></div>
+          <div style="text-align:center;padding:14px 20px 0">
+            <div style="width:74px;height:74px;margin:0 auto;border-radius:50%;background:radial-gradient(circle at 50% 65%,#FFE08A,#F0803C 58%,#B23B33);box-shadow:0 0 40px rgba(240,128,60,.6);animation:bm-flicker 1.5s ease-in-out infinite"></div>
+            <div style="font-family:'Baloo 2';font-weight:800;font-size:44px;line-height:1.1;color:#FFD98A;margin-top:10px">{{ streakDays }} days</div>
+            <div style="font-size:13px;font-weight:800;color:rgba(247,233,200,.55)">Played every day since July 19</div>
+          </div>
+          <div style="margin:16px 18px 0;padding:14px;border-radius:22px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+              <div style="font-family:'Baloo 2';font-weight:800;font-size:17px;color:#F7E9C8">July 2026</div>
+              <div style="font-size:11px;font-weight:900;color:rgba(247,233,200,.4)">12 of 31 played</div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:7px">
+              <div style="text-align:center;font-size:9.5px;font-weight:900;color:rgba(247,233,200,.3)">S</div>
+              <div style="text-align:center;font-size:9.5px;font-weight:900;color:rgba(247,233,200,.3)">M</div>
+              <div style="text-align:center;font-size:9.5px;font-weight:900;color:rgba(247,233,200,.3)">T</div>
+              <div style="text-align:center;font-size:9.5px;font-weight:900;color:rgba(247,233,200,.3)">W</div>
+              <div style="text-align:center;font-size:9.5px;font-weight:900;color:rgba(247,233,200,.3)">T</div>
+              <div style="text-align:center;font-size:9.5px;font-weight:900;color:rgba(247,233,200,.3)">F</div>
+              <div style="text-align:center;font-size:9.5px;font-weight:900;color:rgba(247,233,200,.3)">S</div>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px">
+              <sc-for list="{{ monthDays }}" as="d" hint-placeholder-count="35">
+                <div style="{{ d.style }}">
+                  <div style="{{ d.num }}">{{ d.n }}</div>
+                  <div style="{{ d.flame }}"></div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="margin:14px 18px 0;display:flex;gap:10px">
+            <div style="flex:1;display:flex;align-items:center;gap:9px;padding:11px 13px;border-radius:16px;background:rgba(76,134,214,.15);border:1px solid rgba(76,134,214,.4)">
+              <div style="width:26px;height:26px;border-radius:8px;background:linear-gradient(180deg,#BFE3F5,#4C86D6);box-shadow:0 0 14px rgba(76,134,214,.6)"></div>
+              <div style="line-height:1.15"><div style="font-size:12.5px;font-weight:900;color:#BFE3F5">Streak Freeze</div><div style="font-size:10px;font-weight:800;color:rgba(191,227,245,.6)">1 equipped</div></div>
+            </div>
+            <div style="flex:1;padding:11px 13px;border-radius:16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)">
+              <div style="font-size:10px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:rgba(247,233,200,.4)">Longest</div>
+              <div style="font-family:'Baloo 2';font-weight:800;font-size:20px;color:#F7E9C8;line-height:1.2">23 days</div>
+            </div>
+          </div>
+          <div style="padding:18px 18px 0">
+            <div style="font-size:11px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:rgba(247,233,200,.38);margin-bottom:10px">Milestone rewards</div>
+            <div style="display:flex;gap:10px">
+              <sc-for list="{{ milestones }}" as="m" hint-placeholder-count="3">
+                <div style="{{ m.card }}">
+                  <div style="{{ m.chest }}"><div style="{{ m.band }}"></div></div>
+                  <div style="font-size:12px;font-weight:900;color:#F7E9C8;margin-top:8px">{{ m.d }}</div>
+                  <div style="{{ m.state }}">{{ m.s }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="flex:1"></div>
+          <div style="padding:0 18px 30px">
+            <div style="padding:16px;border-radius:20px;text-align:center;background:linear-gradient(180deg,#F7D477,#E7A82F);box-shadow:0 6px 0 #B8801F;font-family:'Baloo 2';font-weight:800;font-size:19px;color:#3A2609">Play today's board</div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:12px;line-height:1.5;color:rgba(247,233,200,.45)">Streak Freeze is earned, never sold — it protects the habit without letting players buy their way out of it.</div>
+    </div>
+  </div>
+
+  <!-- ═══ GROUP C ═══ -->
+  <div style="display:flex;align-items:baseline;gap:14px;margin:60px 0 20px">
+    <div style="font-family:'Baloo 2';font-weight:800;font-size:32px;color:#F5C451;line-height:1">C</div>
+    <div style="font-family:'Baloo 2';font-weight:800;font-size:26px;color:#F7E9C8">The manor &amp; story</div>
+    <div style="font-size:13px;color:rgba(247,233,200,.42)">what the stars are for</div>
+  </div>
+  <div style="display:flex;gap:44px;align-items:flex-start">
+
+    <div style="flex:none;width:390px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-family:'Baloo 2';font-weight:700;font-size:13px;color:#0E1424;background:#F5C451;border-radius:20px;padding:3px 12px">C1</div>
+        <div style="font-family:'Baloo 2';font-weight:600;font-size:19px;color:#F7E9C8">Manor Overview</div>
+      </div>
+      <div style="width:390px;height:844px;border-radius:46px;position:relative;overflow:hidden;background:#0E1424;box-shadow:0 0 0 10px #1B2236,0 0 0 11px #414A69,0 30px 70px rgba(0,0,0,.6)">
+        <div style="position:absolute;inset:0;background:radial-gradient(420px 340px at 50% 40%,#232C50 0%,#141B31 55%,#0C1120 100%)"></div>
+        <div style="position:relative;height:100%;display:flex;flex-direction:column">
+          <div style="height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13px;font-weight:800;color:#F7E9C8"><span>10:30</span><div style="display:flex;gap:6px;align-items:center"><div style="width:16px;height:9px;border-radius:2px;border:1.5px solid rgba(247,233,200,.7)"></div><div style="width:16px;height:9px;border-radius:2px;background:rgba(247,233,200,.7)"></div></div></div>
+          <div style="padding:2px 18px 0;display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <div style="font-family:'Baloo 2';font-weight:800;font-size:24px;color:#F7E9C8;line-height:1.15">Ashfield Manor</div>
+              <div style="font-size:11.5px;font-weight:800;color:rgba(247,233,200,.45)">3 of 9 areas open · 42% restored</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:7px;background:linear-gradient(180deg,#2A3358,#1C2340);border:1px solid rgba(245,196,81,.35);border-radius:15px;padding:7px 13px 7px 9px">
+              <div style="width:20px;height:20px;background:#F5C451;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);box-shadow:0 0 12px rgba(245,196,81,.7)"></div>
+              <span style="font-family:'Baloo 2';font-weight:800;font-size:19px;color:#FFD98A">4</span>
+            </div>
+          </div>
+          <div style="margin:16px 16px 0;position:relative">
+            <div style="height:34px;background:linear-gradient(180deg,#6B4A2E,#4A3220);clip-path:polygon(8% 100%,50% 0,92% 100%);margin:0 -2px"></div>
+            <div style="border-radius:0 0 22px 22px;padding:12px;background:linear-gradient(180deg,#2A2035,#1A1628);border:2px solid #4A3220;border-top:none;box-shadow:inset 0 0 40px rgba(0,0,0,.6)">
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                <sc-for list="{{ manorRooms }}" as="r" hint-placeholder-count="6">
+                  <div style="{{ r.card }}">
+                    <div style="{{ r.art }}"><span style="{{ hatchLbl }}">{{ r.artName }}</span></div>
+                    <div style="{{ r.bar }}"><div style="{{ r.fill }}"></div></div>
+                    <div style="{{ r.name }}"><span>{{ r.n }}</span><span>{{ r.pct }}</span></div>
+                    <div style="{{ r.boards }}"></div>
+                    <div style="{{ r.lock }}">🔒 {{ r.pct }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <div style="margin:16px 18px 0;padding:13px 15px;border-radius:18px;background:linear-gradient(180deg,rgba(245,196,81,.16),rgba(245,196,81,.05));border:1px solid rgba(245,196,81,.3);display:flex;align-items:center;gap:12px">
+            <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(180deg,#4A3524,#2A1D14);border:1px solid rgba(245,196,81,.4);display:flex;align-items:center;justify-content:center"><div style="width:18px;height:18px;background:#F5C451;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)"></div></div>
+            <div style="flex:1"><div style="font-size:13px;font-weight:900;color:#F7E9C8">Next: the Kitchen pantry</div><div style="font-size:11px;font-weight:700;color:rgba(247,233,200,.5);margin-top:1px">Costs 2 stars · you have 4</div></div>
+            <div style="padding:9px 16px;border-radius:14px;background:linear-gradient(180deg,#F7D477,#E7A82F);box-shadow:0 4px 0 #B8801F;font-family:'Baloo 2';font-weight:800;font-size:14px;color:#3A2609">Go</div>
+          </div>
+          <div style="flex:1"></div>
+          <div style="padding:0 18px 30px">
+            <div style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:18px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)">
+              <div style="width:34px;height:34px;border-radius:11px;background:repeating-linear-gradient(135deg,rgba(247,233,200,.16) 0 6px,rgba(247,233,200,.05) 6px 12px);border:1px solid rgba(247,233,200,.2)"></div>
+              <div style="flex:1;font-size:11.5px;line-height:1.45;font-weight:700;color:rgba(247,233,200,.55)">Chapter 4 unlocks the west wing — and whatever the previous owner sealed in it.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:12px;line-height:1.5;color:rgba(247,233,200,.45)">Dollhouse cutaway makes long-term progress legible in one glance — the boarded rooms are the retention promise.</div>
+    </div>
+
+    <div style="flex:none;width:390px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-family:'Baloo 2';font-weight:700;font-size:13px;color:#0E1424;background:#F5C451;border-radius:20px;padding:3px 12px">C2</div>
+        <div style="font-family:'Baloo 2';font-weight:600;font-size:19px;color:#F7E9C8">Renovation Choice</div>
+      </div>
+      <div style="width:390px;height:844px;border-radius:46px;position:relative;overflow:hidden;background:#0E1424;box-shadow:0 0 0 10px #1B2236,0 0 0 11px #414A69,0 30px 70px rgba(0,0,0,.6)">
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg,#1A1428,#0C1120)"></div>
+        <div style="position:relative;height:100%;display:flex;flex-direction:column">
+          <div style="height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13px;font-weight:800;color:#F7E9C8"><span>10:33</span><div style="display:flex;gap:6px;align-items:center"><div style="width:16px;height:9px;border-radius:2px;border:1.5px solid rgba(247,233,200,.7)"></div><div style="width:16px;height:9px;border-radius:2px;background:rgba(247,233,200,.7)"></div></div></div>
+          <div style="padding:2px 18px 0;display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <div style="font-family:'Baloo 2';font-weight:800;font-size:21px;color:#F7E9C8;line-height:1.15">The Library fireplace</div>
+              <div style="font-size:11.5px;font-weight:800;color:rgba(247,233,200,.45)">Step 4 of 6</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:7px;background:linear-gradient(180deg,#2A3358,#1C2340);border:1px solid rgba(245,196,81,.35);border-radius:15px;padding:7px 13px 7px 9px">
+              <div style="width:20px;height:20px;background:#F5C451;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)"></div>
+              <span style="font-family:'Baloo 2';font-weight:800;font-size:19px;color:#FFD98A">4</span>
+            </div>
+          </div>
+          <div style="margin:14px 14px 0;height:300px;border-radius:24px;position:relative;overflow:hidden;background:linear-gradient(180deg,#3B2A1E,#1A1310);box-shadow:inset 0 0 60px rgba(0,0,0,.7)">
+            <div style="position:absolute;inset:0;display:flex">
+              <div style="width:52%;position:relative;background:radial-gradient(200px 200px at 60% 70%,rgba(255,200,110,.3),transparent 75%)">
+                <div style="position:absolute;left:14px;top:14px;background:rgba(9,13,26,.6);border:1px solid rgba(245,196,81,.35);border-radius:11px;padding:4px 10px;font-size:10.5px;font-weight:900;color:#F5C451">After</div>
+              </div>
+              <div style="width:48%;position:relative;background:rgba(20,24,40,.6);filter:grayscale(1) brightness(.7)">
+                <div style="position:absolute;left:14px;top:14px;background:rgba(9,13,26,.6);border:1px solid rgba(255,255,255,.18);border-radius:11px;padding:4px 10px;font-size:10.5px;font-weight:900;color:rgba(247,233,200,.6)">Before</div>
+              </div>
+            </div>
+            <div style="position:absolute;left:50%;bottom:0;margin-left:-64px;width:128px;height:126px;border-radius:64px 64px 6px 6px;background:linear-gradient(180deg,#6B4A2E,#3E2A1A);box-shadow:inset 0 3px 0 rgba(245,196,81,.3)">
+              <div style="position:absolute;left:18px;right:18px;bottom:0;height:84px;border-radius:46px 46px 4px 4px;background:radial-gradient(circle at 50% 100%,#FFD98A,#F0803C 45%,#7A2A12 90%);animation:bm-glow 2.2s ease-in-out infinite"></div>
+            </div>
+            <div style="position:absolute;left:52%;top:0;bottom:0;width:3px;background:rgba(251,243,226,.9);box-shadow:0 0 16px rgba(255,255,255,.5)"></div>
+            <div style="position:absolute;left:52%;top:50%;margin-left:-19px;margin-top:-19px;width:38px;height:38px;border-radius:50%;background:#FBF3E2;box-shadow:0 4px 14px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;color:#7A5C2E;letter-spacing:-.06em">‹ ›</div>
+            <div style="position:absolute;right:12px;bottom:12px;font:600 9.5px ui-monospace,Menlo,monospace;color:rgba(247,233,200,.45)">drag to compare</div>
+          </div>
+          <div style="padding:18px 18px 0">
+            <div style="display:flex;align-items:baseline;justify-content:space-between">
+              <div style="font-family:'Baloo 2';font-weight:800;font-size:19px;color:#F7E9C8">Pick a style</div>
+              <div style="display:flex;align-items:center;gap:6px;background:rgba(245,196,81,.14);border:1px solid rgba(245,196,81,.3);border-radius:12px;padding:4px 10px">
+                <div style="width:14px;height:14px;background:#F5C451;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)"></div>
+                <span style="font-size:12px;font-weight:900;color:#F5C451">Costs 2</span>
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;margin-top:12px">
+              <sc-for list="{{ renoOptions }}" as="o" hint-placeholder-count="3">
+                <div style="{{ o.card }}" onClick="{{ o.pick }}">
+                  <div style="{{ o.check }}">✓</div>
+                  <div style="{{ o.art }}"><div style="{{ o.arch }}"></div></div>
+                  <div style="font-family:'Baloo 2';font-weight:700;font-size:12.5px;color:#2A1E12;margin-top:8px;line-height:1.2">{{ o.name }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="flex:1"></div>
+          <div style="padding:0 16px 12px">
+            <div style="display:flex;align-items:flex-end;gap:11px">
+              <div style="width:78px;height:96px;border-radius:16px;flex:none;background:repeating-linear-gradient(135deg,rgba(247,233,200,.12) 0 7px,rgba(247,233,200,.04) 7px 14px);border:1px solid rgba(247,233,200,.18);display:flex;align-items:flex-end;justify-content:center;padding-bottom:6px"><span style="font:600 8.5px ui-monospace,Menlo,monospace;color:rgba(247,233,200,.5);text-align:center;line-height:1.3">butler<br>sprite</span></div>
+              <div style="flex:1;position:relative;background:linear-gradient(180deg,#FBF3E2,#EEE0C2);border-radius:18px;padding:13px 15px;box-shadow:0 8px 20px rgba(0,0,0,.4)">
+                <div style="position:absolute;left:-8px;bottom:22px;width:0;height:0;border-right:10px solid #F6EDD9;border-top:8px solid transparent;border-bottom:8px solid transparent"></div>
+                <div style="font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:#9C7A3C">Alfred</div>
+                <div style="font-size:13.5px;line-height:1.45;font-weight:700;color:#2A1E12;margin-top:3px;text-wrap:pretty">"Brick. Bold. Your great-aunt chose the same and the neighbours never recovered."</div>
+              </div>
+            </div>
+          </div>
+          <div style="padding:0 18px 28px">
+            <div style="padding:16px;border-radius:20px;text-align:center;background:linear-gradient(180deg,#F7D477,#E7A82F);box-shadow:0 6px 0 #B8801F,0 12px 26px rgba(245,196,81,.3);font-family:'Baloo 2';font-weight:800;font-size:19px;color:#3A2609">Build it</div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:12px;line-height:1.5;color:rgba(247,233,200,.45)">Choice is cosmetic only — same star cost either way, so nobody can pick "wrong". The butler reacts to each option.</div>
+    </div>
+
+    <div style="flex:none;width:390px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-family:'Baloo 2';font-weight:700;font-size:13px;color:#0E1424;background:#F5C451;border-radius:20px;padding:3px 12px">C3</div>
+        <div style="font-family:'Baloo 2';font-weight:600;font-size:19px;color:#F7E9C8">Story Beat</div>
+      </div>
+      <div style="width:390px;height:844px;border-radius:46px;position:relative;overflow:hidden;background:#0E1424;box-shadow:0 0 0 10px #1B2236,0 0 0 11px #414A69,0 30px 70px rgba(0,0,0,.6)">
+        <div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,rgba(247,233,200,.06) 0 10px,rgba(247,233,200,.02) 10px 20px)"></div>
+        <div style="position:absolute;top:170px;left:0;right:0;text-align:center;font:600 10px ui-monospace,Menlo,monospace;color:rgba(247,233,200,.3);letter-spacing:.1em">dusty study background art</div>
+        <div style="position:absolute;inset:0;background:radial-gradient(300px 260px at 50% 44%,rgba(255,200,110,.16),transparent 70%),linear-gradient(180deg,rgba(12,17,32,.6) 0%,rgba(12,17,32,.25) 40%,rgba(12,17,32,.95) 78%,#0C1120 100%)"></div>
+        <div style="position:relative;height:100%;display:flex;flex-direction:column">
+          <div style="height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13px;font-weight:800;color:#F7E9C8"><span>10:36</span><div style="display:flex;gap:6px;align-items:center"><div style="width:16px;height:9px;border-radius:2px;border:1.5px solid rgba(247,233,200,.7)"></div><div style="width:16px;height:9px;border-radius:2px;background:rgba(247,233,200,.7)"></div></div></div>
+          <div style="padding:6px 18px 0;display:flex;align-items:center;justify-content:space-between">
+            <div style="background:rgba(9,13,26,.65);border:1px solid rgba(255,255,255,.12);border-radius:13px;padding:5px 12px;font-size:11px;font-weight:900;color:rgba(247,233,200,.6)">Chapter 2 of 12</div>
+            <div style="background:rgba(9,13,26,.65);border:1px solid rgba(255,255,255,.12);border-radius:13px;padding:5px 12px;font-size:11px;font-weight:800;color:rgba(247,233,200,.45)">Skip ⏭</div>
+          </div>
+          <div style="flex:1;position:relative">
+            <div style="position:absolute;left:50%;top:44%;transform:translate(-50%,-50%) rotate(-6deg);width:130px;height:92px;border-radius:8px;background:linear-gradient(180deg,#FBF3E2,#E4D3AE);box-shadow:0 0 44px rgba(245,196,81,.65),0 12px 26px rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center">
+              <div style="width:74px;height:2px;background:rgba(42,30,18,.2);box-shadow:0 8px 0 rgba(42,30,18,.15),0 16px 0 rgba(42,30,18,.15),0 24px 0 rgba(42,30,18,.1)"></div>
+            </div>
+            <div style="position:absolute;left:20px;bottom:14px;width:118px;height:250px;border-radius:20px;background:repeating-linear-gradient(135deg,rgba(247,233,200,.14) 0 8px,rgba(247,233,200,.04) 8px 16px);border:1px solid rgba(247,233,200,.2);display:flex;align-items:flex-end;justify-content:center;padding-bottom:8px"><span style="font:600 9.5px ui-monospace,Menlo,monospace;color:rgba(247,233,200,.5);text-align:center;line-height:1.35">young heir<br>sprite</span></div>
+            <div style="position:absolute;right:20px;bottom:14px;width:112px;height:224px;border-radius:20px;background:repeating-linear-gradient(135deg,rgba(247,233,200,.1) 0 8px,rgba(247,233,200,.03) 8px 16px);border:1px solid rgba(247,233,200,.14);display:flex;align-items:flex-end;justify-content:center;padding-bottom:8px;filter:brightness(.75)"><span style="font:600 9.5px ui-monospace,Menlo,monospace;color:rgba(247,233,200,.45);text-align:center;line-height:1.35">butler<br>sprite</span></div>
+          </div>
+          <div style="margin:0 18px;position:relative;border-radius:24px;padding:18px 18px 16px;background:linear-gradient(180deg,#FBF3E2,#EBDCBD);box-shadow:0 16px 40px rgba(0,0,0,.55)">
+            <div style="position:absolute;top:-13px;left:20px;background:linear-gradient(180deg,#F7D477,#E7A82F);border-radius:12px;padding:4px 14px;font-family:'Baloo 2';font-weight:800;font-size:14px;color:#3A2609;box-shadow:0 3px 0 #B8801F">Eleanor</div>
+            <div style="font-size:17px;line-height:1.5;font-weight:700;color:#2A1E12;margin-top:6px;text-wrap:pretty">"This letter… it's addressed to a sister I never knew existed."</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:16px">
+              <div style="display:flex;gap:5px;align-items:center">
+                <sc-for list="{{ storyDots }}" as="d" hint-placeholder-count="12">
+                  <div style="{{ d.style }}"></div>
+                </sc-for>
+              </div>
+              <div style="padding:11px 26px;border-radius:16px;background:linear-gradient(180deg,#F7D477,#E7A82F);box-shadow:0 5px 0 #B8801F;font-family:'Baloo 2';font-weight:800;font-size:16px;color:#3A2609">Continue</div>
+            </div>
+          </div>
+          <div style="height:30px"></div>
+        </div>
+      </div>
+      <div style="font-size:12px;line-height:1.5;color:rgba(247,233,200,.45)">Story beats fire after renovation steps, never after a fail. Two to three lines max — skippable, but the hook line is always last.</div>
+    </div>
+  </div>
+
+  <!-- ═══ GROUP D ═══ -->
+  <div style="display:flex;align-items:baseline;gap:14px;margin:60px 0 20px">
+    <div style="font-family:'Baloo 2';font-weight:800;font-size:32px;color:#F5C451;line-height:1">D</div>
+    <div style="font-family:'Baloo 2';font-weight:800;font-size:26px;color:#F7E9C8">LiveOps &amp; competition</div>
+    <div style="font-size:13px;color:rgba(247,233,200,.42)">reasons to come back this week</div>
+  </div>
+  <div style="display:flex;gap:44px;align-items:flex-start">
+
+    <div style="flex:none;width:390px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-family:'Baloo 2';font-weight:700;font-size:13px;color:#0E1424;background:#F5C451;border-radius:20px;padding:3px 12px">D1</div>
+        <div style="font-family:'Baloo 2';font-weight:600;font-size:19px;color:#F7E9C8">Sky Race</div>
+      </div>
+      <div style="width:390px;height:844px;border-radius:46px;position:relative;overflow:hidden;background:#0E1424;box-shadow:0 0 0 10px #1B2236,0 0 0 11px #414A69,0 30px 70px rgba(0,0,0,.6)">
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg,#2E2A5E 0%,#1B2247 45%,#0C1120 100%)"></div>
+        <div style="position:relative;height:100%;display:flex;flex-direction:column">
+          <div style="height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13px;font-weight:800;color:#F7E9C8"><span>10:40</span><div style="display:flex;gap:6px;align-items:center"><div style="width:16px;height:9px;border-radius:2px;border:1.5px solid rgba(247,233,200,.7)"></div><div style="width:16px;height:9px;border-radius:2px;background:rgba(247,233,200,.7)"></div></div></div>
+          <div style="padding:2px 18px 0;display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <div style="font-family:'Baloo 2';font-weight:800;font-size:26px;color:#F7E9C8;line-height:1.1">Sky Race</div>
+              <div style="font-size:11.5px;font-weight:800;color:rgba(247,233,200,.45)">Head to head · rung 7 of 10</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;background:rgba(9,13,26,.6);border:1px solid rgba(245,196,81,.35);border-radius:14px;padding:6px 12px">
+              <div style="width:6px;height:6px;border-radius:50%;background:#E2574C;animation:bm-sparkle 1.2s ease-in-out infinite"></div>
+              <span style="font-size:12.5px;font-weight:900;color:#F5C451">2h 14m</span>
+            </div>
+          </div>
+          <div style="margin:14px 12px 0;height:120px;border-radius:20px;background:repeating-linear-gradient(135deg,rgba(247,233,200,.12) 0 8px,rgba(247,233,200,.035) 8px 16px);border:1px solid rgba(247,233,200,.18);display:flex;align-items:flex-end;justify-content:center;padding-bottom:8px">
+            <span style="font:600 10px ui-monospace,Menlo,monospace;color:rgba(247,233,200,.5)">hot-air balloon race art</span>
+          </div>
+          <div style="margin:14px 16px 0;padding:12px 14px;border-radius:22px;background:rgba(9,13,26,.55);border:1px solid rgba(255,255,255,.08)">
+            <sc-for list="{{ skyRungs }}" as="r" hint-placeholder-count="10">
+              <div style="{{ r.row }}">
+                <div style="{{ r.chip }}">{{ r.n }}</div>
+                <div style="{{ r.line }}"></div>
+                <div style="{{ r.prize }}">Top 3 chest</div>
+                <div style="{{ r.youBox }}">
+                  <div style="width:26px;height:26px;border-radius:50%;background:#F5C451;border:2px solid #FFF0BE"></div>
+                  <span style="font-size:11px;font-weight:900;color:#F5C451">You</span>
+                </div>
+                <div style="{{ r.oppBox }}">
+                  <div style="width:24px;height:24px;border-radius:50%;background:#4C86D6;border:2px solid rgba(255,255,255,.35)"></div>
+                  <span style="font-size:11px;font-weight:900;color:#9DC0F0">Rhea</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="margin:14px 16px 0;display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:18px;background:linear-gradient(180deg,rgba(245,196,81,.16),rgba(245,196,81,.05));border:1px solid rgba(245,196,81,.32)">
+            <div style="width:46px;height:38px;border-radius:9px;background:linear-gradient(180deg,#8A5A34,#4A2E19);border:2px solid #C9902F;position:relative;box-shadow:0 4px 10px rgba(0,0,0,.45)"><div style="position:absolute;top:8px;left:-2px;right:-2px;height:6px;background:linear-gradient(180deg,#F7D477,#C9902F)"></div></div>
+            <div style="flex:1"><div style="font-size:13px;font-weight:900;color:#F7E9C8">Summit chest</div><div style="font-size:11px;font-weight:700;color:rgba(247,233,200,.5);margin-top:1px">1,200 coins + 3 boosters + 1 star</div></div>
+          </div>
+          <div style="flex:1"></div>
+          <div style="padding:0 18px 30px">
+            <div style="text-align:center;font-size:12.5px;font-weight:800;color:rgba(247,233,200,.5);margin-bottom:10px">Win levels to climb — one rung per win</div>
+            <div style="padding:17px;border-radius:20px;text-align:center;background:linear-gradient(180deg,#F7D477,#E7A82F);box-shadow:0 6px 0 #B8801F,0 12px 26px rgba(245,196,81,.3);font-family:'Baloo 2';font-weight:800;font-size:20px;color:#3A2609;animation:bm-pulse 2.5s ease-in-out infinite">Play Level 24</div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:12px;line-height:1.5;color:rgba(247,233,200,.45)">Opponent is matched on recent win-rate. One rung behind is deliberate — the player is always just about to be overtaken.</div>
+    </div>
+
+    <div style="flex:none;width:390px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-family:'Baloo 2';font-weight:700;font-size:13px;color:#0E1424;background:#F5C451;border-radius:20px;padding:3px 12px">D2</div>
+        <div style="font-family:'Baloo 2';font-weight:600;font-size:19px;color:#F7E9C8">Team Treasure</div>
+      </div>
+      <div style="width:390px;height:844px;border-radius:46px;position:relative;overflow:hidden;background:#0E1424;box-shadow:0 0 0 10px #1B2236,0 0 0 11px #414A69,0 30px 70px rgba(0,0,0,.6)">
+        <div style="position:absolute;inset:0;background:radial-gradient(420px 320px at 50% 22%,#1E3A33 0%,#141B31 55%,#0C1120 100%)"></div>
+        <div style="position:relative;height:100%;display:flex;flex-direction:column">
+          <div style="height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13px;font-weight:800;color:#F7E9C8"><span>10:44</span><div style="display:flex;gap:6px;align-items:center"><div style="width:16px;height:9px;border-radius:2px;border:1.5px solid rgba(247,233,200,.7)"></div><div style="width:16px;height:9px;border-radius:2px;background:rgba(247,233,200,.7)"></div></div></div>
+          <div style="text-align:center;padding:8px 20px 0">
+            <div style="font-size:11px;font-weight:900;letter-spacing:.18em;text-transform:uppercase;color:rgba(79,174,132,.9)">Co-op event · ends in 1d 6h</div>
+            <div style="font-family:'Baloo 2';font-weight:800;font-size:28px;color:#F7E9C8;margin-top:3px">Team Treasure</div>
+          </div>
+          <div style="margin:16px auto 0;width:170px;height:130px;border-radius:20px;background:repeating-linear-gradient(135deg,rgba(247,233,200,.14) 0 8px,rgba(247,233,200,.04) 8px 16px);border:1px solid rgba(247,233,200,.2);display:flex;align-items:flex-end;justify-content:center;padding-bottom:8px;box-shadow:0 0 50px rgba(79,174,132,.25)">
+            <span style="font:600 10px ui-monospace,Menlo,monospace;color:rgba(247,233,200,.5);text-align:center">shared chest art</span>
+          </div>
+          <div style="margin:16px 18px 0;padding:14px 16px;border-radius:22px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)">
+            <div style="display:flex;align-items:baseline;justify-content:space-between">
+              <div style="font-family:'Baloo 2';font-weight:800;font-size:17px;color:#F7E9C8">Ashfield Estate</div>
+              <div style="font-size:14px;font-weight:900;color:#4FAE84">38/50 levels</div>
+            </div>
+            <div style="margin-top:10px;height:14px;border-radius:8px;background:rgba(0,0,0,.45);overflow:hidden;position:relative">
+              <div style="width:76%;height:100%;background:linear-gradient(90deg,#2F8462,#7FD3AC);box-shadow:0 0 16px rgba(79,174,132,.6)"></div>
+              <div style="position:absolute;right:8px;top:0;bottom:0;display:flex;align-items:center;font-size:9.5px;font-weight:900;color:rgba(247,233,200,.5)">50</div>
+            </div>
+            <div style="margin-top:12px;display:flex;justify-content:space-between">
+              <sc-for list="{{ team }}" as="m" hint-placeholder-count="5">
+                <div style="position:relative;display:flex;flex-direction:column;align-items:center;gap:5px">
+                  <div style="{{ m.crown }}"></div>
+                  <div style="{{ m.av }}"></div>
+                  <div style="{{ m.name }}">{{ m.n }}</div>
+                  <div style="font-size:10px;font-weight:900;color:rgba(247,233,200,.4)">{{ m.lv }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="margin:14px 18px 0;padding:13px 15px;border-radius:18px;background:linear-gradient(180deg,rgba(245,196,81,.15),rgba(245,196,81,.05));border:1px solid rgba(245,196,81,.3);text-align:center">
+            <div style="font-size:13px;font-weight:900;color:#F7E9C8">12 levels to go — everyone opens it together</div>
+            <div style="font-size:11px;font-weight:700;color:rgba(247,233,200,.5);margin-top:2px">Reward scales with your own contribution</div>
+          </div>
+          <div style="margin:16px 18px 0;flex:1;display:flex;flex-direction:column;border-radius:22px;background:rgba(9,13,26,.5);border:1px solid rgba(255,255,255,.07);overflow:hidden">
+            <div style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.07);font-size:11px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:rgba(247,233,200,.4)">Team chat</div>
+            <div style="flex:1;padding:12px 14px;display:flex;flex-direction:column;gap:10px">
+              <div style="display:flex;gap:9px;align-items:flex-start">
+                <div style="width:28px;height:28px;border-radius:50%;background:#E2574C;flex:none;border:2px solid rgba(255,255,255,.16)"></div>
+                <div style="background:rgba(255,255,255,.07);border-radius:14px 14px 14px 4px;padding:9px 12px">
+                  <div style="font-size:10.5px;font-weight:900;color:#F5C451">Priya</div>
+                  <div style="font-size:13px;font-weight:700;color:#F7E9C8;margin-top:2px">2 more today, we've got this!</div>
+                </div>
+              </div>
+              <div style="display:flex;gap:9px;align-items:flex-start">
+                <div style="width:28px;height:28px;border-radius:50%;background:#9C6BD0;flex:none;border:2px solid rgba(255,255,255,.16)"></div>
+                <div style="background:rgba(255,255,255,.07);border-radius:14px 14px 14px 4px;padding:9px 12px">
+                  <div style="font-size:10.5px;font-weight:900;color:#C295E8">Dev</div>
+                  <div style="font-size:13px;font-weight:700;color:#F7E9C8;margin-top:2px">anyone got a spare hammer 🙏</div>
+                </div>
+              </div>
+            </div>
+            <div style="padding:10px 12px;display:flex;gap:9px;border-top:1px solid rgba(255,255,255,.07)">
+              <div style="flex:1;padding:10px 14px;border-radius:14px;background:rgba(255,255,255,.06);font-size:12.5px;font-weight:700;color:rgba(247,233,200,.35)">Send a message…</div>
+              <div style="width:44px;border-radius:14px;background:linear-gradient(180deg,#4FAE84,#2F8462);box-shadow:0 3px 0 #226349;display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff">➤</div>
+            </div>
+          </div>
+          <div style="height:26px"></div>
+        </div>
+      </div>
+      <div style="font-size:12px;line-height:1.5;color:rgba(247,233,200,.45)">Chat is the retention hook, not the chest. Booster gifting requests are one tap from any message.</div>
+    </div>
+
+    <div style="flex:none;width:390px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-family:'Baloo 2';font-weight:700;font-size:13px;color:#0E1424;background:#F5C451;border-radius:20px;padding:3px 12px">D3</div>
+        <div style="font-family:'Baloo 2';font-weight:600;font-size:19px;color:#F7E9C8">Manor Pass</div>
+      </div>
+      <div style="width:390px;height:844px;border-radius:46px;position:relative;overflow:hidden;background:#0E1424;box-shadow:0 0 0 10px #1B2236,0 0 0 11px #414A69,0 30px 70px rgba(0,0,0,.6)">
+        <div style="position:absolute;inset:0;background:radial-gradient(420px 320px at 50% 18%,#3A2A5E 0%,#151B33 55%,#0C1120 100%)"></div>
+        <div style="position:relative;height:100%;display:flex;flex-direction:column">
+          <div style="height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13px;font-weight:800;color:#F7E9C8"><span>10:48</span><div style="display:flex;gap:6px;align-items:center"><div style="width:16px;height:9px;border-radius:2px;border:1.5px solid rgba(247,233,200,.7)"></div><div style="width:16px;height:9px;border-radius:2px;background:rgba(247,233,200,.7)"></div></div></div>
+          <div style="padding:4px 18px 0;display:flex;align-items:center;justify-content:space-between">
+            <div>
+              <div style="font-size:10.5px;font-weight:900;letter-spacing:.18em;text-transform:uppercase;color:rgba(245,196,81,.8)">Season 3 · 28 days</div>
+              <div style="font-family:'Baloo 2';font-weight:800;font-size:26px;color:#F7E9C8;line-height:1.15">Manor Pass</div>
+            </div>
+            <div style="background:rgba(9,13,26,.6);border:1px solid rgba(255,255,255,.12);border-radius:13px;padding:6px 11px;font-size:11.5px;font-weight:900;color:#F5C451;text-align:center;line-height:1.2">11d 4h<br><span style="font-size:9px;font-weight:800;color:rgba(247,233,200,.4)">left</span></div>
+          </div>
+          <div style="margin:14px 18px 0;padding:13px 15px;border-radius:18px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08)">
+            <div style="display:flex;align-items:baseline;justify-content:space-between">
+              <div style="font-family:'Baloo 2';font-weight:800;font-size:17px;color:#F7E9C8">Tier 24</div>
+              <div style="font-size:12px;font-weight:900;color:rgba(247,233,200,.5)">340 / 500 XP</div>
+            </div>
+            <div style="margin-top:8px;height:10px;border-radius:6px;background:rgba(0,0,0,.45);overflow:hidden"><div style="width:68%;height:100%;background:linear-gradient(90deg,#F7D477,#E7A82F);box-shadow:0 0 12px rgba(245,196,81,.55)"></div></div>
+          </div>
+          <div style="margin:16px 0 0;position:relative">
+            <div style="display:flex;gap:8px;padding:0 18px;overflow:hidden">
+              <div style="flex:none;width:52px;display:flex;flex-direction:column;gap:6px;justify-content:center">
+                <div style="height:62px;display:flex;align-items:center;font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:rgba(247,233,200,.4)">Free</div>
+                <div style="height:20px"></div>
+                <div style="height:62px;display:flex;align-items:center;font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#F5C451">Gold</div>
+              </div>
+              <sc-for list="{{ passTiers }}" as="p" hint-placeholder-count="6">
+                <div style="{{ p.col }}">
+                  <div style="{{ p.freeCell }}"><div style="{{ p.freeChip }}"></div><div style="{{ p.freeState }}">{{ p.freeLabel }}</div></div>
+                  <div style="{{ p.tierBadge }}">{{ p.t }}</div>
+                  <div style="{{ p.goldCell }}"><div style="{{ p.goldChip }}"></div><div style="{{ p.goldState }}">{{ p.goldLabel }}</div></div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="position:absolute;right:0;top:0;bottom:0;width:40px;background:linear-gradient(90deg,transparent,#131A34);pointer-events:none"></div>
+          </div>
+          <div style="margin:18px 18px 0;border-radius:22px;padding:16px;background:linear-gradient(160deg,#3B2A5E,#1E2A52);border:1px solid rgba(245,196,81,.4);display:flex;align-items:center;gap:14px;box-shadow:0 0 40px rgba(169,111,209,.22)">
+            <div style="width:88px;height:88px;flex:none;border-radius:18px;background:repeating-linear-gradient(135deg,rgba(247,233,200,.16) 0 7px,rgba(247,233,200,.05) 7px 14px);border:1px solid rgba(247,233,200,.22);display:flex;align-items:flex-end;justify-content:center;padding-bottom:6px"><span style="font:600 9px ui-monospace,Menlo,monospace;color:rgba(247,233,200,.5);text-align:center;line-height:1.3">peacock<br>topiary art</span></div>
+            <div style="flex:1">
+              <div style="font-size:10.5px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:#F5C451">Tier 40 · exclusive</div>
+              <div style="font-family:'Baloo 2';font-weight:800;font-size:20px;color:#F7E9C8;line-height:1.2;margin-top:2px">Peacock Topiary</div>
+              <div style="font-size:11.5px;font-weight:700;color:rgba(247,233,200,.5);margin-top:3px;line-height:1.4">Never returns. Sits in the front garden for everyone to see.</div>
+            </div>
+          </div>
+          <div style="flex:1"></div>
+          <div style="padding:0 18px 30px">
+            <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:11px">
+              <span style="font-size:12.5px;font-weight:800;color:rgba(247,233,200,.5)">Unlock 24 more rewards this season</span>
+            </div>
+            <div style="padding:18px;border-radius:22px;text-align:center;background:linear-gradient(180deg,#F7D477,#E7A82F);box-shadow:0 7px 0 #B8801F,0 14px 32px rgba(245,196,81,.35);animation:bm-pulse 2.6s ease-in-out infinite">
+              <div style="font-family:'Baloo 2';font-weight:800;font-size:22px;color:#3A2609;line-height:1.1">Upgrade — ₹799</div>
+              <div style="font-size:11.5px;font-weight:900;color:rgba(58,38,9,.6);margin-top:3px">Unlocks every gold tier you've already passed</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:12px;line-height:1.5;color:rgba(247,233,200,.45)">Retroactive unlock is the whole pitch — by tier 24 the player is buying back rewards they can already see.</div>
+    </div>
+  </div>
+
+  <!-- ═══ GROUP E ═══ -->
+  <div style="display:flex;align-items:baseline;gap:14px;margin:60px 0 20px">
+    <div style="font-family:'Baloo 2';font-weight:800;font-size:32px;color:#F5C451;line-height:1">E</div>
+    <div style="font-family:'Baloo 2';font-weight:800;font-size:26px;color:#F7E9C8">Economy</div>
+    <div style="font-size:13px;color:rgba(247,233,200,.42)">where coins come from and go</div>
+  </div>
+  <div style="display:flex;gap:44px;align-items:flex-start">
+
+    <div style="flex:none;width:390px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-family:'Baloo 2';font-weight:700;font-size:13px;color:#0E1424;background:#F5C451;border-radius:20px;padding:3px 12px">E1</div>
+        <div style="font-family:'Baloo 2';font-weight:600;font-size:19px;color:#F7E9C8">Coin Store</div>
+      </div>
+      <div style="width:390px;height:844px;border-radius:46px;position:relative;overflow:hidden;background:#0E1424;box-shadow:0 0 0 10px #1B2236,0 0 0 11px #414A69,0 30px 70px rgba(0,0,0,.6)">
+        <div style="position:absolute;inset:0;background:radial-gradient(420px 320px at 50% 14%,#2C3560 0%,#141B31 55%,#0C1120 100%)"></div>
+        <div style="position:relative;height:100%;display:flex;flex-direction:column">
+          <div style="height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13px;font-weight:800;color:#F7E9C8"><span>10:52</span><div style="display:flex;gap:6px;align-items:center"><div style="width:16px;height:9px;border-radius:2px;border:1.5px solid rgba(247,233,200,.7)"></div><div style="width:16px;height:9px;border-radius:2px;background:rgba(247,233,200,.7)"></div></div></div>
+          <div style="padding:4px 18px 0;display:flex;align-items:center;justify-content:space-between">
+            <div style="font-family:'Baloo 2';font-weight:800;font-size:26px;color:#F7E9C8">Shop</div>
+            <div style="display:flex;align-items:center;gap:7px;background:rgba(9,13,26,.6);border:1px solid rgba(245,196,81,.3);border-radius:15px;padding:7px 13px 7px 9px"><div style="width:18px;height:18px;border-radius:50%;background:linear-gradient(180deg,#FFF0BE,#D9A128)"></div><span style="font-size:13.5px;font-weight:900;color:#FFD98A">740</span></div>
+          </div>
+          <div style="display:flex;gap:8px;padding:14px 18px 0">
+            <div style="padding:8px 16px;border-radius:14px;background:linear-gradient(180deg,#F7D477,#E7A82F);font-size:12.5px;font-weight:900;color:#3A2609">Coins</div>
+            <div style="padding:8px 16px;border-radius:14px;background:rgba(255,255,255,.06);font-size:12.5px;font-weight:800;color:rgba(247,233,200,.5)">Boosters</div>
+            <div style="padding:8px 16px;border-radius:14px;background:rgba(255,255,255,.06);font-size:12.5px;font-weight:800;color:rgba(247,233,200,.5)">Décor</div>
+          </div>
+          <div style="padding:20px 18px 0;display:grid;grid-template-columns:1fr 1fr;gap:14px">
+            <sc-for list="{{ coinBundles }}" as="b" hint-placeholder-count="4">
+              <div style="{{ b.card }}">
+                <div style="{{ b.badgeStyle }}">{{ b.badge }}</div>
+                <div style="{{ b.pile }}"></div>
+                <div style="font-family:'Baloo 2';font-weight:800;font-size:21px;color:#FFD98A;margin-top:8px">{{ b.c }}</div>
+                <div style="font-size:10.5px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:rgba(247,233,200,.4)">coins</div>
+                <div style="{{ b.price }}">{{ b.p }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="padding:22px 18px 0">
+            <div style="font-size:11px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:rgba(247,233,200,.38);margin-bottom:10px">Booster bundles</div>
+            <div style="display:flex;gap:10px">
+              <sc-for list="{{ boosterPacks }}" as="p" hint-placeholder-count="3">
+                <div style="flex:1;border-radius:18px;padding:12px 8px;text-align:center;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09)">
+                  <div style="{{ p.chip }}" style-hover="transform:translateY(-2px)"></div>
+                  <div style="font-size:11.5px;font-weight:900;color:#F7E9C8;margin-top:8px">{{ p.n }}</div>
+                  <div style="margin-top:7px;padding:6px;border-radius:11px;background:rgba(245,196,81,.16);border:1px solid rgba(245,196,81,.35);font-size:12px;font-weight:900;color:#F5C451">{{ p.p }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="flex:1"></div>
+          <div style="padding:0 18px 30px">
+            <div style="display:flex;align-items:center;gap:13px;padding:14px 16px;border-radius:20px;background:linear-gradient(120deg,#2F8462,#1E4A39);border:1px solid rgba(127,211,172,.4)">
+              <div style="width:42px;height:42px;border-radius:13px;background:rgba(255,255,255,.12);display:flex;align-items:center;justify-content:center;font-size:18px">🚫</div>
+              <div style="flex:1"><div style="font-family:'Baloo 2';font-weight:800;font-size:17px;color:#F2FFF9">Remove ads</div><div style="font-size:11px;font-weight:700;color:rgba(242,255,249,.6)">Keeps rewarded ads, removes the rest</div></div>
+              <div style="padding:10px 16px;border-radius:14px;background:#F2FFF9;font-family:'Baloo 2';font-weight:800;font-size:15px;color:#1E4A39">₹199</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:12px;line-height:1.5;color:rgba(247,233,200,.45)">Four price points only. ₹269 is the anchor — badged, larger art, and the one deep-linked from every out-of-coins moment.</div>
+    </div>
+
+    <div style="flex:none;width:390px;display:flex;flex-direction:column;gap:14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-family:'Baloo 2';font-weight:700;font-size:13px;color:#0E1424;background:#F5C451;border-radius:20px;padding:3px 12px">E2</div>
+        <div style="font-family:'Baloo 2';font-weight:600;font-size:19px;color:#F7E9C8">Out of Coins</div>
+      </div>
+      <div style="width:390px;height:844px;border-radius:46px;position:relative;overflow:hidden;background:#0E1424;box-shadow:0 0 0 10px #1B2236,0 0 0 11px #414A69,0 30px 70px rgba(0,0,0,.6)">
+        <div style="position:absolute;inset:0;background:radial-gradient(420px 300px at 50% 14%,#26325A 0%,#141B31 55%,#0C1120 100%)"></div>
+        <div style="position:absolute;top:132px;left:24px;right:24px;padding:14px;border-radius:22px;background:rgba(9,13,26,.6)">
+          <div style="display:grid;grid-template-columns:repeat(8,38px);gap:3px;justify-content:center">
+            <sc-for list="{{ failGrid }}" as="c" hint-placeholder-count="64">
+              <div style="{{ c.style }}"></div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,11,22,.78),rgba(8,11,22,.94))"></div>
+        <div style="position:relative;height:100%;display:flex;flex-direction:column">
+          <div style="height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13px;font-weight:800;color:rgba(247,233,200,.8)"><span>10:09</span><div style="display:flex;gap:6px;align-items:center"><div style="width:16px;height:9px;border-radius:2px;border:1.5px solid rgba(247,233,200,.6)"></div><div style="width:16px;height:9px;border-radius:2px;background:rgba(247,233,200,.6)"></div></div></div>
+          <div style="display:flex;justify-content:center;padding-top:6px">
+            <div style="display:flex;align-items:center;gap:9px;background:rgba(178,59,51,.2);border:1px solid rgba(226,87,76,.5);border-radius:18px;padding:7px 15px 7px 9px">
+              <div style="width:26px;height:26px;border-radius:50%;background:radial-gradient(circle at 50% 65%,#FFE08A,#F0803C 55%,#8E2C13);animation:bm-flicker .8s ease-in-out infinite;box-shadow:0 0 18px rgba(240,128,60,.7)"></div>
+              <span style="font-size:13px;font-weight:900;color:#FFD98A">{{ streakDays }}-day streak at risk</span>
+            </div>
+          </div>
+          <div style="flex:1"></div>
+          <div style="margin:0 20px 6px;padding:20px 20px 18px;border-radius:28px;background:linear-gradient(180deg,#FBF3E2,#EBDCBD);box-shadow:0 18px 44px rgba(0,0,0,.6)">
+            <div style="text-align:center">
+              <div style="font-family:'Baloo 2';font-weight:800;font-size:27px;color:#2A1E12">Out of space!</div>
+              <div style="font-size:12.5px;font-weight:700;color:rgba(42,30,18,.55);margin-top:2px">Level 24 · crates 9/12</div>
+            </div>
+            <div style="margin-top:14px;padding:13px 16px;border-radius:18px;background:linear-gradient(180deg,#E4D6B8,#D2C29F);display:flex;align-items:center;justify-content:center;gap:10px;opacity:.6">
+              <span style="font-family:'Baloo 2';font-weight:800;font-size:19px;color:rgba(58,38,9,.6)">Continue?</span>
+              <div style="display:flex;align-items:center;gap:6px;background:rgba(58,38,9,.14);border-radius:14px;padding:4px 11px"><div style="width:16px;height:16px;border-radius:50%;background:linear-gradient(180deg,#FFF0BE,#D9A128)"></div><span style="font-family:'Baloo 2';font-weight:800;font-size:18px;color:rgba(58,38,9,.6)">900</span></div>
+            </div>
+            <div style="margin-top:8px;text-align:center;font-size:12px;font-weight:900;color:#B4442F">You have 740 — 160 coins short</div>
+          </div>
+          <div style="margin:0 8px;border-radius:28px 28px 46px 46px;padding:16px 16px 26px;background:linear-gradient(180deg,#212B4E,#141B33);border:1px solid rgba(245,196,81,.28);box-shadow:0 -14px 40px rgba(0,0,0,.65)">
+            <div style="width:44px;height:5px;border-radius:3px;background:rgba(247,233,200,.28);margin:0 auto 12px"></div>
+            <div style="display:flex;align-items:baseline;justify-content:space-between;padding:0 4px">
+              <div style="font-family:'Baloo 2';font-weight:800;font-size:19px;color:#F7E9C8">Get coins</div>
+              <div style="display:flex;align-items:center;gap:6px"><div style="width:16px;height:16px;border-radius:50%;background:linear-gradient(180deg,#FFF0BE,#D9A128)"></div><span style="font-size:13px;font-weight:900;color:#FFD98A">740</span></div>
+            </div>
+            <div style="margin-top:12px;display:flex;gap:10px">
+              <div style="flex:1;border-radius:20px;padding:12px 8px 10px;text-align:center;position:relative;background:linear-gradient(180deg,#2E3A66,#1B2340);border:2px solid #F5C451;box-shadow:0 0 26px rgba(245,196,81,.4)">
+                <div style="position:absolute;top:-9px;left:50%;transform:translateX(-50%);white-space:nowrap;background:#F5C451;border-radius:10px;padding:2px 9px;font-size:9px;font-weight:900;color:#3A2609;letter-spacing:.06em">ENOUGH TO CONTINUE</div>
+                <div style="width:46px;height:34px;margin:6px auto 0;border-radius:50% 50% 42% 42%;background:radial-gradient(circle at 40% 30%,#FFF0BE,#D9A128 60%,#9A6E14);box-shadow:0 6px 16px rgba(217,161,40,.4)"></div>
+                <div style="font-family:'Baloo 2';font-weight:800;font-size:19px;color:#FFD98A;margin-top:7px">500</div>
+                <div style="margin-top:7px;padding:8px;border-radius:13px;background:linear-gradient(180deg,#F7D477,#E7A82F);box-shadow:0 4px 0 #B8801F;font-family:'Baloo 2';font-weight:800;font-size:15px;color:#3A2609">₹89</div>
+              </div>
+              <div style="flex:1;border-radius:20px;padding:12px 8px 10px;text-align:center;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09)">
+                <div style="width:56px;height:40px;margin:2px auto 0;border-radius:50% 50% 42% 42%;background:radial-gradient(circle at 40% 30%,#FFF0BE,#D9A128 60%,#9A6E14)"></div>
+                <div style="font-family:'Baloo 2';font-weight:800;font-size:19px;color:#FFD98A;margin-top:5px">1,800</div>
+                <div style="margin-top:7px;padding:8px;border-radius:13px;background:rgba(245,196,81,.16);border:1px solid rgba(245,196,81,.35);font-size:14px;font-weight:900;color:#F5C451">₹269</div>
+              </div>
+              <div style="flex:1;border-radius:20px;padding:12px 8px 10px;text-align:center;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09)">
+                <div style="width:62px;height:44px;margin:0 auto;border-radius:50% 50% 42% 42%;background:radial-gradient(circle at 40% 30%,#FFF0BE,#D9A128 60%,#9A6E14)"></div>
+                <div style="font-family:'Baloo 2';font-weight:800;font-size:19px;color:#FFD98A;margin-top:5px">6,000</div>
+                <div style="margin-top:7px;padding:8px;border-radius:13px;background:rgba(245,196,81,.16);border:1px solid rgba(245,196,81,.35);font-size:14px;font-weight:900;color:#F5C451">₹799</div>
+              </div>
+            </div>
+            <div style="margin-top:12px;padding:11px;border-radius:16px;border:2px dashed rgba(247,233,200,.22);text-align:center;font-size:13px;font-weight:800;color:rgba(247,233,200,.65)">▶ Watch an ad for 150 coins</div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:12px;line-height:1.5;color:rgba(247,233,200,.45)">The sheet slides over the fail card without dismissing it — the Continue button stays visible, greyed, so the purchase has an obvious destination.</div>
+    </div>
+  </div>
+
+  <div style="margin-top:64px;padding-top:26px;border-top:1px solid rgba(247,233,200,.12);font-size:13px;font-weight:800;color:rgba(247,233,200,.4)">↓ v1 — core player flow (7 screens) below</div>
+</div>
+
+<div style="padding:64px 72px 96px;background:radial-gradient(1200px 700px at 20% 0%,#182140 0%,#0A0E1A 70%);font-family:'Nunito',system-ui,sans-serif;min-width:max-content">
+
+  <div style="display:flex;align-items:flex-end;gap:22px;margin:0 0 12px">
+    <div style="font-family:'Baloo 2',system-ui;font-weight:800;font-size:44px;line-height:1;color:#F7E9C8;letter-spacing:-.01em">Block Manor</div>
+    <div style="font-size:13px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:#F5C451;padding-bottom:6px">Hybrid-casual · UI spec v1</div>
+  </div>
+  <div style="font-size:14.5px;line-height:1.6;color:rgba(247,233,200,.55);max-width:820px;margin:0 0 44px">Player flow, left to right — the daily ritual is the front door, the meta is the reason to stay. 390×844 @1x. Palette, buttons and iconography are shared across all seven screens.</div>
+
+  <div style="display:flex;align-items:center;gap:0">
+
+    <!-- ══ SCREEN 1 ══ -->
+    <div data-screen-label="01 Daily Board" style="flex:none;display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-family:'Baloo 2';font-weight:700;font-size:13px;color:#0E1424;background:#F5C451;border-radius:20px;padding:3px 12px">01</div>
+        <div style="font-family:'Baloo 2';font-weight:600;font-size:19px;color:#F7E9C8">Daily Board</div>
+        <div style="font-size:12px;color:rgba(247,233,200,.45)">the ritual</div>
+      </div>
+      <div style="width:390px;height:844px;border-radius:46px;position:relative;overflow:hidden;background:#0E1424;box-shadow:0 0 0 10px #1B2236,0 0 0 11px #414A69,0 30px 70px rgba(0,0,0,.6)">
+        <div style="position:absolute;inset:0;background:radial-gradient(420px 300px at 50% 12%,#26325A 0%,#141B31 55%,#0C1120 100%)"></div>
+        <div style="position:relative;height:100%;display:flex;flex-direction:column">
+
+          <div style="height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13px;font-weight:800;color:#F7E9C8">
+            <span>9:41</span>
+            <div style="display:flex;gap:6px;align-items:center"><div style="width:16px;height:9px;border-radius:2px;border:1.5px solid rgba(247,233,200,.7)"></div><div style="width:16px;height:9px;border-radius:2px;background:rgba(247,233,200,.7)"></div></div>
+          </div>
+
+          <div style="padding:2px 18px 0;display:flex;align-items:center;justify-content:space-between;gap:10px">
+            <div style="display:flex;align-items:center;gap:8px;background:linear-gradient(180deg,#2A3358,#1C2340);border:1px solid rgba(245,196,81,.35);border-radius:16px;padding:7px 13px 7px 9px;box-shadow:0 3px 0 rgba(0,0,0,.35)">
+              <div style="width:26px;height:26px;border-radius:50%;background:radial-gradient(circle at 50% 65%,#FFE08A,#F0803C 60%,#C1401F);animation:bm-flicker 1.6s ease-in-out infinite;box-shadow:0 0 14px rgba(240,128,60,.7)"></div>
+              <div style="line-height:1.05"><div style="font-family:'Baloo 2';font-weight:800;font-size:16px;color:#FFD98A">{{ streakDays }} day</div><div style="font-size:9.5px;font-weight:700;letter-spacing:.1em;color:rgba(247,233,200,.5);text-transform:uppercase">streak</div></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:6px 12px 6px 8px">
+              <sc-for list="{{ friends }}" as="f" hint-placeholder-count="3">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+                  <div style="width:30px;height:30px;border-radius:50%;border:2px solid #F5C451" style-hover="transform:translateY(-2px)"><div style="width:100%;height:100%;border-radius:50%;background:{{ f.av }}"></div></div>
+                  <div style="font-size:9.5px;font-weight:800;color:rgba(247,233,200,.75)">{{ f.score }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="padding:14px 22px 0;text-align:center">
+            <div style="font-family:'Baloo 2';font-weight:800;font-size:27px;color:#F7E9C8;letter-spacing:-.01em">Today's Board — July 30</div>
+            <div style="display:inline-flex;align-items:center;gap:7px;margin-top:6px;background:rgba(245,196,81,.12);border:1px solid rgba(245,196,81,.28);border-radius:14px;padding:4px 12px">
+              <div style="width:6px;height:6px;border-radius:50%;background:#F5C451;animation:bm-sparkle 1.4s ease-in-out infinite"></div>
+              <span style="font-size:12.5px;font-weight:800;color:#F5C451;letter-spacing:.02em">Resets in {{ dailyClock }}</span>
+            </div>
+          </div>
+
+          <div style="margin:14px 18px 0;background:linear-gradient(180deg,rgba(245,196,81,.18),rgba(245,196,81,.06));border:1px solid rgba(245,196,81,.3);border-radius:14px;padding:9px 14px;text-align:center">
+            <span style="font-size:12.5px;font-weight:700;color:#F7E9C8;letter-spacing:.01em">One attempt. Same board as the whole world.</span>
+          </div>
+
+          <div style="margin:16px 18px 0;padding:16px 15px;border-radius:24px;background:linear-gradient(180deg,#3A2A1C,#241A12);box-shadow:inset 0 2px 0 rgba(245,196,81,.28),inset 0 -6px 14px rgba(0,0,0,.5),0 10px 26px rgba(0,0,0,.45)">
+            <div style="padding:11px;border-radius:16px;background:rgba(9,13,26,.72);box-shadow:inset 0 3px 12px rgba(0,0,0,.6)">
+              <div style="display:grid;grid-template-columns:repeat(8,38px);gap:3px;justify-content:center">
+                <sc-for list="{{ dailyGrid }}" as="c" hint-placeholder-count="64">
+                  <div style="{{ c.style }}"><div style="{{ c.inner }}"></div></div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin:16px 18px 0;display:flex;align-items:center;justify-content:space-around;padding:14px 10px;border-radius:20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07)">
+            <sc-for list="{{ trayPieces }}" as="p" hint-placeholder-count="3">
+              <div style="{{ p.wrap }}">
+                <sc-for list="{{ p.cells }}" as="c" hint-placeholder-count="4">
+                  <div style="{{ c.style }}"></div>
+                </sc-for>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="flex:1"></div>
+          <div style="padding:0 18px 30px;display:flex;gap:10px">
+            <div style="flex:1;text-align:center;padding:11px;border-radius:16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);font-size:12.5px;font-weight:800;color:rgba(247,233,200,.7)">Score 3,180</div>
+            <div style="flex:1;text-align:center;padding:11px;border-radius:16px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);font-size:12.5px;font-weight:800;color:rgba(247,233,200,.7)">Rank #2 of 6</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:none;width:132px;display:flex;flex-direction:column;align-items:center;gap:9px;padding:0 8px">
+      <div style="font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#F5C451;text-align:center">board fills</div>
+      <div style="width:100%;height:2px;border-radius:2px;background:linear-gradient(90deg,rgba(245,196,81,0),#F5C451);position:relative"><div style="position:absolute;right:-1px;top:-5px;width:0;height:0;border-left:11px solid #F5C451;border-top:6px solid transparent;border-bottom:6px solid transparent"></div></div>
+      <div style="font-size:10.5px;line-height:1.45;color:rgba(247,233,200,.42);text-align:center">run ends → result</div>
+    </div>
+
+    <!-- ══ SCREEN 2 ══ -->
+    <div data-screen-label="02 Daily Result" style="flex:none;display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-family:'Baloo 2';font-weight:700;font-size:13px;color:#0E1424;background:#F5C451;border-radius:20px;padding:3px 12px">02</div>
+        <div style="font-family:'Baloo 2';font-weight:600;font-size:19px;color:#F7E9C8">Result &amp; Share</div>
+        <div style="font-size:12px;color:rgba(247,233,200,.45)">the loop out</div>
+      </div>
+      <div style="width:390px;height:844px;border-radius:46px;position:relative;overflow:hidden;background:#0E1424;box-shadow:0 0 0 10px #1B2236,0 0 0 11px #414A69,0 30px 70px rgba(0,0,0,.6)">
+        <div style="position:absolute;inset:0;background:radial-gradient(400px 320px at 50% 22%,#2C2145 0%,#151B33 55%,#0C1120 100%)"></div>
+        <div style="position:absolute;top:120px;left:50%;width:280px;height:280px;margin-left:-140px;border-radius:50%;background:radial-gradient(circle,rgba(245,196,81,.22),transparent 70%);animation:bm-glow 3s ease-in-out infinite"></div>
+        <div style="position:relative;height:100%;display:flex;flex-direction:column">
+          <div style="height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13px;font-weight:800;color:#F7E9C8"><span>9:52</span><div style="display:flex;gap:6px;align-items:center"><div style="width:16px;height:9px;border-radius:2px;border:1.5px solid rgba(247,233,200,.7)"></div><div style="width:16px;height:9px;border-radius:2px;background:rgba(247,233,200,.7)"></div></div></div>
+
+          <div style="text-align:center;padding:16px 20px 0">
+            <div style="font-size:12px;font-weight:800;letter-spacing:.18em;text-transform:uppercase;color:rgba(245,196,81,.8)">Daily complete</div>
+            <div style="font-family:'Baloo 2';font-weight:800;font-size:62px;line-height:1.05;color:#FFD98A;text-shadow:0 4px 0 rgba(0,0,0,.35),0 0 34px rgba(245,196,81,.45);margin-top:2px">8,420</div>
+            <div style="display:inline-block;margin-top:4px;background:linear-gradient(180deg,#4FAE84,#2F8462);border-radius:14px;padding:5px 14px;font-size:13px;font-weight:900;color:#F2FFF9;box-shadow:0 3px 0 rgba(0,0,0,.3)">Top 11% today</div>
+          </div>
+
+          <div style="margin:16px 18px 0;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:10px 12px;display:flex;flex-direction:column;gap:7px">
+            <sc-for list="{{ leaderboard }}" as="r" hint-placeholder-count="4">
+              <div style="{{ r.row }}">
+                <div style="width:20px;font-size:12px;font-weight:900;color:rgba(247,233,200,.55)">{{ r.pos }}</div>
+                <div style="width:26px;height:26px;border-radius:50%;background:{{ r.av }};border:2px solid rgba(255,255,255,.18)"></div>
+                <div style="flex:1;font-size:13px;font-weight:800;color:#F7E9C8">{{ r.name }}</div>
+                <div style="font-size:13px;font-weight:900;color:#F5C451">{{ r.score }}</div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="margin:16px 18px 0;border-radius:22px;padding:16px 16px 14px;background:linear-gradient(180deg,#FBF3E2,#EFE1C4);box-shadow:0 12px 30px rgba(0,0,0,.45)">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <div style="font-family:'Baloo 2';font-weight:800;font-size:16px;color:#2A1E12">Block Manor · Jul 30</div>
+              <div style="font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:#9C7A3C">#DAILY 214</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:14px;margin-top:12px">
+              <div style="display:grid;grid-template-columns:repeat(6,20px);gap:3px">
+                <sc-for list="{{ shareGrid }}" as="c" hint-placeholder-count="36">
+                  <div style="{{ c.style }}"></div>
+                </sc-for>
+              </div>
+              <div style="flex:1">
+                <div style="font-family:'Baloo 2';font-weight:800;font-size:32px;line-height:1;color:#2A1E12">8,420</div>
+                <div style="font-size:12px;font-weight:800;color:#7A5C2E;margin-top:2px">Top 11% · 🔥 {{ streakDays }}</div>
+                <div style="font-size:10.5px;color:rgba(42,30,18,.5);margin-top:6px">blockmanor.game/d214</div>
+              </div>
+            </div>
+            <div style="margin-top:11px;font-size:10.5px;font-weight:700;color:rgba(42,30,18,.45);text-align:center">Spoiler-free — no board layout revealed</div>
+          </div>
+
+          <div style="padding:14px 18px 0;display:flex;gap:10px">
+            <div style="flex:1;text-align:center;padding:14px;border-radius:18px;background:linear-gradient(180deg,#4FAE84,#2F8462);box-shadow:0 5px 0 #226349;font-family:'Baloo 2';font-weight:800;font-size:15px;color:#fff" style-hover="transform:translateY(2px);box-shadow:0 3px 0 #226349">Share to WhatsApp</div>
+            <div style="flex:1;text-align:center;padding:14px;border-radius:18px;background:linear-gradient(180deg,#A96FD1,#7B45A6);box-shadow:0 5px 0 #5E3282;font-family:'Baloo 2';font-weight:800;font-size:15px;color:#fff" style-hover="transform:translateY(2px);box-shadow:0 3px 0 #5E3282">Share to Story</div>
+          </div>
+
+          <div style="flex:1"></div>
+          <div style="padding:0 18px 30px">
+            <div style="padding:17px;border-radius:20px;text-align:center;background:linear-gradient(180deg,#F7D477,#E7A82F);box-shadow:0 6px 0 #B8801F,0 12px 26px rgba(245,196,81,.35);font-family:'Baloo 2';font-weight:800;font-size:20px;color:#3A2609;animation:bm-pulse 2.4s ease-in-out infinite">Continue to Levels →</div>
+            <div style="text-align:center;margin-top:9px;font-size:11.5px;color:rgba(247,233,200,.45)">Level 23 · 2 boosters waiting</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:none;width:132px;display:flex;flex-direction:column;align-items:center;gap:9px;padding:0 8px">
+      <div style="font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#F5C451;text-align:center">CTA pulls in</div>
+      <div style="width:100%;height:2px;border-radius:2px;background:linear-gradient(90deg,rgba(245,196,81,0),#F5C451);position:relative"><div style="position:absolute;right:-1px;top:-5px;width:0;height:0;border-left:11px solid #F5C451;border-top:6px solid transparent;border-bottom:6px solid transparent"></div></div>
+      <div style="font-size:10.5px;line-height:1.45;color:rgba(247,233,200,.42);text-align:center">daily → core levels</div>
+    </div>
+
+    <!-- ══ SCREEN 3 ══ -->
+    <div data-screen-label="03 Level Gameplay" style="flex:none;display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-family:'Baloo 2';font-weight:700;font-size:13px;color:#0E1424;background:#F5C451;border-radius:20px;padding:3px 12px">03</div>
+        <div style="font-family:'Baloo 2';font-weight:600;font-size:19px;color:#F7E9C8">Level Gameplay</div>
+        <div style="font-size:12px;color:rgba(247,233,200,.45)">the core</div>
+      </div>
+      <div style="width:390px;height:844px;border-radius:46px;position:relative;overflow:hidden;background:#0E1424;box-shadow:0 0 0 10px #1B2236,0 0 0 11px #414A69,0 30px 70px rgba(0,0,0,.6)">
+        <div style="position:absolute;inset:0;background:radial-gradient(420px 300px at 50% 14%,#26325A 0%,#141B31 55%,#0C1120 100%)"></div>
+        <div style="position:relative;height:100%;display:flex;flex-direction:column">
+          <div style="height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13px;font-weight:800;color:#F7E9C8"><span>9:58</span><div style="display:flex;gap:6px;align-items:center"><div style="width:16px;height:9px;border-radius:2px;border:1.5px solid rgba(247,233,200,.7)"></div><div style="width:16px;height:9px;border-radius:2px;background:rgba(247,233,200,.7)"></div></div></div>
+
+          <div style="padding:2px 18px 0;display:flex;align-items:center;gap:10px">
+            <div style="width:38px;height:38px;border-radius:13px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center"><div style="width:12px;height:12px;border-left:3px solid rgba(247,233,200,.7);border-bottom:3px solid rgba(247,233,200,.7);transform:rotate(45deg);margin-left:4px"></div></div>
+            <div style="flex:1;text-align:center"><div style="font-family:'Baloo 2';font-weight:800;font-size:22px;color:#F7E9C8">Level 23</div></div>
+            <div style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.06);border:1px solid rgba(245,196,81,.25);border-radius:13px;padding:7px 11px"><div style="width:14px;height:14px;border-radius:50%;background:linear-gradient(180deg,#FFD98A,#E0A93B)"></div><span style="font-size:13px;font-weight:900;color:#F5C451">740</span></div>
+          </div>
+
+          <div style="margin:14px 18px 0;padding:12px 14px;border-radius:18px;background:linear-gradient(180deg,#3A2A1C,#241A12);border:1px solid rgba(245,196,81,.22);display:flex;align-items:center;gap:12px">
+            <div style="width:40px;height:40px;border-radius:10px;background:linear-gradient(180deg,#B98453,#7A4E2B);box-shadow:inset 0 2px 0 rgba(255,255,255,.25),inset 0 -3px 0 rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center"><div style="width:22px;height:4px;background:rgba(0,0,0,.35);transform:rotate(-40deg);border-radius:2px"></div></div>
+            <div style="flex:1">
+              <div style="font-family:'Baloo 2';font-weight:800;font-size:16px;color:#F7E9C8">Clear 12 crates</div>
+              <div style="margin-top:6px;height:9px;border-radius:6px;background:rgba(0,0,0,.4);overflow:hidden"><div style="width:58%;height:100%;border-radius:6px;background:linear-gradient(90deg,#F7D477,#E7A82F);box-shadow:0 0 12px rgba(245,196,81,.6)"></div></div>
+            </div>
+            <div style="font-family:'Baloo 2';font-weight:800;font-size:19px;color:#F5C451">7/12</div>
+          </div>
+
+          <div style="margin:12px 18px 0;display:flex;align-items:center;gap:9px">
+            <div style="display:flex;align-items:center;gap:7px;background:rgba(245,196,81,.12);border:1px solid rgba(245,196,81,.3);border-radius:14px;padding:6px 12px 6px 8px">
+              <div style="width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 50% 65%,#FFE08A,#F0803C 60%,#C1401F);animation:bm-flicker 1.5s ease-in-out infinite"></div>
+              <span style="font-size:13px;font-weight:900;color:#FFD98A">Streak x3</span>
+            </div>
+            <div style="flex:1;display:flex;gap:7px;justify-content:flex-end">
+              <div style="width:34px;height:34px;border-radius:11px;background:linear-gradient(180deg,#4C86D6,#2F5FA8);box-shadow:0 0 16px rgba(76,134,214,.7),inset 0 2px 0 rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center"><div style="width:14px;height:14px;border-radius:3px;background:rgba(255,255,255,.55)"></div></div>
+              <div style="width:34px;height:34px;border-radius:11px;background:linear-gradient(180deg,#A96FD1,#7B45A6);box-shadow:0 0 16px rgba(169,111,209,.7),inset 0 2px 0 rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center"><div style="width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.55)"></div></div>
+            </div>
+          </div>
+
+          <div style="margin:14px 18px 0;padding:16px 15px;border-radius:24px;background:linear-gradient(180deg,#3A2A1C,#241A12);box-shadow:inset 0 2px 0 rgba(245,196,81,.28),inset 0 -6px 14px rgba(0,0,0,.5),0 10px 26px rgba(0,0,0,.45)">
+            <div style="padding:11px;border-radius:16px;background:rgba(9,13,26,.72);box-shadow:inset 0 3px 12px rgba(0,0,0,.6)">
+              <div style="display:grid;grid-template-columns:repeat(8,38px);gap:3px;justify-content:center">
+                <sc-for list="{{ levelGrid }}" as="c" hint-placeholder-count="64">
+                  <div style="{{ c.style }}"><div style="{{ c.inner }}"></div></div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin:14px 18px 0;display:flex;align-items:center;justify-content:space-around;padding:12px 8px;border-radius:20px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.07)">
+            <sc-for list="{{ levelTray }}" as="p" hint-placeholder-count="3">
+              <div style="{{ p.wrap }}">
+                <sc-for list="{{ p.cells }}" as="c" hint-placeholder-count="4">
+                  <div style="{{ c.style }}"></div>
+                </sc-for>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="flex:1"></div>
+          <div style="padding:0 18px 30px;display:flex;gap:12px;justify-content:center">
+            <sc-for list="{{ boosters }}" as="b" hint-placeholder-count="3">
+              <div style="position:relative;width:74px;display:flex;flex-direction:column;align-items:center;gap:6px">
+                <div style="{{ b.tile }}"><div style="{{ b.icon }}"></div></div>
+                <div style="font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:rgba(247,233,200,.55)">{{ b.name }}</div>
+                <div style="{{ b.badge }}">{{ b.count }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:none;width:132px;display:flex;flex-direction:column;align-items:center;gap:9px;padding:0 8px">
+      <div style="font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#E2574C;text-align:center">no moves left</div>
+      <div style="width:100%;height:2px;border-radius:2px;background:linear-gradient(90deg,rgba(226,87,76,0),#E2574C);position:relative"><div style="position:absolute;right:-1px;top:-5px;width:0;height:0;border-left:11px solid #E2574C;border-top:6px solid transparent;border-bottom:6px solid transparent"></div></div>
+      <div style="font-size:10.5px;line-height:1.45;color:rgba(247,233,200,.42);text-align:center">board locks → fail</div>
+    </div>
+
+    <!-- ══ SCREEN 4 ══ -->
+    <div data-screen-label="04 Fail / Continue" style="flex:none;display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-family:'Baloo 2';font-weight:700;font-size:13px;color:#0E1424;background:#F5C451;border-radius:20px;padding:3px 12px">04</div>
+        <div style="font-family:'Baloo 2';font-weight:600;font-size:19px;color:#F7E9C8">Fail / Continue</div>
+        <div style="font-size:12px;color:rgba(247,233,200,.45)">loss aversion</div>
+      </div>
+      <div style="width:390px;height:844px;border-radius:46px;position:relative;overflow:hidden;background:#0E1424;box-shadow:0 0 0 10px #1B2236,0 0 0 11px #414A69,0 30px 70px rgba(0,0,0,.6)">
+        <div style="position:absolute;inset:0;background:radial-gradient(420px 300px at 50% 14%,#26325A 0%,#141B31 55%,#0C1120 100%)"></div>
+        <div style="position:absolute;top:150px;left:24px;right:24px;padding:14px;border-radius:22px;background:rgba(9,13,26,.6);filter:blur(.4px)">
+          <div style="display:grid;grid-template-columns:repeat(8,38px);gap:3px;justify-content:center">
+            <sc-for list="{{ failGrid }}" as="c" hint-placeholder-count="64">
+              <div style="{{ c.style }}"></div>
+            </sc-for>
+          </div>
+        </div>
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,11,22,.72),rgba(8,11,22,.9))"></div>
+
+        <div style="position:relative;height:100%;display:flex;flex-direction:column">
+          <div style="height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13px;font-weight:800;color:rgba(247,233,200,.8)"><span>10:06</span><div style="display:flex;gap:6px;align-items:center"><div style="width:16px;height:9px;border-radius:2px;border:1.5px solid rgba(247,233,200,.6)"></div><div style="width:16px;height:9px;border-radius:2px;background:rgba(247,233,200,.6)"></div></div></div>
+          <div style="flex:1"></div>
+
+          <div style="margin:0 20px;padding:26px 22px 22px;border-radius:30px;background:linear-gradient(180deg,#FBF3E2,#EBDCBD);box-shadow:0 20px 50px rgba(0,0,0,.6),inset 0 -6px 0 rgba(0,0,0,.06);position:relative">
+            <div style="position:absolute;top:-46px;left:50%;margin-left:-38px;width:76px;height:76px;border-radius:50%;background:radial-gradient(circle at 50% 65%,#FFE08A,#F0803C 55%,#8E2C13);box-shadow:0 0 34px rgba(240,128,60,.55),0 0 0 8px rgba(251,243,226,.9);animation:bm-flicker 1s ease-in-out infinite"></div>
+            <div style="text-align:center;margin-top:22px">
+              <div style="font-family:'Baloo 2';font-weight:800;font-size:32px;color:#2A1E12">Out of space!</div>
+              <div style="font-size:13.5px;font-weight:700;color:rgba(42,30,18,.6);margin-top:4px;line-height:1.45">Your {{ streakDays }}-day streak is about to go out.<br>Clear one row to keep it alive.</div>
+            </div>
+
+            <div style="margin-top:18px;padding:14px 16px;border-radius:20px;background:linear-gradient(180deg,#F7D477,#E7A82F);box-shadow:0 6px 0 #B8801F,0 12px 26px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;gap:10px">
+              <span style="font-family:'Baloo 2';font-weight:800;font-size:21px;color:#3A2609">Continue?</span>
+              <div style="display:flex;align-items:center;gap:6px;background:rgba(58,38,9,.16);border-radius:14px;padding:4px 11px"><div style="width:16px;height:16px;border-radius:50%;background:linear-gradient(180deg,#FFF0BE,#D9A128);box-shadow:inset 0 -2px 0 rgba(0,0,0,.2)"></div><span style="font-family:'Baloo 2';font-weight:800;font-size:19px;color:#3A2609">900</span></div>
+            </div>
+            <div style="margin-top:8px;text-align:center;font-size:12px;font-weight:800;color:#B4442F">You have 740 coins — 160 short</div>
+
+            <div style="margin-top:14px;padding:13px;border-radius:18px;border:2px dashed rgba(42,30,18,.22);background:rgba(255,255,255,.45);text-align:center">
+              <div style="font-family:'Baloo 2';font-weight:700;font-size:15px;color:#2A1E12">▶ Watch ad for a second chance</div>
+              <div style="font-size:11px;font-weight:700;color:rgba(42,30,18,.45);margin-top:2px">30s · 1 of 2 left today</div>
+            </div>
+            <div style="margin-top:16px;text-align:center;font-size:11px;font-weight:600;color:rgba(42,30,18,.32);text-decoration:underline">Give up</div>
+          </div>
+
+          <div style="padding:20px 20px 32px;display:flex;align-items:center;justify-content:center;gap:8px">
+            <div style="width:18px;height:18px;border-radius:50%;background:linear-gradient(180deg,#FFF0BE,#D9A128)"></div>
+            <span style="font-size:13px;font-weight:800;color:rgba(247,233,200,.7)">740 coins</span>
+            <span style="font-size:13px;font-weight:800;color:#F5C451;text-decoration:underline;margin-left:6px">Get more</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:none;width:132px;display:flex;flex-direction:column;align-items:center;gap:9px;padding:0 8px">
+      <div style="font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#F5C451;text-align:center">level cleared</div>
+      <div style="width:100%;height:2px;border-radius:2px;background:linear-gradient(90deg,rgba(245,196,81,0),#F5C451);position:relative"><div style="position:absolute;right:-1px;top:-5px;width:0;height:0;border-left:11px solid #F5C451;border-top:6px solid transparent;border-bottom:6px solid transparent"></div></div>
+      <div style="font-size:10.5px;line-height:1.45;color:rgba(247,233,200,.42);text-align:center">earn ⭐ → spend in manor</div>
+    </div>
+
+    <!-- ══ SCREEN 5 ══ -->
+    <div data-screen-label="05 Manor Renovation" style="flex:none;display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-family:'Baloo 2';font-weight:700;font-size:13px;color:#0E1424;background:#F5C451;border-radius:20px;padding:3px 12px">05</div>
+        <div style="font-family:'Baloo 2';font-weight:600;font-size:19px;color:#F7E9C8">Manor Renovation</div>
+        <div style="font-size:12px;color:rgba(247,233,200,.45)">the meta</div>
+      </div>
+      <div style="width:390px;height:844px;border-radius:46px;position:relative;overflow:hidden;background:#0E1424;box-shadow:0 0 0 10px #1B2236,0 0 0 11px #414A69,0 30px 70px rgba(0,0,0,.6)">
+        <div style="position:relative;height:100%;display:flex;flex-direction:column;background:linear-gradient(180deg,#1A1428,#0C1120)">
+          <div style="height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13px;font-weight:800;color:#F7E9C8"><span>10:12</span><div style="display:flex;gap:6px;align-items:center"><div style="width:16px;height:9px;border-radius:2px;border:1.5px solid rgba(247,233,200,.7)"></div><div style="width:16px;height:9px;border-radius:2px;background:rgba(247,233,200,.7)"></div></div></div>
+
+          <div style="padding:2px 18px 0;display:flex;align-items:center;justify-content:space-between">
+            <div style="display:flex;align-items:center;gap:9px">
+              <div style="width:36px;height:36px;border-radius:12px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center"><div style="width:11px;height:11px;border-left:3px solid rgba(247,233,200,.7);border-bottom:3px solid rgba(247,233,200,.7);transform:rotate(45deg);margin-left:4px"></div></div>
+              <div><div style="font-family:'Baloo 2';font-weight:800;font-size:19px;color:#F7E9C8;line-height:1.1">The Library</div><div style="font-size:11px;font-weight:800;color:rgba(247,233,200,.45)">Area 2 of 9 · 60% restored</div></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:7px;background:linear-gradient(180deg,#2A3358,#1C2340);border:1px solid rgba(245,196,81,.35);border-radius:15px;padding:7px 13px 7px 9px">
+              <div style="width:20px;height:20px;background:#F5C451;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%);box-shadow:0 0 12px rgba(245,196,81,.7)"></div>
+              <span style="font-family:'Baloo 2';font-weight:800;font-size:19px;color:#FFD98A">4</span>
+            </div>
+          </div>
+
+          <div style="margin:14px 14px 0;height:330px;border-radius:24px;position:relative;overflow:hidden;background:linear-gradient(180deg,#3B2A1E 0%,#241A14 60%,#1A1310 100%);box-shadow:inset 0 0 60px rgba(0,0,0,.7),0 12px 30px rgba(0,0,0,.5)">
+            <div style="position:absolute;left:0;right:0;top:0;height:210px;display:flex;flex-direction:column;justify-content:space-between;padding:16px 14px">
+              <sc-for list="{{ shelves }}" as="s" hint-placeholder-count="3">
+                <div style="display:flex;align-items:flex-end;gap:3px;height:52px;border-bottom:6px solid #4A331F;padding-bottom:2px">
+                  <sc-for list="{{ s.books }}" as="b" hint-placeholder-count="14">
+                    <div style="{{ b.style }}"></div>
+                  </sc-for>
+                </div>
+              </sc-for>
+            </div>
+            <div style="position:absolute;left:50%;bottom:0;margin-left:-58px;width:116px;height:112px;border-radius:58px 58px 6px 6px;background:linear-gradient(180deg,#6B4A2E,#3E2A1A);box-shadow:inset 0 3px 0 rgba(245,196,81,.3)">
+              <div style="position:absolute;left:16px;right:16px;bottom:0;height:74px;border-radius:42px 42px 4px 4px;background:radial-gradient(circle at 50% 100%,#FFD98A,#F0803C 45%,#7A2A12 90%);animation:bm-glow 2.2s ease-in-out infinite"></div>
+            </div>
+            <div style="position:absolute;left:0;top:0;bottom:0;width:52%;background:radial-gradient(200px 200px at 60% 70%,rgba(255,200,110,.28),transparent 75%);pointer-events:none"></div>
+            <div style="position:absolute;right:0;top:0;bottom:0;width:44%;background:rgba(20,24,40,.62);backdrop-filter:grayscale(1) brightness(.62)">
+              <div style="position:absolute;right:0;top:0;width:74px;height:74px;background:conic-gradient(from 180deg at 100% 0,rgba(255,255,255,.16) 0deg 90deg,transparent 90deg);clip-path:polygon(100% 0,0 0,100% 100%)"></div>
+              <div style="position:absolute;right:12px;bottom:16px;font:700 10px 'Nunito';color:rgba(255,255,255,.4);letter-spacing:.08em;text-transform:uppercase">dusty · locked</div>
+            </div>
+            <div style="position:absolute;left:14px;top:14px;background:rgba(9,13,26,.6);border:1px solid rgba(245,196,81,.3);border-radius:12px;padding:5px 11px;font-size:11px;font-weight:900;color:#F5C451">60% restored</div>
+          </div>
+
+          <div style="padding:16px 18px 0">
+            <div style="display:flex;align-items:baseline;justify-content:space-between">
+              <div style="font-family:'Baloo 2';font-weight:800;font-size:19px;color:#F7E9C8">Choose the fireplace</div>
+              <div style="font-size:11.5px;font-weight:800;color:rgba(247,233,200,.45)">Tap to preview</div>
+            </div>
+            <div style="display:flex;gap:10px;margin-top:11px">
+              <sc-for list="{{ fireplaces }}" as="f" hint-placeholder-count="3">
+                <div style="{{ f.card }}" onClick="{{ f.pick }}">
+                  <div style="{{ f.art }}"><div style="{{ f.arch }}"></div></div>
+                  <div style="font-family:'Baloo 2';font-weight:700;font-size:13px;color:#2A1E12;margin-top:8px">{{ f.name }}</div>
+                  <div style="{{ f.cost }}"><div style="width:13px;height:13px;background:#F5C451;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)"></div><span style="font-size:12.5px;font-weight:900;color:#7A5C2E">{{ f.stars }}</span></div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="flex:1"></div>
+          <div style="padding:0 16px 28px">
+            <div style="display:flex;align-items:flex-end;gap:11px">
+              <div style="width:78px;height:96px;border-radius:16px;flex:none;background:repeating-linear-gradient(135deg,rgba(247,233,200,.12) 0 7px,rgba(247,233,200,.04) 7px 14px);border:1px solid rgba(247,233,200,.18);display:flex;align-items:flex-end;justify-content:center;padding-bottom:6px"><span style="font:600 8.5px ui-monospace,Menlo,monospace;color:rgba(247,233,200,.5);text-align:center;line-height:1.3">butler<br>sprite</span></div>
+              <div style="flex:1;position:relative;background:linear-gradient(180deg,#FBF3E2,#EEE0C2);border-radius:18px;padding:13px 15px;box-shadow:0 8px 20px rgba(0,0,0,.4)">
+                <div style="position:absolute;left:-8px;bottom:22px;width:0;height:0;border-right:10px solid #F6EDD9;border-top:8px solid transparent;border-bottom:8px solid transparent"></div>
+                <div style="font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;color:#9C7A3C">Alfred</div>
+                <div style="font-size:13.5px;line-height:1.45;font-weight:700;color:#2A1E12;margin-top:3px;text-wrap:pretty">"A marble hearth. How restrained of you. Wait until you see what the previous owner left in the east wing…"</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:none;width:132px;display:flex;flex-direction:column;align-items:center;gap:9px;padding:0 8px">
+      <div style="font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#F5C451;text-align:center">back to hub</div>
+      <div style="width:100%;height:2px;border-radius:2px;background:linear-gradient(90deg,rgba(245,196,81,0),#F5C451);position:relative"><div style="position:absolute;right:-1px;top:-5px;width:0;height:0;border-left:11px solid #F5C451;border-top:6px solid transparent;border-bottom:6px solid transparent"></div></div>
+      <div style="font-size:10.5px;line-height:1.45;color:rgba(247,233,200,.42);text-align:center">every session lands here</div>
+    </div>
+
+    <!-- ══ SCREEN 6 ══ -->
+    <div data-screen-label="06 Home Hub" style="flex:none;display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-family:'Baloo 2';font-weight:700;font-size:13px;color:#0E1424;background:#F5C451;border-radius:20px;padding:3px 12px">06</div>
+        <div style="font-family:'Baloo 2';font-weight:600;font-size:19px;color:#F7E9C8">Home Hub</div>
+        <div style="font-size:12px;color:rgba(247,233,200,.45)">the crossroads</div>
+      </div>
+      <div style="width:390px;height:844px;border-radius:46px;position:relative;overflow:hidden;background:#0E1424;box-shadow:0 0 0 10px #1B2236,0 0 0 11px #414A69,0 30px 70px rgba(0,0,0,.6)">
+        <div style="position:absolute;inset:0;background:repeating-linear-gradient(135deg,rgba(247,233,200,.07) 0 9px,rgba(247,233,200,.02) 9px 18px)"></div>
+        <div style="position:absolute;top:120px;left:0;right:0;text-align:center;font:600 10px ui-monospace,Menlo,monospace;color:rgba(247,233,200,.35);letter-spacing:.1em">manor exterior art — night, lit windows</div>
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(12,17,32,.55) 0%,rgba(12,17,32,.2) 34%,rgba(12,17,32,.92) 72%,#0C1120 100%)"></div>
+
+        <div style="position:relative;height:100%;display:flex;flex-direction:column">
+          <div style="height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:13px;font-weight:800;color:#F7E9C8"><span>10:15</span><div style="display:flex;gap:6px;align-items:center"><div style="width:16px;height:9px;border-radius:2px;border:1.5px solid rgba(247,233,200,.7)"></div><div style="width:16px;height:9px;border-radius:2px;background:rgba(247,233,200,.7)"></div></div></div>
+
+          <div style="padding:2px 16px 0;display:flex;align-items:center;gap:8px">
+            <div style="display:flex;align-items:center;gap:7px;background:rgba(9,13,26,.62);border:1px solid rgba(245,196,81,.3);border-radius:15px;padding:6px 12px 6px 8px"><div style="width:18px;height:18px;border-radius:50%;background:linear-gradient(180deg,#FFF0BE,#D9A128)"></div><span style="font-size:13.5px;font-weight:900;color:#FFD98A">740</span></div>
+            <div style="display:flex;align-items:center;gap:7px;background:rgba(9,13,26,.62);border:1px solid rgba(245,196,81,.3);border-radius:15px;padding:6px 12px 6px 8px"><div style="width:17px;height:17px;background:#F5C451;clip-path:polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)"></div><span style="font-size:13.5px;font-weight:900;color:#FFD98A">4</span></div>
+            <div style="flex:1"></div>
+            <div style="display:flex;align-items:center;gap:8px;background:linear-gradient(180deg,#E2574C,#B23B33);border-radius:15px;padding:6px 11px;box-shadow:0 3px 0 rgba(0,0,0,.35)">
+              <span style="font-size:11.5px;font-weight:900;color:#fff">Heir's Welcome ₹89</span>
+              <span style="font-size:10px;font-weight:900;color:#FFD98A;background:rgba(0,0,0,.28);border-radius:9px;padding:2px 6px">94% OFF</span>
+            </div>
+          </div>
+          <div style="padding:5px 16px 0;text-align:right;font-size:10.5px;font-weight:800;color:rgba(247,233,200,.5)">offer ends in {{ offerClock }}</div>
+
+          <div style="flex:1"></div>
+
+          <div style="padding:0 16px;display:flex;gap:10px">
+            <div style="flex:1;border-radius:20px;padding:13px 14px;background:linear-gradient(180deg,rgba(42,51,88,.92),rgba(20,26,48,.92));border:1px solid rgba(245,196,81,.28);position:relative">
+              <div style="position:absolute;top:-8px;right:-6px;background:#E2574C;border-radius:12px;padding:3px 8px;font-size:10px;font-weight:900;color:#fff;box-shadow:0 3px 8px rgba(0,0,0,.4)">{{ dailyShort }}</div>
+              <div style="font-family:'Baloo 2';font-weight:800;font-size:16px;color:#F7E9C8">Daily Board</div>
+              <div style="font-size:11px;font-weight:700;color:rgba(247,233,200,.5);margin-top:2px">Played · Top 11%</div>
+              <div style="display:grid;grid-template-columns:repeat(6,10px);gap:2px;margin-top:9px">
+                <sc-for list="{{ hubMini }}" as="c" hint-placeholder-count="18">
+                  <div style="{{ c.style }}"></div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="flex:1;border-radius:20px;padding:13px 14px;background:linear-gradient(180deg,rgba(42,51,88,.92),rgba(20,26,48,.92));border:1px solid rgba(255,255,255,.1)">
+              <div style="display:flex;align-items:center;gap:7px">
+                <div style="width:20px;height:20px;border-radius:50%;background:radial-gradient(circle at 50% 65%,#FFE08A,#F0803C 60%,#C1401F);animation:bm-flicker 1.7s ease-in-out infinite"></div>
+                <div style="font-family:'Baloo 2';font-weight:800;font-size:16px;color:#F7E9C8">{{ streakDays }} days</div>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-top:9px">
+                <sc-for list="{{ calendar }}" as="d" hint-placeholder-count="28">
+                  <div style="{{ d.style }}">{{ d.n }}</div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+
+          <div style="padding:12px 16px 0">
+            <div style="border-radius:20px;padding:12px 14px;background:linear-gradient(120deg,#3B2A5E,#1E2A52);border:1px solid rgba(169,111,209,.4);display:flex;align-items:center;gap:12px">
+              <div style="width:46px;height:46px;border-radius:14px;background:repeating-linear-gradient(135deg,rgba(247,233,200,.16) 0 6px,rgba(247,233,200,.05) 6px 12px);border:1px solid rgba(247,233,200,.2)"></div>
+              <div style="flex:1"><div style="font-family:'Baloo 2';font-weight:800;font-size:16px;color:#F7E9C8">Sky Race</div><div style="font-size:11px;font-weight:800;color:rgba(247,233,200,.5)">Live event · rank 14 of 200</div></div>
+              <div style="background:rgba(0,0,0,.35);border-radius:12px;padding:5px 10px;font-size:11.5px;font-weight:900;color:#F5C451">{{ eventClock }}</div>
+            </div>
+          </div>
+
+          <div style="padding:10px 16px 0">
+            <div style="border-radius:20px;padding:12px 14px;background:rgba(9,13,26,.62);border:1px solid rgba(255,255,255,.09)">
+              <div style="display:flex;align-items:center;justify-content:space-between"><div style="font-size:13px;font-weight:900;color:#F7E9C8">Team chest — Ashfield Estate</div><div style="font-size:12px;font-weight:900;color:#F5C451">62/100</div></div>
+              <div style="margin-top:7px;height:10px;border-radius:6px;background:rgba(0,0,0,.45);overflow:hidden"><div style="width:62%;height:100%;background:linear-gradient(90deg,#4FAE84,#7FD3AC);box-shadow:0 0 12px rgba(79,174,132,.6)"></div></div>
+            </div>
+          </div>
+
+          <div style="padding:16px 16px 0">
+            <div style="padding:19px;border-radius:24px;text-align:center;background:linear-gradient(180deg,#F7D477,#E7A82F);box-shadow:0 7px 0 #B8801F,0 16px 34px rgba(245,196,81,.35);animation:bm-pulse 2.6s ease-in-out infinite">
+              <div style="font-family:'Baloo 2';font-weight:800;font-size:26px;line-height:1;color:#3A2609">Play</div>
+              <div style="font-size:12.5px;font-weight:900;color:rgba(58,38,9,.6);margin-top:3px">Level 24 · The Library</div>
+            </div>
+          </div>
+
+          <div style="padding:14px 12px 26px;display:flex;justify-content:space-around">
+            <sc-for list="{{ navItems }}" as="n" hint-placeholder-count="5">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:5px;width:64px">
+                <div style="{{ n.icon }}"></div>
+                <div style="{{ n.label }}">{{ n.name }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div style="flex:none;width:132px;display:flex;flex-direction:column;align-items:center;gap:9px;padding:0 8px">
+      <div style="font-size:11px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:#F5C451;text-align:center">tap the offer chip</div>
+      <div style="width:100%;height:2px;border-radius:2px;background:linear-gradient(90deg,rgba(245,196,81,0),#F5C451);position:relative"><div style="position:absolute;right:-1px;top:-5px;width:0;height:0;border-left:11px solid #F5C451;border-top:6px solid transparent;border-bottom:6px solid transparent"></div></div>
+      <div style="font-size:10.5px;line-height:1.45;color:rgba(247,233,200,.42);text-align:center">also auto-fires after fail</div>
+    </div>
+
+    <!-- ══ SCREEN 7 ══ -->
+    <div data-screen-label="07 Starter Pack" style="flex:none;display:flex;flex-direction:column;gap:16px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-family:'Baloo 2';font-weight:700;font-size:13px;color:#0E1424;background:#F5C451;border-radius:20px;padding:3px 12px">07</div>
+        <div style="font-family:'Baloo 2';font-weight:600;font-size:19px;color:#F7E9C8">Starter Pack</div>
+        <div style="font-size:12px;color:rgba(247,233,200,.45)">first purchase</div>
+      </div>
+      <div style="width:390px;height:844px;border-radius:46px;position:relative;overflow:hidden;background:#0E1424;box-shadow:0 0 0 10px #1B2236,0 0 0 11px #414A69,0 30px 70px rgba(0,0,0,.6)">
+        <div style="position:absolute;inset:0;background:radial-gradient(340px 300px at 50% 30%,#3A2A5E 0%,#16193040 60%,#080B16 100%)"></div>
+        <sc-for list="{{ sparkles }}" as="s" hint-placeholder-count="10">
+          <div style="{{ s.style }}"></div>
+        </sc-for>
+
+        <div style="position:relative;height:100%;display:flex;flex-direction:column">
+          <div style="height:46px;display:flex;align-items:center;justify-content:flex-end;padding:0 22px"><div style="width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,.09);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:800;color:rgba(247,233,200,.6)">✕</div></div>
+
+          <div style="text-align:center;padding:6px 20px 0">
+            <div style="display:inline-block;background:linear-gradient(180deg,#E2574C,#B23B33);border-radius:14px;padding:5px 16px;font-size:12px;font-weight:900;letter-spacing:.12em;text-transform:uppercase;color:#fff;box-shadow:0 4px 0 rgba(0,0,0,.35)">One time only</div>
+            <div style="font-family:'Baloo 2';font-weight:800;font-size:34px;line-height:1.1;color:#F7E9C8;margin-top:10px">Heir's Welcome Pack</div>
+          </div>
+
+          <div style="margin:12px auto 0;width:250px;height:190px;border-radius:22px;background:repeating-linear-gradient(135deg,rgba(247,233,200,.14) 0 9px,rgba(247,233,200,.04) 9px 18px);border:1px solid rgba(247,233,200,.22);display:flex;align-items:flex-end;justify-content:center;padding-bottom:10px;box-shadow:0 0 60px rgba(245,196,81,.25)">
+            <span style="font:600 10px ui-monospace,Menlo,monospace;color:rgba(247,233,200,.55);text-align:center">treasure chest render<br>spilling coins</span>
+          </div>
+
+          <div style="margin:16px 20px 0;border-radius:24px;background:linear-gradient(180deg,#FBF3E2,#EDDFC0);padding:14px 16px;box-shadow:0 16px 40px rgba(0,0,0,.5)">
+            <sc-for list="{{ packItems }}" as="it" hint-placeholder-count="4">
+              <div style="{{ it.row }}">
+                <div style="{{ it.chip }}"></div>
+                <div style="flex:1;font-size:14.5px;font-weight:800;color:#2A1E12">{{ it.label }}</div>
+                <div style="font-size:12.5px;font-weight:900;color:#9C7A3C">{{ it.val }}</div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="text-align:center;padding:14px 20px 0">
+            <div style="display:flex;align-items:baseline;justify-content:center;gap:12px">
+              <div style="font-size:19px;font-weight:800;color:rgba(247,233,200,.42);text-decoration:line-through">₹1,499</div>
+              <div style="font-family:'Baloo 2';font-weight:800;font-size:44px;line-height:1;color:#FFD98A;text-shadow:0 0 30px rgba(245,196,81,.5)">₹89</div>
+            </div>
+            <div style="font-size:12.5px;font-weight:900;color:#4FAE84;margin-top:3px">You save 94%</div>
+          </div>
+
+          <div style="flex:1"></div>
+
+          <div style="padding:0 20px 30px">
+            <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:11px">
+              <div style="width:7px;height:7px;border-radius:50%;background:#E2574C;animation:bm-sparkle 1.1s ease-in-out infinite"></div>
+              <span style="font-size:13px;font-weight:900;color:#F7E9C8;letter-spacing:.02em">Offer expires in {{ offerClock }}</span>
+            </div>
+            <div style="padding:20px;border-radius:24px;text-align:center;background:linear-gradient(180deg,#F7D477,#E7A82F);box-shadow:0 7px 0 #B8801F,0 16px 36px rgba(245,196,81,.4);font-family:'Baloo 2';font-weight:800;font-size:24px;color:#3A2609;animation:bm-pulse 2.2s ease-in-out infinite">Claim Welcome Gift</div>
+            <div style="text-align:center;margin-top:12px;font-size:11px;font-weight:600;color:rgba(247,233,200,.32)">No thanks, maybe later</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="margin-top:56px;display:flex;gap:40px;flex-wrap:wrap;align-items:flex-start">
+    <div>
+      <div style="font-size:11px;font-weight:900;letter-spacing:.16em;text-transform:uppercase;color:rgba(247,233,200,.4);margin-bottom:12px">Palette</div>
+      <div style="display:flex;gap:10px">
+        <sc-for list="{{ swatches }}" as="s" hint-placeholder-count="8">
+          <div style="display:flex;flex-direction:column;gap:6px;align-items:center">
+            <div style="{{ s.chip }}"></div>
+            <div style="font:600 9.5px ui-monospace,Menlo,monospace;color:rgba(247,233,200,.42)">{{ s.hex }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    <div style="max-width:420px">
+      <div style="font-size:11px;font-weight:900;letter-spacing:.16em;text-transform:uppercase;color:rgba(247,233,200,.4);margin-bottom:12px">Type</div>
+      <div style="font-family:'Baloo 2';font-weight:800;font-size:26px;color:#F7E9C8;line-height:1.2">Baloo 2 — display, 800</div>
+      <div style="font-size:14px;color:rgba(247,233,200,.6);line-height:1.55;margin-top:4px">Nunito — body, 400/700/900. Numerals always 800+ so scores and timers read as game HUD, never as web copy.</div>
+    </div>
+    <div style="max-width:300px">
+      <div style="font-size:11px;font-weight:900;letter-spacing:.16em;text-transform:uppercase;color:rgba(247,233,200,.4);margin-bottom:12px">Notes for Unity</div>
+      <div style="font-size:13px;color:rgba(247,233,200,.55);line-height:1.6">Buttons use a 6–7px hard bottom shadow (no blur) as the "chunk"; pressed state drops 3px. Blocks are 38px @1x with 3px gutters — safe for 8×8 on a 360dp width.</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:4200,&quot;height&quot;:1400},&quot;blockGloss&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;glossy&quot;,&quot;matte&quot;],&quot;default&quot;:&quot;glossy&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Blocks&quot;},&quot;showMotifs&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Blocks&quot;},&quot;streakDays&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:12,&quot;min&quot;:1,&quot;max&quot;:365,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Content&quot;}}">
+const T = {
+  r:['#F0837A','#E2574C','#B23B33'], o:['#F7C071','#F0A83C','#C77E22'],
+  e:['#7FD3AC','#4FAE84','#2F8462'], s:['#84B0EC','#4C86D6','#2F5FA8'],
+  a:['#C295E8','#9C6BD0','#71479F'], t:['#77CFDB','#3FA8B8','#27808E'],
+  c:['#C08B57','#8A5A34','#57331B'], k:['#98A2BE','#616C8C','#3B4360'],
+  i:['#9ACF72','#5E9440','#3A6626']
+};
+const MOTIF = {
+  r:{w:12,h:17,br:'3px',bg:'rgba(255,255,255,.3)',bd:'none'},
+  o:{w:15,h:15,br:'50%',bg:'transparent',bd:'3px solid rgba(255,255,255,.4)'},
+  e:{w:17,h:14,br:'3px',bg:'transparent',bd:'3px solid rgba(255,255,255,.36)'},
+  s:{w:6,h:17,br:'3px',bg:'rgba(255,255,255,.36)',bd:'none'},
+  a:{w:16,h:16,br:'50%',bg:'transparent',bd:'3px solid rgba(255,255,255,.34)'},
+  t:{w:15,h:9,br:'8px 8px 2px 2px',bg:'rgba(255,255,255,.32)',bd:'none'},
+  c:{w:24,h:4,br:'2px',bg:'rgba(0,0,0,.34)',bd:'none',rot:'rotate(-40deg)'},
+  k:{w:15,h:15,br:'50%',bg:'transparent',bd:'4px solid rgba(0,0,0,.35)'},
+  i:{w:16,h:12,br:'10px 2px 10px 2px',bg:'rgba(255,255,255,.3)',bd:'none'}
+};
+
+class Component extends DCLogic {
+  state = { t: 34882, offer: 86352, ev: 8040, fp: 1 };
+
+  componentDidMount() {
+    this.iv = setInterval(() => this.setState(s => ({
+      t: s.t > 0 ? s.t - 1 : 86399, offer: s.offer > 0 ? s.offer - 1 : 86399, ev: s.ev > 0 ? s.ev - 1 : 7200
+    })), 1000);
+  }
+  componentWillUnmount() { clearInterval(this.iv); }
+
+  fmt(n) { const h = Math.floor(n / 3600), m = Math.floor(n % 3600 / 60), s = n % 60;
+    const p = v => String(v).padStart(2, '0'); return p(h) + ':' + p(m) + ':' + p(s); }
+
+  cell(ch, size, motifs) {
+    const px = size + 'px';
+    if (ch === '.') return { style: { width: px, height: px, borderRadius: Math.round(size * .26) + 'px', background: 'rgba(255,255,255,.045)', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,.05)' }, inner: { display: 'none' } };
+    const [l, b, d] = T[ch] || T.r;
+    const gloss = (this.props.blockGloss ?? 'glossy') === 'glossy';
+    return {
+      style: { width: px, height: px, borderRadius: Math.round(size * .26) + 'px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'linear-gradient(180deg,' + l + ' 0%,' + b + ' 52%,' + d + ' 100%)',
+        boxShadow: gloss
+          ? 'inset 0 3px 0 rgba(255,255,255,.38), inset 0 -4px 0 rgba(0,0,0,.24), 0 3px 6px rgba(0,0,0,.38)'
+          : 'inset 0 -3px 0 rgba(0,0,0,.2), 0 2px 4px rgba(0,0,0,.3)' },
+      inner: motifs && size > 20 ? (() => { const m = MOTIF[ch]; return { width: m.w + 'px', height: m.h + 'px', borderRadius: m.br, background: m.bg, border: m.bd, transform: m.rot || 'none' }; })() : { display: 'none' }
+    };
+  }
+
+  grid(rows, size, motifs) {
+    const out = [];
+    rows.forEach(r => r.split('').forEach(ch => out.push(this.cell(ch, size, motifs))));
+    return out;
+  }
+
+  piece(rows, ch) {
+    const cols = rows[0].length, cells = [];
+    rows.forEach(r => r.split('').forEach(x => {
+      if (x === '.') cells.push({ style: { width: '19px', height: '19px' } });
+      else { const c = this.cell(ch, 19, false); cells.push({ style: c.style }); }
+    }));
+    return { wrap: { display: 'grid', gridTemplateColumns: 'repeat(' + cols + ',19px)', gap: '2px' }, cells };
+  }
+
+  renderVals() {
+    const motifs = this.props.showMotifs ?? true;
+    const streakDays = this.props.streakDays ?? 12;
+
+    const daily = ['........','........','....o...','...oo...','..aaoe..','.raaee..','rrs.eet.','rss.ttt.'];
+    const level = ['cc....cc','c......c','..kii...','..kii...','.ee..ss.','cee..ssc','c..aa..c','cc.aa.cc'];
+    const fail  = ['rroaaeet','rroaaeet','sstt.rro','sstt.rro','aaee.sso','aaeerss.','ottrree.','ott.ree.'];
+    const share = ['oo.eea','oaaee.','ss.rro','sstrro','.attr.','aa.ttr'];
+    const hubm  = ['oo.ee.','.aass.','rr.tt.'];
+
+    const bo = (bg, sh) => ({ width: '54px', height: '54px', borderRadius: '18px', background: bg,
+      boxShadow: 'inset 0 3px 0 rgba(255,255,255,.32), inset 0 -5px 0 rgba(0,0,0,.28), 0 5px 14px ' + sh,
+      display: 'flex', alignItems: 'center', justifyContent: 'center' });
+    const badge = { position: 'absolute', top: '-6px', right: '4px', minWidth: '20px', textAlign: 'center',
+      background: '#E2574C', borderRadius: '10px', padding: '1px 6px', fontSize: '11px', fontWeight: 900, color: '#fff', boxShadow: '0 2px 6px rgba(0,0,0,.4)' };
+
+    const boosters = [
+      { name: 'Hammer', count: 3, tile: bo('linear-gradient(180deg,#F0837A,#B23B33)', 'rgba(226,87,76,.35)'), icon: { width: '10px', height: '26px', borderRadius: '3px', background: 'rgba(255,255,255,.65)', boxShadow: '0 -9px 0 -1px rgba(255,255,255,.65)' }, badge },
+      { name: 'Broom', count: 1, tile: bo('linear-gradient(180deg,#7FD3AC,#2F8462)', 'rgba(79,174,132,.35)'), icon: { width: '22px', height: '22px', borderRadius: '4px 4px 12px 12px', background: 'rgba(255,255,255,.6)' }, badge },
+      { name: 'Hourglass', count: 2, tile: bo('linear-gradient(180deg,#C295E8,#71479F)', 'rgba(169,111,209,.35)'), icon: { width: '20px', height: '24px', background: 'rgba(255,255,255,.62)', clipPath: 'polygon(0 0,100% 0,52% 50%,100% 100%,0 100%,48% 50%)' }, badge }
+    ];
+
+    const fpNames = [['Marble', 2], ['Brass Hearth', 4], ['Carved Oak', 6]];
+    const fpCol = ['linear-gradient(180deg,#E8E0D2,#B9AE9A)', 'linear-gradient(180deg,#F7D477,#C77E22)', 'linear-gradient(180deg,#B98453,#5E3A20)'];
+    const fireplaces = fpNames.map(([name, stars], i) => {
+      const sel = this.state.fp === i;
+      return { name, stars,
+        card: { flex: 1, borderRadius: '18px', padding: '10px 10px 12px', textAlign: 'center', cursor: 'pointer',
+          background: 'linear-gradient(180deg,#FBF3E2,#E9DBBB)',
+          border: sel ? '3px solid #F5C451' : '3px solid rgba(0,0,0,.08)',
+          boxShadow: sel ? '0 0 22px rgba(245,196,81,.5),0 5px 0 rgba(0,0,0,.25)' : '0 5px 0 rgba(0,0,0,.25)',
+          transform: sel ? 'translateY(-3px)' : 'none' },
+        art: { height: '52px', borderRadius: '12px', background: 'rgba(42,30,18,.14)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', overflow: 'hidden' },
+        arch: { width: '44px', height: '40px', borderRadius: '22px 22px 3px 3px', background: fpCol[i] },
+        cost: { display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '6px', background: 'rgba(42,30,18,.1)', borderRadius: '10px', padding: '2px 8px' },
+        pick: () => this.setState({ fp: i }) };
+    });
+
+    const bookCols = ['#8E3B33', '#2F6B57', '#3B5A8E', '#6B4A2E', '#7A5C9E', '#B08430', '#4A6E4A'];
+    const shelves = [0, 1, 2].map(si => ({
+      books: Array.from({ length: 16 }, (_, i) => ({ style: {
+        width: (7 + ((i * 5 + si * 3) % 6)) + 'px',
+        height: (28 + ((i * 7 + si * 5) % 16)) + 'px',
+        borderRadius: '2px 2px 1px 1px',
+        background: bookCols[(i + si * 2) % bookCols.length],
+        boxShadow: 'inset 0 2px 0 rgba(255,255,255,.18), inset 0 -3px 0 rgba(0,0,0,.28)' } }))
+    }));
+
+    const calendar = Array.from({ length: 28 }, (_, i) => {
+      const n = i + 1, hit = n <= 19 && n >= 8, today = n === 19;
+      return { n, style: { height: '13px', borderRadius: '4px', fontSize: '7.5px', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: hit ? '#3A2609' : 'rgba(247,233,200,.28)',
+        background: today ? '#FFD98A' : hit ? 'rgba(245,196,81,.75)' : 'rgba(255,255,255,.06)',
+        boxShadow: today ? '0 0 10px rgba(245,196,81,.8)' : 'none' } };
+    });
+
+    const navName = ['Home', 'Manor', 'Team', 'Shop', 'Events'];
+    const navItems = navName.map((name, i) => ({ name,
+      icon: { width: '34px', height: '34px', borderRadius: '12px', background: i === 0 ? 'linear-gradient(180deg,#F7D477,#E7A82F)' : 'rgba(255,255,255,.09)', border: '1px solid rgba(255,255,255,.12)' },
+      label: { fontSize: '10px', fontWeight: 800, color: i === 0 ? '#F5C451' : 'rgba(247,233,200,.45)' } }));
+
+    const pack = [['1,000 Coins', '×1000', 'linear-gradient(180deg,#FFF0BE,#D9A128)'],
+      ['Hammer · Broom · Hourglass', '×3', 'linear-gradient(180deg,#C295E8,#71479F)'],
+      ['Golden Door Knocker', 'exclusive', 'linear-gradient(180deg,#F7D477,#C77E22)'],
+      ['Ad-free play', '7 days', 'linear-gradient(180deg,#7FD3AC,#2F8462)']];
+    const packItems = pack.map(([label, val, bg], i) => ({ label, val,
+      row: { display: 'flex', alignItems: 'center', gap: '11px', padding: '9px 2px', borderBottom: i < 3 ? '1px solid rgba(42,30,18,.1)' : 'none' },
+      chip: { width: '32px', height: '32px', borderRadius: '10px', background: bg, boxShadow: 'inset 0 2px 0 rgba(255,255,255,.4), inset 0 -3px 0 rgba(0,0,0,.2)' } }));
+
+    const sparkles = Array.from({ length: 12 }, (_, i) => ({ style: {
+      position: 'absolute', left: (8 + (i * 37) % 88) + '%', top: (10 + (i * 53) % 70) + '%',
+      width: (3 + i % 3) + 'px', height: (3 + i % 3) + 'px', borderRadius: '50%', background: '#F5C451',
+      boxShadow: '0 0 10px rgba(245,196,81,.9)', animation: 'bm-sparkle ' + (1.2 + (i % 5) * .3) + 's ease-in-out infinite' } }));
+
+    const lb = [['1', 'Priya', '9,110', '#E2574C'], ['2', 'You', '8,420', '#F5C451'], ['3', 'Arjun', '7,860', '#4FAE84'], ['4', 'Meera', '6,240', '#4C86D6']];
+    const leaderboard = lb.map(([pos, name, score, av]) => ({ pos, name, score, av,
+      row: { display: 'flex', alignItems: 'center', gap: '10px', padding: '5px 8px', borderRadius: '12px',
+        background: name === 'You' ? 'rgba(245,196,81,.14)' : 'transparent',
+        border: name === 'You' ? '1px solid rgba(245,196,81,.35)' : '1px solid transparent' } }));
+
+    const swatchDefs = [['#0C1120', 'navy'], ['#1B2236', 'panel'], ['#F5C451', 'gold'], ['#FBF3E2', 'cream'], ['#E2574C', 'ruby'], ['#4FAE84', 'emerald'], ['#4C86D6', 'sapphire'], ['#9C6BD0', 'amethyst']];
+    const swatches = swatchDefs.map(([hex]) => ({ hex, chip: { width: '52px', height: '52px', borderRadius: '14px', background: hex, boxShadow: 'inset 0 2px 0 rgba(255,255,255,.2), 0 4px 12px rgba(0,0,0,.4)' } }));
+
+    // ════ Groups A–E ════
+    const mcell = (ch, size, opt) => {
+      opt = opt || {};
+      const px = size + 'px', r = Math.max(3, Math.round(size * .26)) + 'px', k = size / 38;
+      if (ch === '.') return { style: { width: px, height: px, borderRadius: r, background: 'rgba(255,255,255,.045)', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,.05)' }, inner: { display: 'none' } };
+      const X = { h: ['#FFE9A8', '#F0C14A', '#A8761A'], d: ['#39406B', '#232A48', '#141A2E'], g: ['#FFF6D8', '#FFD98A', '#E0A93B'] };
+      const P = X[ch] || T[ch] || T.r;
+      const st = { width: px, height: px, borderRadius: r, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: 'linear-gradient(180deg,' + P[0] + ' 0%,' + P[1] + ' 52%,' + P[2] + ' 100%)',
+        boxShadow: 'inset 0 ' + (3 * k).toFixed(1) + 'px 0 rgba(255,255,255,.38), inset 0 -' + (4 * k).toFixed(1) + 'px 0 rgba(0,0,0,.24), 0 ' + (2 * k).toFixed(1) + 'px ' + (5 * k).toFixed(1) + 'px rgba(0,0,0,.38)' };
+      if (ch === 'g') st.boxShadow += ', 0 0 ' + (16 * k).toFixed(1) + 'px rgba(255,217,138,.9)';
+      if (opt.dim) st.filter = 'grayscale(.8) brightness(.5)';
+      let inner = { display: 'none' };
+      if (!opt.flat) {
+        const F = { c: { w: 80, h: 15, br: '2px', bg: 'rgba(0,0,0,.35)', rot: 'rotate(-40deg)' },
+          i: { w: 52, h: 40, br: '70% 8% 70% 8%', bg: 'rgba(255,255,255,.45)' },
+          h: { w: 94, h: 18, br: '3px', bg: 'repeating-linear-gradient(90deg,rgba(58,38,9,.8) 0 5px,rgba(255,255,255,.34) 5px 9px)' },
+          d: { w: 26, h: 26, br: '50%', bg: 'rgba(255,255,255,.09)' },
+          g: { w: 26, h: 46, br: '50% 50% 35% 35%', bg: '#FFF8E2' } };
+        const f = F[ch];
+        if (f) inner = { width: f.w + '%', height: f.h + '%', borderRadius: f.br, background: f.bg, transform: f.rot || 'none' };
+        else if (size > 20) { const m = MOTIF[ch]; if (m) inner = { width: (m.w / 38 * 100) + '%', height: (m.h / 38 * 100) + '%', borderRadius: m.br, background: m.bg, border: m.bd, transform: m.rot || 'none' }; }
+        else inner = { width: '32%', height: '32%', borderRadius: '50%', background: 'rgba(255,255,255,.3)' };
+      }
+      return { style: st, inner };
+    };
+    const mgrid = (rows, size, opt) => { const o = []; rows.forEach(rw => rw.split('').forEach(c => o.push(mcell(c, size, opt)))); return o; };
+    const hatch = (w, h, rad) => ({ width: w, height: h, borderRadius: (rad || 16) + 'px',
+      background: 'repeating-linear-gradient(135deg,rgba(247,233,200,.13) 0 8px,rgba(247,233,200,.035) 8px 16px)',
+      border: '1px solid rgba(247,233,200,.18)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', padding: '0 4px 6px', boxSizing: 'border-box' });
+    const hatchLbl = { font: "600 9px ui-monospace,Menlo,monospace", color: 'rgba(247,233,200,.5)', textAlign: 'center', lineHeight: 1.3 };
+    const star = (on, s) => ({ width: s + 'px', height: s + 'px', background: on ? '#FFD98A' : 'rgba(255,255,255,.16)',
+      clipPath: 'polygon(50% 0,61% 35%,98% 35%,68% 57%,79% 91%,50% 70%,21% 91%,32% 57%,2% 35%,39% 35%)',
+      filter: on ? 'drop-shadow(0 0 4px rgba(245,196,81,.85))' : 'none' });
+
+    // A1 — level map
+    const mapH = 552;
+    const nxf = t => 168 + Math.sin(t * Math.PI * 1.9 + .5) * 92;
+    const nyf = t => mapH - 50 - t * (mapH - 100);
+    const pathDots = Array.from({ length: 82 }, (_, j) => { const t = j / 81; return { style: {
+      position: 'absolute', left: nxf(t) + 'px', top: nyf(t) + 'px', width: '8px', height: '8px', marginLeft: '-4px', marginTop: '-4px',
+      borderRadius: '50%', background: t > 8 / 9 ? 'rgba(247,233,200,.13)' : 'rgba(245,196,81,.42)', zIndex: 1 } }; });
+    const mapDefs = [{ n: 17, s: 3 }, { n: 18, s: 2 }, { n: 19, s: 3 }, { n: 20, s: 1 }, { chest: 1 }, { n: 21, s: 2 }, { n: 22, s: 3 }, { n: 23, s: 2 }, { n: 24, cur: 1 }, { n: 25, lock: 1 }];
+    const mapNodes = mapDefs.map((d, i) => {
+      const t = i / (mapDefs.length - 1), chest = !!d.chest, cur = !!d.cur, lock = !!d.lock, done = !chest && !cur && !lock;
+      return {
+        label: chest ? '' : String(d.n), tagText: cur ? 'You are here' : 'Level 20 chest',
+        pos: { position: 'absolute', left: nxf(t) + 'px', top: nyf(t) + 'px', transform: 'translate(-50%,-50%)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px', zIndex: 3 },
+        stars: done ? { display: 'flex', gap: '2px' } : { display: 'none' },
+        starList: [0, 1, 2].map(si => ({ style: star(si < (d.s || 0), 11) })),
+        medal: chest ? { width: '58px', height: '46px', borderRadius: '10px', position: 'relative', border: '2px solid #C9902F', background: 'linear-gradient(180deg,#8A5A34,#4A2E19)', boxShadow: 'inset 0 2px 0 rgba(255,255,255,.2),0 6px 16px rgba(0,0,0,.5),0 0 22px rgba(245,196,81,.35)', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+          : cur ? { width: '64px', height: '64px', borderRadius: '50%', border: '3px solid #FFF0BE', background: 'linear-gradient(180deg,#F7D477,#E7A82F)', display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'bm-pulse 1.9s ease-in-out infinite' }
+          : lock ? { width: '46px', height: '46px', borderRadius: '50%', border: '2px solid rgba(255,255,255,.09)', background: 'linear-gradient(180deg,#3B4360,#232A44)', boxShadow: '0 4px 0 rgba(0,0,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' }
+          : { width: '48px', height: '48px', borderRadius: '50%', background: 'linear-gradient(180deg,#F0C765,#C9902F)', boxShadow: 'inset 0 2px 0 rgba(255,255,255,.45),0 5px 0 #96681C,0 8px 14px rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+        lid: chest ? { position: 'absolute', top: '11px', left: '-2px', right: '-2px', height: '7px', background: 'linear-gradient(180deg,#F7D477,#C9902F)' } : { display: 'none' },
+        num: { fontFamily: "'Baloo 2'", fontWeight: 800, fontSize: cur ? '27px' : '19px', color: lock ? 'rgba(247,233,200,.32)' : '#3A2609' },
+        tag: cur ? { marginTop: '2px', background: '#0C1120', border: '1px solid rgba(245,196,81,.55)', borderRadius: '10px', padding: '2px 9px', fontSize: '10px', fontWeight: 900, color: '#F5C451', whiteSpace: 'nowrap' }
+          : chest ? { marginTop: '2px', background: 'rgba(9,13,26,.75)', borderRadius: '9px', padding: '2px 8px', fontSize: '9.5px', fontWeight: 900, color: '#F5C451', whiteSpace: 'nowrap' } : { display: 'none' }
+      };
+    });
+    const landmarks = [['gate art', 18, 470, 88, 70], ['fountain art', 244, 356, 100, 82], ['greenhouse art', 26, 196, 108, 88], ['manor entrance art', 230, 44, 116, 96]]
+      .map(([name, x, y, w, h]) => ({ name, style: Object.assign(hatch(w + 'px', h + 'px', 14), { position: 'absolute', left: x + 'px', top: y + 'px', zIndex: 0 }) }));
+
+    // A2 — stage types
+    const typeDefs = [
+      { t: 'Clear the Crates', g: 'Crates 7/12', p: 58, c: '#C08B57', rule: 'Crates break when a cleared line passes through them.',
+        rows: ['........', '..cc....', '..cc.oo.', 'rr...oo.', 'rr.cc...', '...cc.ee', 'ss....ee', 'ss.cc...'] },
+      { t: 'Cut the Ivy', g: 'Ivy 4/9', p: 44, c: '#5E9440', rule: 'Uncut ivy spreads one tile every turn.',
+        rows: ['........', '...ii...', '..iii...', '..ii..oo', 'rr....oo', 'rr..ii..', '....ii..', 'ss.ss...'] },
+      { t: 'Unchain the Heirlooms', g: 'Heirlooms 1/3', p: 33, c: '#F0C14A', rule: 'Chained items need two clears to free.',
+        rows: ['........', '..hh....', '..hh....', 'oo...ee.', 'oo...ee.', '....hh..', 'aa..hh..', 'aa......'] },
+      { t: 'Light the Candles', g: 'Candles 5/8', p: 62, c: '#FFD98A', rule: 'Dark corners stay hidden until you clear them.',
+        rows: ['dd....dd', 'dd....dd', '..oo....', '..oo.rr.', 'ee...rr.', 'ee..gg..', 'dd..gg..', 'dd....dd'] }
+    ];
+    const typeBoards = typeDefs.map(d => ({ t: d.t, g: d.g, rule: d.rule, cells: mgrid(d.rows, 14),
+      bar: { width: d.p + '%', height: '100%', borderRadius: '5px', background: 'linear-gradient(90deg,' + d.c + ',#FFF0BE)' },
+      dot: { width: '10px', height: '10px', borderRadius: '3px', background: d.c, boxShadow: '0 0 8px ' + d.c } }));
+
+    // A3 — difficulty blueprint
+    const diffBars = Array.from({ length: 50 }, (_, i) => {
+      const l = i + 1; let v = 16 + l * 1.05;
+      if (l >= 12 && l <= 17) v += 30 - Math.abs(15 - l) * 8;
+      if (l >= 18 && l <= 22) v -= 15;
+      if (l >= 27 && l <= 33) v += 34 - Math.abs(30 - l) * 9;
+      if (l >= 34 && l <= 39) v -= 13;
+      if (l >= 44) v += (l - 43) * 4.5;
+      v = Math.max(12, Math.min(100, v));
+      const hot = l === 15 || l === 30 || l === 50;
+      return { style: { width: '4px', height: Math.round(v * 2.2) + 'px', borderRadius: '3px 3px 1px 1px',
+        background: hot ? 'linear-gradient(180deg,#F0837A,#B23B33)' : 'linear-gradient(180deg,#F7D477,rgba(245,196,81,.22))',
+        boxShadow: hot ? '0 0 14px rgba(226,87,76,.75)' : 'none' } };
+    });
+    const pins = [[15, '1', '#E2574C'], [30, '2', '#F5C451'], [50, '3', '#C295E8']].map(([l, n, c]) => ({ n,
+      style: { position: 'absolute', left: ((l - 1) * 6 + 2) + 'px', bottom: 0, top: 0, width: '0', borderLeft: '1.5px dashed ' + c, opacity: .75 },
+      dot: { position: 'absolute', top: '-9px', left: '-9px', width: '18px', height: '18px', borderRadius: '50%', background: c, color: '#12172A', font: "900 11px 'Nunito'", display: 'flex', alignItems: 'center', justifyContent: 'center' } }));
+    const pinLegend = [['1', 'L15 — first real fail. Continue offer fires, then the ₹89 starter pack.', '#E2574C'],
+      ['2', 'L30 — hardest wall of Chapter 1. Booster spend peaks, coin balance goes negative-pressure.', '#F5C451'],
+      ['3', 'L50 — chapter finale. Guaranteed 3-star retry loop, big star payout into the manor.', '#C295E8']]
+      .map(([n, txt, c]) => ({ n, txt, dot: { width: '20px', height: '20px', borderRadius: '50%', flex: 'none', background: c, color: '#12172A', font: "900 11px 'Nunito'", display: 'flex', alignItems: 'center', justifyContent: 'center' } }));
+    const zones = [['Boosters unlock', 8, 14, 'rgba(79,174,132,.16)'], ['Coin pressure', 22, 28, 'rgba(226,87,76,.14)']]
+      .map(([name, a, b, bg]) => ({ name, style: { position: 'absolute', left: ((a - 1) * 6) + 'px', width: ((b - a + 1) * 6) + 'px', top: 0, bottom: 0, background: bg, borderRadius: '4px' } }));
+
+    // A4 — booster slots
+    const slotArt = [['linear-gradient(180deg,#F0837A,#B23B33)', 'Hammer', 1], ['linear-gradient(180deg,#7FD3AC,#2F8462)', 'Broom', 1], ['', 'Empty', 0]];
+    const boosterSlots = slotArt.map(([bg, name, on]) => ({ name,
+      tile: on ? { width: '62px', height: '62px', borderRadius: '20px', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        boxShadow: 'inset 0 3px 0 rgba(255,255,255,.35), inset 0 -5px 0 rgba(0,0,0,.28), 0 0 24px rgba(245,196,81,.5)', border: '2px solid #FFD98A' }
+        : { width: '62px', height: '62px', borderRadius: '20px', background: 'rgba(255,255,255,.05)', border: '2px dashed rgba(247,233,200,.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' },
+      icon: on ? { width: '22px', height: '26px', borderRadius: '5px', background: 'rgba(255,255,255,.62)' } : { display: 'none' },
+      plus: on ? { display: 'none' } : { fontSize: '26px', fontWeight: 800, color: 'rgba(247,233,200,.4)', fontFamily: "'Baloo 2'" },
+      label: { fontSize: '10px', fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase', color: on ? '#F5C451' : 'rgba(247,233,200,.4)' } }));
+
+    // B2 — share asset
+    const shareBig = mgrid(['.oo.eea.', 'ooaaee.r', '.aa.rrss', 'ttaarrss', 'tt.ss.rr', '.tt.ss.r', 'aatt..ee', '.aa.ttee'], 24, { flat: true });
+    const shareSmall = mgrid(['.oo.eea.', 'ooaaee.r', '.aa.rrss', 'ttaarrss', 'tt.ss.rr', '.tt.ss.r', 'aatt..ee', '.aa.ttee'], 12, { flat: true });
+
+    // B3 — month
+    const monthDays = Array.from({ length: 35 }, (_, i) => {
+      const n = i - 2, blank = n < 1 || n > 31, played = !blank && ((n >= 19 && n <= 30) || [3, 4, 5, 9, 10].includes(n)), today = n === 30, hot = !blank && n >= 19 && n <= 30;
+      return { n: blank ? '' : String(n), blank,
+        style: { aspectRatio: '1', borderRadius: '11px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1px',
+          background: blank ? 'transparent' : today ? 'linear-gradient(180deg,#F7D477,#E7A82F)' : hot ? 'rgba(245,196,81,.24)' : played ? 'rgba(245,196,81,.1)' : 'rgba(255,255,255,.045)',
+          border: today ? '2px solid #FFF0BE' : hot ? '1px solid rgba(245,196,81,.4)' : '1px solid rgba(255,255,255,.06)',
+          boxShadow: today ? '0 0 20px rgba(245,196,81,.75)' : 'none' },
+        num: { fontSize: '11px', fontWeight: 900, color: today ? '#3A2609' : played ? '#FFD98A' : 'rgba(247,233,200,.28)' },
+        flame: played ? { width: '9px', height: '9px', borderRadius: '50%', background: today ? '#B23B33' : 'radial-gradient(circle at 50% 65%,#FFE08A,#F0803C 60%,#C1401F)', boxShadow: today ? 'none' : '0 0 6px rgba(240,128,60,.8)' } : { display: 'none' } };
+    });
+    const milestones = [['7 days', 'Claimed', 1], ['30 days', 'Tomorrow', 2], ['100 days', 'Golden Knocker', 0]]
+      .map(([d, s, st]) => ({ d, s,
+        card: { flex: 1, borderRadius: '16px', padding: '11px 8px', textAlign: 'center', background: st === 2 ? 'linear-gradient(180deg,rgba(245,196,81,.22),rgba(245,196,81,.08))' : 'rgba(255,255,255,.05)', border: st === 2 ? '1px solid rgba(245,196,81,.5)' : '1px solid rgba(255,255,255,.08)' },
+        chest: { width: '38px', height: '30px', margin: '0 auto', borderRadius: '8px', position: 'relative', border: '2px solid ' + (st ? '#C9902F' : 'rgba(255,255,255,.16)'), background: st ? 'linear-gradient(180deg,#8A5A34,#4A2E19)' : 'rgba(255,255,255,.06)', filter: st ? 'none' : 'grayscale(1)' },
+        band: { position: 'absolute', top: '7px', left: '-2px', right: '-2px', height: '5px', background: st ? 'linear-gradient(180deg,#F7D477,#C9902F)' : 'rgba(255,255,255,.14)' },
+        state: { fontSize: '10px', fontWeight: 900, marginTop: '6px', color: st === 2 ? '#F5C451' : st === 1 ? '#4FAE84' : 'rgba(247,233,200,.35)' } }));
+
+    // C1 — manor rooms
+    const manorRooms = [['Library', 100, 'library art'], ['Kitchen', 60, 'kitchen art'], ['Study', 30, 'study art'], ['Ballroom', -1, ''], ['Conservatory', -1, ''], ['East Wing', -1, '']]
+      .map(([n, p, art]) => ({ n, artName: art, pct: p < 0 ? 'Chapter 4' : p + '%',
+        card: { position: 'relative', borderRadius: '14px', overflow: 'hidden', height: '112px', padding: '8px', boxSizing: 'border-box',
+          background: p === 100 ? 'linear-gradient(180deg,#4A3524,#2A1D14)' : p < 0 ? '#1A1F33' : 'linear-gradient(180deg,#3A2A1C,#20180F)',
+          border: p === 100 ? '1px solid rgba(245,196,81,.55)' : '1px solid rgba(255,255,255,.08)',
+          boxShadow: p === 100 ? 'inset 0 0 30px rgba(245,196,81,.28)' : 'none' },
+        art: Object.assign(hatch('100%', '58px', 10), { opacity: p < 0 ? .25 : .55 }),
+        boards: p < 0 ? { position: 'absolute', inset: 0, background: 'repeating-linear-gradient(38deg,#6B4A2E 0 12px,#3E2A1A 12px 22px,transparent 22px 46px)', opacity: .8 } : { display: 'none' },
+        lock: p < 0 ? { position: 'absolute', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', background: 'rgba(9,13,26,.85)', border: '1px solid rgba(245,196,81,.4)', borderRadius: '11px', padding: '4px 10px', fontSize: '10.5px', fontWeight: 900, color: '#F5C451', whiteSpace: 'nowrap' } : { display: 'none' },
+        bar: { marginTop: '7px', height: '7px', borderRadius: '5px', background: 'rgba(0,0,0,.45)', overflow: 'hidden', opacity: p < 0 ? .3 : 1 },
+        fill: { width: Math.max(0, p) + '%', height: '100%', background: p === 100 ? 'linear-gradient(90deg,#F7D477,#FFF0BE)' : 'linear-gradient(90deg,#F7D477,#E7A82F)' },
+        name: { fontSize: '12px', fontWeight: 900, color: p < 0 ? 'rgba(247,233,200,.4)' : '#F7E9C8', marginTop: '6px', display: 'flex', justifyContent: 'space-between' } }));
+
+    // C2 — renovation options
+    const renoDefs = [['Classic marble', 'linear-gradient(180deg,#E8E0D2,#B9AE9A)'], ['Cozy brick', 'linear-gradient(180deg,#C4694A,#8A3F2A)'], ['Ornate gold', 'linear-gradient(180deg,#F7D477,#C77E22)']];
+    const renoOptions = renoDefs.map(([name, bg], i) => {
+      const sel = (this.state.reno ?? 1) === i;
+      return { name,
+        card: { flex: 1, borderRadius: '18px', padding: '10px 8px 12px', textAlign: 'center', cursor: 'pointer', background: 'linear-gradient(180deg,#FBF3E2,#E9DBBB)',
+          border: sel ? '3px solid #F5C451' : '3px solid rgba(0,0,0,.08)', transform: sel ? 'translateY(-4px)' : 'none',
+          boxShadow: sel ? '0 0 26px rgba(245,196,81,.55),0 6px 0 rgba(0,0,0,.28)' : '0 5px 0 rgba(0,0,0,.25)' },
+        art: { height: '56px', borderRadius: '12px', background: 'rgba(42,30,18,.14)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', overflow: 'hidden' },
+        arch: { width: '46px', height: '44px', borderRadius: '23px 23px 3px 3px', background: bg },
+        check: sel ? { position: 'absolute', top: '-9px', right: '-6px', width: '24px', height: '24px', borderRadius: '50%', background: '#4FAE84', color: '#fff', font: "900 13px 'Nunito'", display: 'flex', alignItems: 'center', justifyContent: 'center', border: '2px solid #FBF3E2' } : { display: 'none' },
+        pick: () => this.setState({ reno: i }) };
+    });
+
+    // D1 — sky race
+    const skyRungs = Array.from({ length: 10 }, (_, i) => {
+      const n = 10 - i, you = n === 7, opp = n === 6, top = n === 10;
+      return { n: String(n),
+        row: { height: '44px', display: 'flex', alignItems: 'center', gap: '10px', position: 'relative' },
+        chip: { width: '26px', height: '26px', flex: 'none', borderRadius: '9px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11.5px', fontWeight: 900,
+          background: top ? 'linear-gradient(180deg,#F7D477,#E7A82F)' : you ? 'rgba(245,196,81,.22)' : 'rgba(255,255,255,.06)',
+          color: top ? '#3A2609' : you ? '#F5C451' : 'rgba(247,233,200,.4)', border: '1px solid rgba(255,255,255,.09)' },
+        line: { flex: 1, height: '3px', borderRadius: '2px', background: n <= 7 ? 'linear-gradient(90deg,rgba(245,196,81,.55),rgba(245,196,81,.12))' : 'rgba(255,255,255,.07)' },
+        youBox: you ? { position: 'absolute', left: '46%', display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(9,13,26,.8)', border: '1px solid rgba(245,196,81,.5)', borderRadius: '20px', padding: '4px 11px 4px 4px', boxShadow: '0 0 20px rgba(245,196,81,.4)' } : { display: 'none' },
+        oppBox: opp ? { position: 'absolute', left: '58%', display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(9,13,26,.7)', border: '1px solid rgba(255,255,255,.12)', borderRadius: '20px', padding: '4px 11px 4px 4px' } : { display: 'none' },
+        prize: top ? { position: 'absolute', right: '4px', fontSize: '10px', fontWeight: 900, color: '#F5C451' } : { display: 'none' } };
+    });
+
+    // D2 — team
+    const team = [['Priya', '#E2574C', 12, 1], ['You', '#F5C451', 9, 0], ['Arjun', '#4FAE84', 8, 0], ['Meera', '#4C86D6', 6, 0], ['Dev', '#9C6BD0', 3, 0]]
+      .map(([n, c, lv, lead]) => ({ n, lv: lv + ' lv', lead,
+        av: { width: '44px', height: '44px', borderRadius: '50%', background: c, border: n === 'You' ? '3px solid #FFD98A' : '3px solid rgba(255,255,255,.16)', boxShadow: n === 'You' ? '0 0 16px rgba(245,196,81,.6)' : 'none' },
+        crown: lead ? { position: 'absolute', top: '-8px', left: '50%', marginLeft: '-9px', width: '18px', height: '12px', background: '#F5C451', clipPath: 'polygon(0 100%,0 20%,25% 55%,50% 0,75% 55%,100% 20%,100% 100%)' } : { display: 'none' },
+        name: { fontSize: '10.5px', fontWeight: 800, color: n === 'You' ? '#F5C451' : 'rgba(247,233,200,.6)' } }));
+
+    // D3 — manor pass
+    const passTiers = [[21, 1, 1], [22, 1, 1], [23, 1, 0], [24, 2, 0], [25, 0, 0], [26, 0, 0]].map(([t, st, gold]) => {
+      const cur = t === 24;
+      const cell = (kind, state) => ({ height: '62px', borderRadius: '14px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px', position: 'relative',
+        background: kind === 'gold' ? (state ? 'linear-gradient(180deg,rgba(245,196,81,.3),rgba(245,196,81,.1))' : 'rgba(245,196,81,.07)') : 'rgba(255,255,255,.05)',
+        border: kind === 'gold' ? '1px solid rgba(245,196,81,.45)' : '1px solid rgba(255,255,255,.08)',
+        opacity: state === 0 && kind === 'gold' ? .55 : 1 });
+      return { t: String(t),
+        col: { flex: 'none', width: '54px', display: 'flex', flexDirection: 'column', gap: '6px' },
+        freeCell: cell('free', st), goldCell: cell('gold', gold || cur),
+        freeChip: { width: '26px', height: '26px', borderRadius: '9px', background: 'linear-gradient(180deg,#FFF0BE,#D9A128)', opacity: st === 1 ? .45 : 1 },
+        goldChip: { width: '26px', height: '26px', borderRadius: '9px', background: st === 1 && !gold ? 'rgba(255,255,255,.12)' : 'linear-gradient(180deg,#C295E8,#71479F)' },
+        freeState: { fontSize: '9px', fontWeight: 900, color: st === 1 ? '#4FAE84' : st === 2 ? '#F5C451' : 'rgba(247,233,200,.35)' },
+        goldState: { fontSize: '9px', fontWeight: 900, color: gold ? '#4FAE84' : 'rgba(247,233,200,.4)' },
+        freeLabel: st === 1 ? '✓' : st === 2 ? 'Claim' : 'Locked',
+        goldLabel: gold ? '✓' : 'Locked',
+        tierBadge: { textAlign: 'center', fontSize: '11px', fontWeight: 900, padding: '3px 0', borderRadius: '8px',
+          background: cur ? 'linear-gradient(180deg,#F7D477,#E7A82F)' : 'rgba(255,255,255,.06)', color: cur ? '#3A2609' : 'rgba(247,233,200,.45)' } };
+    });
+
+    // E1 — store
+    const coinBundles = [['500', '₹89', '', 46], ['1,800', '₹269', 'MOST POPULAR', 60], ['6,000', '₹799', '+20% EXTRA', 74], ['18,000', '₹1,999', 'BEST VALUE', 88]]
+      .map(([c, p, badge, sz]) => ({ c, p, badge,
+        card: { flex: 1, borderRadius: '20px', padding: '12px 10px 10px', textAlign: 'center', position: 'relative',
+          background: badge === 'MOST POPULAR' ? 'linear-gradient(180deg,#2E3A66,#1B2340)' : 'rgba(255,255,255,.05)',
+          border: badge === 'MOST POPULAR' ? '2px solid #F5C451' : '1px solid rgba(255,255,255,.09)',
+          boxShadow: badge === 'MOST POPULAR' ? '0 0 26px rgba(245,196,81,.3)' : 'none' },
+        pile: { width: sz + 'px', height: (sz * .72) + 'px', margin: '4px auto 0', borderRadius: '50% 50% 42% 42%', background: 'radial-gradient(circle at 40% 30%,#FFF0BE,#D9A128 60%,#9A6E14)', boxShadow: '0 6px 16px rgba(217,161,40,.35)' },
+        badgeStyle: badge ? { position: 'absolute', top: '-9px', left: '50%', transform: 'translateX(-50%)', whiteSpace: 'nowrap', background: badge === 'MOST POPULAR' ? '#F5C451' : '#4FAE84', color: badge === 'MOST POPULAR' ? '#3A2609' : '#fff', borderRadius: '10px', padding: '2px 9px', fontSize: '9px', fontWeight: 900, letterSpacing: '.06em' } : { display: 'none' },
+        price: { marginTop: '8px', padding: '8px', borderRadius: '13px', background: 'linear-gradient(180deg,#F7D477,#E7A82F)', boxShadow: '0 4px 0 #B8801F', fontFamily: "'Baloo 2'", fontWeight: 800, fontSize: '16px', color: '#3A2609' } }));
+    const boosterPacks = [['Hammer ×5', '₹149', 'linear-gradient(180deg,#F0837A,#B23B33)'], ['Broom ×5', '₹149', 'linear-gradient(180deg,#7FD3AC,#2F8462)'], ['Mixed ×9', '₹249', 'linear-gradient(180deg,#C295E8,#71479F)']]
+      .map(([n, p, bg]) => ({ n, p, chip: { width: '38px', height: '38px', borderRadius: '13px', background: bg, boxShadow: 'inset 0 2px 0 rgba(255,255,255,.35), inset 0 -3px 0 rgba(0,0,0,.25)' } }));
+
+    return {
+      mapNodes, pathDots, landmarks, typeBoards, diffBars, pins, pinLegend, zones, boosterSlots,
+      shareBig, shareSmall, monthDays, milestones, manorRooms, renoOptions, skyRungs, team, passTiers, coinBundles, boosterPacks,
+      storyDots: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map(i => ({ style: { width: i === 1 ? '18px' : '7px', height: '7px', borderRadius: '5px', background: i === 1 ? '#F5C451' : i < 1 ? 'rgba(245,196,81,.5)' : 'rgba(247,233,200,.18)' } })),
+      hatchLbl,
+      streakDays,
+      dailyClock: this.fmt(this.state.t),
+      dailyShort: this.fmt(this.state.t).slice(0, 5),
+      offerClock: this.fmt(this.state.offer),
+      eventClock: Math.floor(this.state.ev / 3600) + 'h ' + Math.floor(this.state.ev % 3600 / 60) + 'm left',
+      dailyGrid: this.grid(daily, 38, motifs),
+      levelGrid: this.grid(level, 38, motifs),
+      failGrid: this.grid(fail, 38, false),
+      shareGrid: this.grid(share, 20, false),
+      hubMini: this.grid(hubm, 10, false),
+      trayPieces: [this.piece(['oo', 'oo'], 'o'), this.piece(['a..', 'aaa'], 'a'), this.piece(['ssss'], 's')],
+      levelTray: [this.piece(['e.', 'ee', '.e'], 'e'), this.piece(['ttt'], 't'), this.piece(['rr', 'r.'], 'r')],
+      friends: [{ av: '#E2574C', score: '9,110' }, { av: '#4FAE84', score: '7,860' }, { av: '#4C86D6', score: '6,240' }],
+      leaderboard, boosters, fireplaces, shelves, calendar, navItems, packItems, sparkles, swatches
+    };
+  }
+}
+</script>
+</body>
+</html>
