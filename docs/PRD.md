@@ -516,4 +516,4 @@ Content ops: 60 levels balanced (§7.9 report) · 30 daily-board pattern templat
 | Clone competition | speed + daily ritual moat + India localization; ship Stage 1 in 6 weeks |
 | Scope creep from Stage 3/4 dreams | §0 rules 2 + 2a: stage gates are hard; only specced layout reservations cross a stage line |
 
-*End of PRD v1.4 — amendments require a changelog entry (§0).*
+*End of PRD v1.5 — amendments require a changelog entry (§0).*
