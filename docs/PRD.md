@@ -1,6 +1,6 @@
 # BLOCK MANOR — Product Requirements Document (Source of Truth)
 
-**Version:** 1.0 · **Date:** 2026-08-02 · **Status:** Approved for build
+**Version:** 1.4 · **Date:** 2026-08-04 · **Status:** Approved for build
 **Product type:** Hybrid-casual mobile puzzle game · **Platforms:** Android + iOS
 **Stack:** React Native + Expo + react-native-skia · TypeScript everywhere · Firebase backend
 
@@ -10,19 +10,21 @@
 
 1. This PRD is the **single source of truth**. If code, tickets, or chat instructions conflict with this document, this document wins. If this document is wrong, it must be amended here FIRST, with a changelog entry, before code changes.
 2. Build strictly in **stage order** (§5). Do not implement features from a later stage early, even partially, unless the stage's Definition of Done is complete.
+2a. **Stage rule scope.** Layout reservations and flag-hidden navigation slots that a *current-stage* section explicitly specifies (e.g. the reserved continue-button slot in §7.5; the S2/S3/S4 HUD counters, nav tabs, and event-banner slot in §7.11) are in-scope for that stage. What is prohibited is later-stage *behavior*, data model, or service integration. A reserved slot must render nothing, read no later-stage state, and import no later-stage module.
 3. All numeric values marked `[RC]` are **Remote Config keys** (§13). Implement them as remote-configurable with the listed default. Never hardcode them at call sites.
 4. All game logic lives in the pure engine package (§6). The engine MUST remain free of React, React Native, rendering, storage, network, and time-of-day dependencies. Any PR that imports such a dependency into the engine is rejected.
-5. Every user-facing feature ships behind a feature flag (§13) defaulting per its stage.
+5. Every feature belonging to a **future stage** relative to the current build ships behind its stage flag (§13), defaulting per its stage. A current-stage feature needs a flag only where §13 lists one.
 6. Every feature spec in §7–§12 ends with **Acceptance Criteria**. A feature is not done until all criteria pass and its analytics events (§14) fire correctly.
 7. Naming, file structure, and conventions in §16 are mandatory.
 
 **Changelog**
 | Version | Date | Change |
 |---|---|---|
-| 1.0 | 2026-08-02 | Initial approved PRD |
-| 1.1 | 2026-08-02 | Added §7.11 Home screen spec, §12.9 empty states, music spec in §15, returning-payer offer note in §10.3, store-asset list in §17 |
+| 1.0 | 2026-08-04 | Initial approved PRD |
+| 1.1 | 2026-08-04 | Added §7.11 Home screen spec, §12.9 empty states, music spec in §15, returning-payer offer note in §10.3, store-asset list in §17 |
 | 1.2 | 2026-08-04 | Added §15.1 complete audio manifest (named SFX inventory, mixing rules, size budget) |
-| 1.3 | 2026-08-04 | Added purchase result states (§10.3), in-app review prompt (§12.9a), soft update nudge (§12.9b) to match final design pack |
+| 1.3 | 2026-08-04 | Added purchase result states (§10.3), in-app review prompt (§12.10), soft update nudge (§12.11) to match final design pack |
+| 1.4 | 2026-08-04 | Coherence audit fixes: §0.2a stage-rule scope (B) · §8.2/§8.5 daily sequence exhaustion (C) · §0.5 + §13 flag scope (D) · §13 unregistered [RC] keys (E) · §8.6 streak credit on abandonment (F) · §16.1 canonical screen names (G) · §4.3 PRNG pinned to mulberry32 (H) · version/date/section-numbering normalization (I) · §5 level generator + bot harness named as Stage 0 tooling |
 
 ---
 
@@ -88,7 +90,7 @@ Block Manor fuses three proven systems into one product:
 ```
 blockmanor/
   apps/mobile/            # Expo app (UI only — no game rules here)
-    src/screens/          # one folder per screen, mirrors PRD §7–§12 names
+    src/screens/          # one folder per screen, named per the §16.1 table
     src/components/       # design-system components (§15)
     src/game/             # Skia renderers, input handlers, animation drivers
     src/state/            # Zustand stores
@@ -111,7 +113,7 @@ The engine is a **pure, deterministic, seedable state machine**:
 - `getLegalPlacements(state, pieceIndex): Placement[]`
 - `applyPlacement(state, placement): { state: GameState; events: GameEvent[] }`
 - `isGameOver(state): boolean` · `simulate(config, seed, moves: Move[]): FinalResult`
-- RNG: **xorshift128+ (or mulberry32) seeded PRNG** implemented in `rng.ts`. `Math.random` is forbidden inside the engine (lint rule enforced).
+- RNG: **mulberry32 seeded PRNG** (32-bit, single reference implementation in `rng.ts` — no alternates). `Math.random` is forbidden inside the engine (lint rule enforced). Changing the PRNG algorithm is a **breaking change**: it requires a PRD amendment and regeneration of every golden replay fixture and `_balance_report.json`, because both are byte-locked to the generator.
 - Determinism requirement: `simulate()` with identical (config, seed, moves) MUST produce identical results on device and in Cloud Functions. This is the anti-cheat foundation for the Daily Board (§8.5): the client submits its move log; the server re-simulates and accepts only matching scores.
 - `GameEvent[]` (e.g. `LINES_CLEARED {rows, cols, cells, combo}`) is the only channel from engine → renderer for triggering juice.
 
@@ -130,6 +132,7 @@ The engine is a **pure, deterministic, seedable state machine**:
 
 ### Stage 0 — Foundations (Week 1)
 Monorepo scaffold, CI (typecheck + lint + engine tests on every PR), engine package complete per §6 with full test suite, Firebase project (dev/prod), EAS configured, design tokens (§15) implemented, analytics service wired with debug view.
+**Stage 0 tooling (explicitly in scope):** the parameterized level generator and the greedy-bot balance harness (`packages/content` tooling per the §7.9 pipeline), validated against throwaway test levels, plus the `_balance_report.json` format and its CI job. This is tooling, not content — authoring shipped levels 1–60 remains Stage 1 (§7.9) and is out of scope here.
 **DoD:** `simulate()` reproduces 1,000 fuzzed games identically across two runs; CI green; app boots to a placeholder Home on Android + iOS.
 
 ### Stage 1 — Core Game + Daily Board (Weeks 2–6) → CLOSED BETA
@@ -294,21 +297,23 @@ Acceptance: cold-start to interactive Home ≤3.0s budget (§4.5); all nav state
 One globally identical challenge per UTC day: identical prefill pattern + identical fixed piece sequence for every player. One attempt. No boosters, no mercy RNG, no redraw guarantee. Score → world percentile (+ friends ranks in Stage 4; Stage 1 shows world percentile only).
 
 ### 8.2 Generation (server-authoritative)
-- Cloud Function scheduled 00:00 UTC: `seed = HMAC_SHA256(secretSalt, "YYYY-MM-DD")`. From seed: (a) prefill = 6–14 obstacle-free filled cells from curated pattern templates; (b) piece sequence = first 60 piece IDs drawn from §6.2 weights (no mercy). Board doc published to `dailyBoards/{date}` with the sequence ENCRYPTED; client receives decryption via the play-start callable → prevents pre-computing.
+- Cloud Function scheduled 00:00 UTC: `seed = HMAC_SHA256(secretSalt, "YYYY-MM-DD")`. From seed: (a) prefill = 6–14 obstacle-free filled cells from curated pattern templates; (b) piece sequence = the first `daily_piece_count [RC, 60]` piece IDs drawn from §6.2 weights (no mercy). Board doc published to `dailyBoards/{date}` with the sequence ENCRYPTED; client receives decryption via the play-start callable → prevents pre-computing.
+- **Sequence exhaustion:** placing the final piece of the sequence with the board still alive ends the run as a **completed attempt** — identical handling to board-death for scoring, percentile (§8.4), streak (§8.6), and the `daily_complete` event. The Daily Board has no win state; it ends on death or exhaustion, whichever comes first.
 - Solvability check at generation: greedy bot must survive ≥15 placements across 200 trials median; else re-roll with seed+"-r1".
 
 ### 8.3 Client flow
-Gate screen (countdown to next board, "one attempt", yesterday's percentile) → PLAY → gameplay with gold DAILY frame, attempt badge 1/1 → death → result: score count-up 900ms → percentile reveal → share card → "Continue to levels".
+Gate screen (countdown to next board, "one attempt", yesterday's percentile) → PLAY → gameplay with gold DAILY frame, attempt badge 1/1 → run ends (board death **or** sequence exhaustion, §8.2) → result: score count-up 900ms → percentile reveal → share card → "Continue to levels".
 - Abandoning mid-run (app kill) = attempt consumed; move log up to that point is submitted on next open. One attempt means one, or streak psychology dies.
 
 ### 8.4 Percentile
 Cloud Function maintains per-day histogram (100 buckets); percentile = rank vs all submissions so far, floor display "Top X%". Before 100 submissions exist, show "Early bird! 🌅" instead of percentile.
 
 ### 8.5 Anti-cheat (uses §4.3 determinism)
-Client submits `{date, moves[], claimedScore}` via callable. Server re-runs `simulate(dailyConfig, seed, moves)`; mismatch → rejected, `daily_cheat_rejected` logged. Server also rejects: >1 submission/user/day, moves count >200, submission for a past date >36h old.
+Client submits `{date, moves[], claimedScore}` via callable. Server re-runs `simulate(dailyConfig, seed, moves)`; mismatch → rejected, `daily_cheat_rejected` logged. Server also rejects: >1 submission/user/day, `moves.length > daily_piece_count` (§8.2 — a submission cannot contain more moves than the sequence has pieces), submission for a past date >36h old.
 
 ### 8.6 Streak (counter in Stage 1; economy in Stage 2)
-- Streak +1 on completing (not winning — playing) the Daily Board; a missed UTC day resets to 0. Server-authoritative (`users/{uid}.streak`), client-displayed flame + calendar month view.
+- Streak +1 requires a **submitted attempt** for that UTC day — playing, not winning; score is irrelevant. A missed UTC day resets to 0. Server-authoritative (`users/{uid}.streak`), client-displayed flame + calendar month view.
+- **Abandonment:** a run abandoned mid-play (app kill, §8.3) earns the streak once its move log is submitted, provided `moves.length ≥ daily_streak_min_moves [RC, 3]`. Below that threshold the attempt is still consumed (§8.3) but no streak is granted — opening the board and quitting is not a ritual.
 - Stage 2 adds: **Streak Freeze** (item, auto-consumes on first missed day, max 2 equipped, earned at streak milestones 7/30/100 or ₹49) and **Streak Repair** (restore within 48h of break: watch 3 rewarded ads OR ₹89 `[RC streak_repair_price]`).
 - Milestones 7/30/100: celebration screen + cosmetic flame upgrades (bronze/silver/gold flame).
 
@@ -324,13 +329,13 @@ Same board verified on 2 devices + server logs; attempt-consumption on app-kill 
 ## 9. STAGE 2 FEATURES — ECONOMY
 
 ### 9.1 Coins (soft currency)
-- Sources: level win `+40 + 10×stars [RC]`; chest every 10 levels `+150`; daily board completion `+50`; rewarded ads (§10.1); IAP.
-- Sinks: continue `900 / 1200 / 1600` escalating per level attempt `[RC continue_price_1..3]`; boosters `hammer 600 / broom 800 / hourglass 500 [RC]`; life refill `900`.
+- Sources: level win `[RC coins_level_win_base, 40] + [RC coins_per_star, 10] × stars`; chest every 10 levels `[RC coins_chest, 150]`; daily board completion `[RC coins_daily_complete, 50]`; rewarded ads (§10.1); IAP.
+- Sinks: continue, escalating per level attempt — `[RC continue_price_1, 900] / [RC continue_price_2, 1200] / [RC continue_price_3, 1600]`; boosters `[RC booster_price_hammer, 600] / [RC booster_price_broom, 800] / [RC booster_price_hourglass, 500]`; life refill `[RC life_refill_price, 900]`.
 - Wallet server-authoritative from Stage 2: balance in `users/{uid}.wallet`, mutations ONLY via callables (`grantCoins`, `spendCoins`) with idempotency keys; client optimistic with rollback.
 - New-player balance: 500. Target economy pressure: an average non-payer should hit a can't-afford-continue moment first between levels 18–25 (validated via §9.5 simulation).
 
 ### 9.2 Lives
-- 5 max; -1 on level FAIL (not on quit-before-3-moves); +1 per `life_regen_minutes [RC, 30]`; full refill on level-chapter completion. Out-of-lives sheet: timer, "Refill 900 🪙", rewarded ad +1 (2/day), (Stage 4: ask team). Endless mode and Daily Board never consume lives.
+- 5 max; -1 on level FAIL (not on quit-before-3-moves); +1 per `life_regen_minutes [RC, 30]`; full refill on level-chapter completion. Out-of-lives sheet: timer, "Refill 🪙" at `[RC life_refill_price, 900]`, rewarded ad +1 (2/day), (Stage 4: ask team). Endless mode and Daily Board never consume lives.
 
 ### 9.3 Boosters
 - `hammer`: tap any single cell → destroy (counts as a "hit" for crate2/chain). `broom`: clear one chosen row. `hourglass`: redraw current tray (new seeded draw).
@@ -340,14 +345,14 @@ Same board verified on 2 devices + server logs; attempt-consumption on app-kill 
 
 ### 9.4 Fail → Continue flow (the monetization moment)
 Sequence on board-death with goals unmet:
-1. Fail screen (§7.5 layout) now shows: streak flame guttering animation (if win-streak ≥2), goal progress, **"Continue — 900 🪙"** primary (grants: clear 12 cells around densest region via engine `reliefClear()` + tray redraw), "Second chance 📺 free" secondary (1/day `[RC]`, same effect), tiny grey "Give up".
+1. Fail screen (§7.5 layout) now shows: streak flame guttering animation (if win-streak ≥2), goal progress, **"Continue — {continue_price_N} 🪙"** primary (price from the `continue_price_1` / `continue_price_2` / `continue_price_3` tier keys per §9.1 — never a literal in the button copy) (grants: clear 12 cells around densest region via engine `reliefClear()` + tray redraw), "Second chance 📺 free" secondary (`[RC second_chance_daily_cap, 1]` per day, same effect), tiny grey "Give up".
 2. Continue accepted → `continues_used++`; next continue this level costs tier-2 price.
 3. Insufficient balance → §9.4b out-of-coins sheet: compact 2-bundle store slides over (smallest bundle highlighted "covers your continue"), full store link. Cancel → back to fail screen.
 4. Give up → if win-streak ≥2, confirm dialog "Your x4 streak will end" with keep-trying default.
 - Analytics on every branch (§14). Max 3 paid continues per level attempt, then only retry.
 
 ### 9.5 Economy validation (required before Stage-2 DoD)
-Extend the bot harness: simulate 2,000 synthetic non-payer players through L1–60 with defined skill distribution; report: median coin balance by level, % hitting zero-balance moment and where, life-blocked sessions/day. Tune `[RC]` values until §9.1 pressure target met. Report committed to `packages/content/_economy_report.json`; re-run on every economy-value PR (CI job).
+Extend the bot harness: simulate 2,000 synthetic non-payer players through L1–60 with defined skill distribution; report: median coin balance by level, % hitting zero-balance moment and where, life-blocked sessions/day. Tune the §13 economy values until the §9.1 pressure target is met. Report committed to `packages/content/_economy_report.json`; re-run on every economy-value PR (CI job).
 
 ---
 
@@ -402,16 +407,21 @@ Sky Race (async ladder vs matched ghost), 72h collection events (special tiles o
 12.6 **Auth & save:** anonymous by default; "Save your progress" card after L20 or first purchase → Google/Apple link; cloud save = Firestore user doc (progress, wallet, streak, manor); conflict rule: server wins for wallet/streak, max() wins for level progress. Account deletion: callable wipes user docs + RevenueCat alias, confirm dialog with 7-day grace.
 12.7 **Lapsed (S3):** if lastSession >72h: welcome-back gift (200 coins), warm-up level (tier: easy), streak-repair offer if within window.
 12.8 **Error states:** every callable failure → toast with retry, never dead-end modals; global error boundary → friendly restart screen + Crashlytics report.
-12.9a **In-app review prompt:** native review API (StoreKit/Play In-App Review), triggered only after a 3★ win while win-streak ≥3, max once per version, never within 24h of a fail-heavy session (≥3 fails), never after spending money. `[RC review_prompt_enabled true]`.
-12.9b **Soft update nudge:** when a newer optional build exists (RC `latest_version` > installed < `min_supported_version` threshold): dismissible Home banner, max 1/week; forced-update screen (§12.5) unchanged for below-minimum.
 12.9 **Empty states (P: invitations, never dead ends):** no percentile yet → "Early bird! 🌅" (§8.4) · no endless best → "Set your first record" · (S4) no team → "A manor is better with company — Browse teams" CTA · (S4) empty friend leaderboard → "Invite someone to beat" + share CTA. Every empty state ships with exactly one action button.
+12.10 **In-app review prompt:** native review API (StoreKit/Play In-App Review), triggered only after a 3★ win while win-streak ≥3, max once per version, never within 24h of a fail-heavy session (≥3 fails), never after spending money. `[RC review_prompt_enabled, true]`.
+12.11 **Soft update nudge:** when a newer optional build exists (`[RC latest_version]` > installed, and installed ≥ `min_supported_version`): dismissible Home banner, max 1/week; forced-update screen (§12.5) unchanged for below-minimum.
 
 ---
 
 ## 13. REMOTE CONFIG & FLAGS (initial registry — every key listed here MUST exist in code)
-`flag_daily_board(S1,on) · flag_endless(S1,on) · flag_economy(S2) · flag_ads(S2) · flag_iap(S2) · flag_manor(S3) · flag_events(S4)`
-`mercy_threshold .55 · mercy_small_prob .65 · combo_step .25 · perfect_clear_bonus 300 · continue_price_1 900 · continue_price_2 1200 · continue_price_3 1600 · life_regen_minutes 30 · winstreak_thresholds "2:1,3:2,5:2+200" · interstitial_min_level 12 · interstitial_cooldown_s 180 · interstitial_daily_cap 10 · rv_daily_cap 8 · starter_pack_trigger_level 15 · streak_repair_price 89 · daily_push_hour 8 · min_supported_version · maintenance_mode false`
+**Flags:** `flag_daily_board(S1,on) · flag_endless(S1,on) · flag_share_card(S1,on) · flag_push(S1,on) · flag_economy(S2) · flag_ads(S2) · flag_iap(S2) · flag_manor(S3) · flag_events(S4)`
+**Engine & scoring:** `mercy_threshold .55 · mercy_small_prob .65 · score_clear_base 10 · combo_step .25 · perfect_clear_bonus 300`
+**Daily board:** `daily_piece_count 60 · daily_streak_min_moves 3 · daily_push_hour 8 · streak_repair_price 89`
+**Economy (S2):** `coins_level_win_base 40 · coins_per_star 10 · coins_chest 150 · coins_daily_complete 50 · continue_price_1 900 · continue_price_2 1200 · continue_price_3 1600 · second_chance_daily_cap 1 · booster_price_hammer 600 · booster_price_broom 800 · booster_price_hourglass 500 · life_refill_price 900 · life_regen_minutes 30 · winstreak_thresholds "2:1,3:2,5:2+200"`
+**Ads & IAP (S2):** `interstitial_min_level 12 · interstitial_cooldown_s 180 · interstitial_daily_cap 10 · rv_daily_cap 8 · starter_pack_trigger_level 15`
+**App lifecycle:** `min_supported_version · latest_version · maintenance_mode false · review_prompt_enabled true`
 Rules: fetch on cold start + 6h TTL; snapshot into `useConfigStore`; A/B experiments via Firebase A/B on these keys only.
+**Registry completeness rule:** every `[RC]` marker anywhere in this document MUST carry an explicit key name and appear in this registry with its default. An unnamed `[RC]` is a spec defect — flag it as PRD-AMENDMENT-NEEDED rather than inventing a key at the call site.
 
 ---
 
@@ -428,7 +438,10 @@ Rules: snake_case, params typed in `packages/shared/analytics.ts` (single source
 
 ---
 
-## 15. DESIGN SYSTEM (tokens — from approved Claude Design mockups)
+## 15. DESIGN SYSTEM (tokens — from the approved mockups in `docs/design/spec/`)
+
+**Canonical mockup source:** `docs/design/spec/*.dc.html` — `Block Manor UI.dc.html` (approved screen compositions) and `Block Manor Production Spec.dc.html` (production spec), with `support.js` as their shared support asset. These files are the visual source of truth: open the relevant mockup BEFORE building any screen and match composition, not just colors. Per-section PNG exports, when added, live alongside them named by PRD section (`7.11-home.png`, `8.3-daily-result.png`). Where a mockup and this document disagree, this document wins (§0.1) — and the mismatch gets amended here.
+
 Colors: `--night #131830 · --night2 #1C2344 · --gold #E9C46A · --gold-deep #C99A35 · --cream #F3EAD7 · --muted #98A1C6 · --ok #7ED99E · --bad #E85D5D` + block set `coral #E76F51 · teal #2A9D8F · gold #E9C46A · violet #8E7CC3 · amber #F4A261 · sky #57A0E5 · rose #D46A9E`.
 Type: display serif (Playfair Display) for titles/chapters; Nunito for UI; tabular numerals for scores/timers. Scale 12/14/16/20/26/34.
 Components (single folder, storybook-style gallery screen in dev builds): GoldButton(3 sizes/states) · GhostButton · Card · ModalSheet(brass frame) · HUDBar · TimerChip · Badge · ProgressBar(3 variants) · Toast · Confetti.
@@ -451,8 +464,36 @@ Rules: all SFX in one expo-av sprite (music streamed separately); every named cu
 - Tests: engine ≥90% lines (vitest); services mocked-unit-tested; one Maestro e2e smoke flow (boot → L1 win → daily gate) per release.
 - Conventional commits; PR template links the PRD section implemented; feature branches per PRD § number (e.g. `feat/9.4-continue-flow`).
 - Content is data: levels/story/economy in `packages/content` JSON with zod schemas — agents editing balance touch ONLY content + RC, never logic.
-- Every screen named exactly as in this PRD (§7–§12) for traceability.
+- Every screen named exactly as in the §16.1 canonical table, for traceability.
 - Secrets in EAS/Firebase env config, never in repo. Daily-board salt only in Functions config.
+
+### 16.1 Canonical screen names (traceability — these names are the API)
+Each name below is used verbatim for the folder `apps/mobile/src/screens/<Name>/`, the exported component, and any navigation route key. Do not invent variants.
+| PRD § | Screen name(s) | Stage |
+|---|---|---|
+| §7.1 | `FtueScreen` | S1 |
+| §7.2 | `GameplayScreen` | S1 |
+| §7.5 | `WinScreen` · `FailScreen` | S1 |
+| §7.6 | `EndlessScreen` | S1 |
+| §7.10 | `LevelMapScreen` | S1 |
+| §7.11 | `HomeScreen` | S1 |
+| §8.3 | `DailyGateScreen` · `DailyResultScreen` (daily play reuses `GameplayScreen` with a daily config — no second board screen) | S1 |
+| §8.6 | `StreakScreen` | S1 |
+| §8.7 | `ShareCardSheet` | S1 |
+| §12.1 | `SettingsScreen` | S1 |
+| §12.2 | `PauseSheet` | S1 |
+| §12.3 | `ProfileScreen` | S1 |
+| §12.5 | `MaintenanceScreen` · `ForceUpdateScreen` | S1 |
+| §12.6 | `AuthLinkScreen` | S1 |
+| §12.8 | `ErrorBoundaryScreen` | S1 |
+| §12.11 | `SoftUpdateBanner` | S1 |
+| §9.4 | `ContinueSheet` · `OutOfCoinsSheet` | S2 |
+| §10.1 | `ProjectorRoomScreen` | S2 |
+| §10.3 | `ShopScreen` · `PurchaseResultScreen` | S2 |
+| §11.1 | `ManorScreen` | S3 |
+| §11.2 | `JournalScreen` | S3 |
+| §12.7 | `WelcomeBackSheet` | S3 |
+Not screens: §12.4 offline and §12.9 empty states are per-screen *states* every screen implements, not separate routes. §12.10 in-app review is a native OS prompt with no screen of ours.
 
 ---
 
@@ -471,6 +512,6 @@ Content ops: 60 levels balanced (§7.9 report) · 30 daily-board pattern templat
 | RN/Skia perf on low-end Android | §4.5 budget tested weekly on physical Redmi-class device from Stage 0 |
 | Play 12-tester/14-day rule delays launch | start closed track week 2 |
 | Clone competition | speed + daily ritual moat + India localization; ship Stage 1 in 6 weeks |
-| Scope creep from Stage 3/4 dreams | §0 rule 2: stage gates are hard |
+| Scope creep from Stage 3/4 dreams | §0 rules 2 + 2a: stage gates are hard; only specced layout reservations cross a stage line |
 
-*End of PRD v1.0 — amendments require a changelog entry (§0).*
+*End of PRD v1.4 — amendments require a changelog entry (§0).*

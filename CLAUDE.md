@@ -9,8 +9,12 @@ lose to the PRD. If the PRD is wrong or incomplete, amend it FIRST (with a
 changelog row per its §0) and only then change code. Never silently diverge.
 
 ## Hard rules (violations = rejected PR)
-1. Build in stage order (PRD §5). Never implement later-stage features early,
-   even stubs, even "while we're here". Stage flags (PRD §13) gate everything.
+1. Build in stage order (PRD §5). Never implement later-stage *behavior*, data
+   model, or service integration early — not even "while we're here". Scope
+   boundary is PRD §0 rule 2a: layout reservations and flag-hidden nav slots
+   that a current-stage section explicitly specs (§7.5 continue slot, §7.11
+   S2–S4 nav/HUD slots) ARE in scope; they must render nothing and read no
+   later-stage state. Future-stage features ship behind their §13 stage flag.
 2. packages/engine is PURE: no React, RN, network, storage, Math.random, or
    Date.now (time and RNG are injected). Deterministic always.
 3. Every [RC] value in the PRD is a Remote Config key — never hardcode at
@@ -39,4 +43,7 @@ submission ALWAYS gets backend-engineer + qa-prd-auditor review.
 - qa-prd-auditor sign-off for: engine, wallet, daily board, IAP, ads
 
 ## Current stage
-STAGE 0. Update this line as stages complete. Consult PRD §5 for scope.
+STAGE 0 — no product code written yet. Update this line as stages complete.
+Consult PRD §5 for scope; note Stage 0 tooling explicitly includes the level
+generator + greedy-bot balance harness (tooling only — level content is S1).
+Design mockups: docs/design/spec/*.dc.html (PRD §15).

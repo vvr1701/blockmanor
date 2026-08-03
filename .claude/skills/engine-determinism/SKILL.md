@@ -10,7 +10,8 @@ server with the SAME engine code and compares scores. One nondeterministic
 line breaks the entire trust model silently.
 
 ## Banned inside packages/engine (lint-enforced, but know why)
-- Math.random → use rng.ts seeded PRNG (mulberry32/xorshift128+), advanced
+- Math.random → use rng.ts seeded PRNG (mulberry32 — pinned in PRD §4.3;
+  swapping it is a breaking change requiring an amendment), advanced
   only through GameState so replays consume identical sequences
 - Date.now / new Date → time is not a game input; if ever needed, inject
   via GameConfig
