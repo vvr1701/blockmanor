@@ -1,0 +1,8 @@
+{
+  "home.title": "Block Manor",
+  "home.subtitle": "Stage 0 — foundations",
+  "home.play": "PLAY — Level {{level}}",
+  "home.status.firebase.ready": "Firebase: configured",
+  "home.status.firebase.missing": "Firebase: not configured (.env)",
+  "home.status.dailyBoard": "Daily Board flag: {{state}}"
+}

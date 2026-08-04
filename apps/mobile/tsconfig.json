@@ -1,0 +1,18 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    // PRD §16 — mirrors tsconfig.base.json. Kept local because expo/tsconfig.base
+    // owns jsx/lib/moduleResolution for React Native and must win those keys.
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "exactOptionalPropertyTypes": true,
+    "resolveJsonModule": true,
+    "noEmit": true
+  },
+  "include": ["**/*.ts", "**/*.tsx", "expo-env.d.ts"],
+  "exclude": ["node_modules", ".expo"]
+}

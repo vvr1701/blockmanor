@@ -1,0 +1,13 @@
+node_modules
+dist
+build
+.expo
+android
+ios
+pnpm-lock.yaml
+docs/design
+
+# Markdown is authored, not generated: the PRD's tables and hand-wrapped prose
+# are the source of truth (§0) and reflowing them makes amendment diffs
+# unreadable. Prettier owns code style only (PRD §16).
+*.md

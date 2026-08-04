@@ -1,0 +1,29 @@
+node_modules/
+.turbo/
+dist/
+build/
+coverage/
+
+# Expo
+.expo/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+web-build/
+android/
+ios/
+
+# Secrets — PRD §16: never in the repo
+.env
+.env.*
+!.env.example
+google-services.json
+GoogleService-Info.plist
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log

@@ -1,0 +1,6 @@
+{
+  "name": "@blockmanor/content",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Levels, story, economy tables — content is data (PRD §16). Populated from Stage 1 (§7.9)."
+}

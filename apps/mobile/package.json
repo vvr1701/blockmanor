@@ -1,0 +1,29 @@
+{
+  "name": "@blockmanor/mobile",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.ts",
+  "scripts": {
+    "start": "expo start --dev-client",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "prebuild": "expo prebuild --clean",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src index.ts app.config.ts",
+    "doctor": "expo-doctor"
+  },
+  "dependencies": {
+    "@blockmanor/shared": "workspace:*",
+    "expo": "~57.0.9",
+    "expo-constants": "~57.0.8",
+    "expo-status-bar": "~57.0.1",
+    "firebase": "^11.10.0",
+    "react": "19.2.3",
+    "react-native": "0.86.2",
+    "react-native-mmkv": "^3.3.3",
+    "zustand": "^5.0.2"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.2"
+  }
+}
