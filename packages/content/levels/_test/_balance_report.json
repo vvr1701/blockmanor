@@ -1,0 +1,83 @@
+{
+  "harnessVersion": 1,
+  "seeds": 500,
+  "tuning": {
+    "mercy_threshold": 0.55,
+    "mercy_small_prob": 0.65,
+    "score_clear_base": 10,
+    "combo_step": 0.25,
+    "perfect_clear_bonus": 300
+  },
+  "levels": [
+    {
+      "id": 901,
+      "target": 0.9,
+      "winRate": 0.87,
+      "deltaPp": -3,
+      "withinTolerance": true,
+      "medianMoves": 13,
+      "p10Score": 423,
+      "p90Score": 1012,
+      "suggestedStars": {
+        "s2": 700,
+        "s3": 1000
+      }
+    },
+    {
+      "id": 902,
+      "target": 0.7,
+      "winRate": 0.722,
+      "deltaPp": 2.2,
+      "withinTolerance": true,
+      "medianMoves": 13,
+      "p10Score": 269,
+      "p90Score": 1012,
+      "suggestedStars": {
+        "s2": 600,
+        "s3": 1000
+      }
+    },
+    {
+      "id": 903,
+      "target": 0.7,
+      "winRate": 0.692,
+      "deltaPp": -0.8,
+      "withinTolerance": true,
+      "medianMoves": 19,
+      "p10Score": 182,
+      "p90Score": 1382,
+      "suggestedStars": {
+        "s2": 650,
+        "s3": 1400
+      }
+    },
+    {
+      "id": 904,
+      "target": 0.5,
+      "winRate": 0.51,
+      "deltaPp": 1,
+      "withinTolerance": true,
+      "medianMoves": 19,
+      "p10Score": 208,
+      "p90Score": 1554,
+      "suggestedStars": {
+        "s2": 800,
+        "s3": 1600
+      }
+    },
+    {
+      "id": 905,
+      "target": 0.35,
+      "winRate": 0.358,
+      "deltaPp": 0.8,
+      "withinTolerance": true,
+      "medianMoves": 11,
+      "p10Score": 191,
+      "p90Score": 1067,
+      "suggestedStars": {
+        "s2": 600,
+        "s3": 1100
+      }
+    }
+  ]
+}

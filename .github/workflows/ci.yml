@@ -51,3 +51,21 @@ jobs:
       # packages/engine's test script is `vitest run --coverage`, and the
       # threshold is enforced in packages/engine/vitest.config.ts. A drop below
       # 90% fails the step above.
+
+  # PRD §7.9 / §5 Stage-0 tooling: re-derives every committed balance number.
+  # Split from `test` because it is a 500-seed bot sweep per level — seconds
+  # today with 5 fixtures, minutes once levels 1–60 land in Stage 1.
+  balance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Fails if: the generator drifted, any level left its ±10pp target band,
+      # or `_balance_report.json` no longer matches a fresh measurement.
+      # CI is set by GitHub, so the UPDATE_BALANCE escape hatch is inert here.
+      - run: pnpm --filter @blockmanor/content balance

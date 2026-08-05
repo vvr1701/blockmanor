@@ -1,0 +1,89 @@
+{
+  "id": 903,
+  "chapter": 1,
+  "seedSalt": "T03-bands-noP11",
+  "stars": {
+    "s2": 0,
+    "s3": 0
+  },
+  "prefill": [
+    {
+      "r": 0,
+      "c": 1,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 6,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 2,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 3,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 0,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 5,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 7,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 4,
+      "type": "filled"
+    },
+    {
+      "r": 2,
+      "c": 5,
+      "type": "filled"
+    },
+    {
+      "r": 2,
+      "c": 6,
+      "type": "crate"
+    },
+    {
+      "r": 2,
+      "c": 3,
+      "type": "crate"
+    },
+    {
+      "r": 2,
+      "c": 2,
+      "type": "crate"
+    },
+    {
+      "r": 2,
+      "c": 1,
+      "type": "crate"
+    }
+  ],
+  "goals": [
+    {
+      "type": "crate",
+      "count": 4
+    }
+  ],
+  "pieceWeightOverrides": {
+    "P11": 0
+  },
+  "mercy": true,
+  "ivySpreadInterval": 3,
+  "ivyMaxTiles": 16,
+  "difficultyTier": "breather"
+}
