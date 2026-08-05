@@ -1,6 +1,6 @@
 # BLOCK MANOR — Product Requirements Document (Source of Truth)
 
-**Version:** 1.5 · **Date:** 2026-08-04 · **Status:** Approved for build
+**Version:** 1.6 · **Date:** 2026-08-05 · **Status:** Approved for build
 **Product type:** Hybrid-casual mobile puzzle game · **Platforms:** Android + iOS
 **Stack:** React Native + Expo + react-native-skia · TypeScript everywhere · Firebase backend
 
@@ -26,6 +26,7 @@
 | 1.3 | 2026-08-04 | Added purchase result states (§10.3), in-app review prompt (§12.10), soft update nudge (§12.11) to match final design pack |
 | 1.4 | 2026-08-04 | Coherence audit fixes: §0.2a stage-rule scope (B) · §8.2/§8.5 daily sequence exhaustion (C) · §0.5 + §13 flag scope (D) · §13 unregistered [RC] keys (E) · §8.6 streak credit on abandonment (F) · §16.1 canonical screen names (G) · §4.3 PRNG pinned to mulberry32 (H) · version/date/section-numbering normalization (I) · §5 level generator + bot harness named as Stage 0 tooling |
 | 1.5 | 2026-08-04 | §9–§10 LiveOps tunability sweep — 17 bare literals promoted to §13 RC keys: `rv_life_daily_cap · wheel_ad_spins · wheel_free_spins · wheel_prize_table · rv_double_coins_multiplier · streak_repair_ads · starting_coin_balance · lives_max · life_forfeit_min_moves · relief_clear_cells · continue_max_per_attempt · interstitial_iap_suppress_h · starter_pack_offer_ttl_h · starter_pack_repeat_level · remove_ads_prompt_cooldown_d · streak_freeze_max · iap_pending_timeout_s`. §13 ads/IAP groups split. Design constants deliberately NOT promoted: §7.4 juice timings and all animation/layout numbers stay code-side tokens (`src/game/juice.ts`), store price points stay store-managed, and content-tied level numbers (chest cadence, booster showcase levels L12/18/26) stay in `packages/content` |
+| 1.6 | 2026-08-05 | Stage-0 engine ambiguity rulings (raised by the §6 implementation, resolved here before code): §6.6 combo multiplier uses the PRE-increment counter and `LINES_CLEARED` carries the POST-increment value as `comboDisplay` (both now explicit; §4.3 event example renamed) · §7.8 ivy growth candidates restricted to ivy with ≥1 empty orthogonal neighbour, no growth and no RNG consumed when none exist (**replay-affecting** — golden fixtures regenerated once under this amendment) · §7.8 `crate2`'s 2nd hit credits the `crate` goal, no `crate2` goal type · §7.8 content-stage note: engine supports all 5 obstacles from Stage 0, **heirloom levels ship Stage 3** (§5 Stage 3 scope updated) · §7.7 `chapter` + `stars` REQUIRED, `estMoves` + `difficultyTier` optional harness-written metadata · §7.8 ivy constants promoted to §7.7 level fields `ivySpreadInterval` (3) + `ivyMaxTiles` (16), deliberately level-scoped and NOT `[RC]` to preserve replay determinism · §4.3 + §8.2 engine contract gains optional `GameConfig.pieceSequence`, `SEQUENCE_EXHAUSTED` event and terminal status `'completed'` |
 
 ---
 
@@ -116,7 +117,8 @@ The engine is a **pure, deterministic, seedable state machine**:
 - `isGameOver(state): boolean` · `simulate(config, seed, moves: Move[]): FinalResult`
 - RNG: **mulberry32 seeded PRNG** (32-bit, single reference implementation in `rng.ts` — no alternates). `Math.random` is forbidden inside the engine (lint rule enforced). Changing the PRNG algorithm is a **breaking change**: it requires a PRD amendment and regeneration of every golden replay fixture and `_balance_report.json`, because both are byte-locked to the generator.
 - Determinism requirement: `simulate()` with identical (config, seed, moves) MUST produce identical results on device and in Cloud Functions. This is the anti-cheat foundation for the Daily Board (§8.5): the client submits its move log; the server re-simulates and accepts only matching scores.
-- `GameEvent[]` (e.g. `LINES_CLEARED {rows, cols, cells, combo}`) is the only channel from engine → renderer for triggering juice.
+- `GameEvent[]` (e.g. `LINES_CLEARED {rows, cols, cells, comboDisplay}`) is the only channel from engine → renderer for triggering juice.
+- **Fixed piece sequence (optional).** `GameConfig` carries an optional `pieceSequence: PieceId[]`. When present: piece draws consume the sequence in order instead of drawing from the §6.2 weights; mercy RNG (§6.4) and the tray redraw guarantee (§6.3) are both disabled; and exhausting the sequence ends the run as a **completed attempt** — status `'completed'`, event `SEQUENCE_EXHAUSTED`. Absent, the engine draws from the seeded PRNG as specified in §6.2–§6.4. This is the engine-side foundation of the Daily Board (§8.2); the engine consumes a sequence but never generates one.
 
 ### 4.4 State management
 - Zustand stores: `useGameStore` (active session), `useMetaStore` (coins, streaks, progress — persisted via MMKV), `useConfigStore` (Remote Config snapshot).
@@ -146,7 +148,7 @@ Coins & wallet (§9.1) · Lives (§9.2) · Boosters ×3 + win-streak auto-booste
 **DoD:** economy passes simulation tests (§9.5); IAP sandbox verified both stores; UMP consent flow; soft-launch dashboards live; gates of §3 measured weekly.
 
 ### Stage 3 — Manor Meta + Story (Weeks 11–16)
-Manor dollhouse, rooms 1–3, renovation choices, star economy (§11.1–11.3) · Story chapters 1–4 (§11.4) · Levels 61–150 · Localization hi + te · Lapsed-player flows (§12.7).
+Manor dollhouse, rooms 1–3, renovation choices, star economy (§11.1–11.3) · Story chapters 1–4 (§11.4) · Levels 61–150 · **heirloom levels** (the §7.8 obstacle enters shipped content here — engine support has existed since Stage 0) · Localization hi + te · Lapsed-player flows (§12.7).
 **Gate to enter Stage 3:** Stage-2 cohorts show D7 ≥ 15% and ads ARPDAU ≥ $0.015.
 
 ### Stage 4 — LiveOps + Social (Weeks 17+)
@@ -197,6 +199,8 @@ After each placement: find ALL simultaneously full rows + columns → clear thei
 - Placement: `+cellCount` points.
 - Clear: `+ 10 × clearedCellCount × linesClearedSimultaneously`.
 - **Combo streak:** counter starts 0; +1 on any placement that clears ≥1 line; resets to 0 after TWO consecutive non-clearing placements. Clear points are multiplied by `(1 + 0.25 × comboCounter)` rounded down.
+- **Multiplier timing (explicit):** the multiplier uses the combo counter value **BEFORE** this placement's increment. A first clear therefore scores ×1.0, a second consecutive clear ×1.25, a third ×1.5. Scoring and incrementing are not interchangeable in order — score first, then increment.
+- **`comboDisplay` (explicit):** the `LINES_CLEARED` event (§4.3) carries the **POST**-increment counter as `comboDisplay`, because that is the combo *level* the renderer announces ("COMBO x2!") and pitches the §7.4 clear chime to. A first clear is `comboDisplay: 1` while scoring ×1.0. The two numbers differ by one by design; neither may be used in place of the other.
 - Perfect Clear (board fully empty after a clear): flat `+300` bonus.
 - All constants `[RC]`: `score_clear_base 10`, `combo_step 0.25`, `perfect_clear_bonus 300`.
 
@@ -262,9 +266,11 @@ Unlocked after Level 10. Pure Block Blast mode: no goals, mercy RNG on, personal
   "pieceWeightOverrides": { "P11": 0 },
   "mercy": true,
   "stars": { "s2": 1500, "s3": 2600 },
+  "ivySpreadInterval": 3, "ivyMaxTiles": 16,
   "estMoves": 22, "difficultyTier": "spike"
 }
 ```
+**Required vs optional (the validator enforces this).** Required: `id`, `chapter`, `seedSalt`, `stars` (both `s2` and `s3`). Optional with defaults: `prefill` `[]` · `goals` `[]` · `pieceWeightOverrides` `{}` · `mercy` `true` · `ivySpreadInterval` `3` · `ivyMaxTiles` `16` (§7.8). Optional and **harness-written metadata**, never read by the engine: `estMoves` and `difficultyTier` — the §7.9 balance harness writes them into the level file from its own bot runs, so an author must not be forced to guess them by hand.
 
 ### 7.8 Obstacle behaviors (exact)
 | type | occupies cell? | placeable on? | on line-clear through it | goal-countable |
@@ -274,8 +280,12 @@ Unlocked after Level 10. Pure Block Blast mode: no goals, mercy RNG on, personal
 | `chain` | overlays a filled block | no | chain breaks → normal filled block remains (block itself clears on a subsequent line) | chain-break counts |
 | `ivy` | yes | no | destroyed | yes |
 | `heirloom` | yes | no | collected → cell empty | yes |
-- **Ivy spread rule:** every 3rd placement, if no ivy was destroyed in the last 3 placements, ONE random (seeded) ivy tile grows into a random orthogonally-adjacent empty cell. Ivy never grows past 16 total tiles.
+- **Ivy spread rule:** every `ivySpreadInterval`-th placement, if no ivy was destroyed in the last `ivySpreadInterval` placements, ONE random (seeded) ivy tile grows into a random orthogonally-adjacent empty cell. Ivy never grows past `ivyMaxTiles` total tiles.
+  - **Candidate set (explicit, replay-affecting):** the growth source is drawn only from ivy tiles that have **≥1 empty orthogonal neighbour**. If no such tile exists — every ivy tile is boxed in, or the cap is already reached — there is **no growth this cycle** and no RNG is consumed. Picking a boxed-in tile and then doing nothing is explicitly NOT the rule: it would silently drop the growth this rule promises. This is a **replay-affecting** definition — it fixes which RNG draws happen and in what order, so every golden replay fixture is byte-locked to it (§4.3).
+  - **Tuning lives in the level, not Remote Config.** `ivySpreadInterval` (default 3) and `ivyMaxTiles` (default 16) are §7.7 level-schema fields, deliberately NOT §13 `[RC]` keys: an RC change mid-flight would alter the draw sequence of an in-progress run and break `simulate()` re-verification (§4.3, §8.5). Per-level values keep determinism intact because they travel with the config that seeded the run.
+- **`crate2` goal credit (explicit):** `crate2`'s first hit turns it into a `crate` and credits nothing. Its second hit destroys that `crate` and credits the **`crate`** goal. There is therefore **no `crate2` goal type** — the goal types are exactly `crate`, `chain`, `ivy`, `heirloom`. The §7.7 example is precisely this case: a prefill containing both a `crate` and a `crate2`, with the single goal `{"type":"crate","count":12}`.
 - Obstacle cells DO count toward a row/col being "full" (they fill their cell); `chain` overlays an already-filled cell.
+- **Content stage note.** Engine support for all five obstacle types exists from **Stage 0** (§6 is built whole; the table above is its spec). Shipping *levels* that use each type is content, staged separately: `crate`, `crate2`, `chain`, `ivy` ship in Stage 1 levels 1–60 (§5, §7.9); **`heirloom` levels ship in Stage 3** alongside the manor meta that gives collected heirlooms their meaning (§11). A Stage-1 level file must not use `heirloom`.
 
 ### 7.9 Difficulty curve (levels 1–60, content requirement)
 - L1–10 tutorialized, win rate target ≥90%. L11–14 ramp. **L15 = first spike** (win rate target 35–45% first attempt) — this is the future starter-pack trigger. L16–22 breather (~70%). L23–29 ramp. **L30 spike** (~35%). L31–45 mixed with new obstacle each 5 levels. **L45 spike**. L46–60 ramp to sustained ~50%.
@@ -300,6 +310,7 @@ One globally identical challenge per UTC day: identical prefill pattern + identi
 ### 8.2 Generation (server-authoritative)
 - Cloud Function scheduled 00:00 UTC: `seed = HMAC_SHA256(secretSalt, "YYYY-MM-DD")`. From seed: (a) prefill = 6–14 obstacle-free filled cells from curated pattern templates; (b) piece sequence = the first `daily_piece_count [RC, 60]` piece IDs drawn from §6.2 weights (no mercy). Board doc published to `dailyBoards/{date}` with the sequence ENCRYPTED; client receives decryption via the play-start callable → prevents pre-computing.
 - **Sequence exhaustion:** placing the final piece of the sequence with the board still alive ends the run as a **completed attempt** — identical handling to board-death for scoring, percentile (§8.4), streak (§8.6), and the `daily_complete` event. The Daily Board has no win state; it ends on death or exhaustion, whichever comes first.
+- **Engine mechanism.** The generated sequence is handed to the engine as `GameConfig.pieceSequence` (§4.3). That single field is what makes a run a fixed-sequence run: draws consume it in order, mercy (§6.4) and the redraw guarantee (§6.3) switch off, and running out of pieces ends the run with status `'completed'` and a `SEQUENCE_EXHAUSTED` event. `'completed'` is a distinct terminal status from `'lost'` — both are "attempt over" for §8.4/§8.6, but only exhaustion means the player outlived the board.
 - Solvability check at generation: greedy bot must survive ≥15 placements across 200 trials median; else re-roll with seed+"-r1".
 
 ### 8.3 Client flow
@@ -516,4 +527,4 @@ Content ops: 60 levels balanced (§7.9 report) · 30 daily-board pattern templat
 | Clone competition | speed + daily ritual moat + India localization; ship Stage 1 in 6 weeks |
 | Scope creep from Stage 3/4 dreams | §0 rules 2 + 2a: stage gates are hard; only specced layout reservations cross a stage line |
 
-*End of PRD v1.5 — amendments require a changelog entry (§0).*
+*End of PRD v1.6 — amendments require a changelog entry (§0).*
