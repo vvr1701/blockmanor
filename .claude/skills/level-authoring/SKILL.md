@@ -21,8 +21,40 @@ goal tightness → prefill density → prefill placement (mid-board fragments
 are brutal) → obstacle compounding (ivy+chain interact) → piece-weight
 overrides (invisible to players — use sparingly, feels unfair if extreme)
 
+## Dial behavior notes (learned the hard way — Stage 0, don't rediscover)
+
+**Density is NOT monotonic in difficulty.** More prefill can make a level
+EASIER, because a partly-filled row needs fewer cells to complete. Measured on
+the `edges` pattern with a fixed goal: d=0.15 → 51% win, d=0.25 → 40%,
+d=0.3 → 46%, d=0.35 → 67%, d=0.4 → 100% (median 1 move — the prefill
+practically solves it). The curve falls, then climbs, then collapses into
+triviality. Never assume "denser = harder" and never bisect on density
+expecting a monotonic response — sweep the whole range and read the shape.
+`scatter` is the one class that behaves monotonically; `edges` and
+`mid-fragments` do not.
+
+**500 seeds is the MINIMUM for an accept/reject decision.** At p≈0.7, 150
+seeds carries ~±7.5pp of sampling noise at 95% confidence — wider than the
+±10pp acceptance band itself, so a 150-seed run cannot tell "in band" from
+"out". Two Stage-0 fixtures passed at 150 and failed at 500 (70%→57.4%,
+50%→35.4%). Sweep cheap at 150 to find candidates; **always confirm at 500
+before committing.** 500 seeds gives ~±4pp, which fits inside the band.
+
+**Measure with the seedSalt you will actually ship.** The salt IS the layout —
+same density and pattern with a different salt is a different board with a
+different win-rate. Measuring one salt and shipping another silently voids the
+balance evidence.
+
+**Reject `medianMoves < 8`.** A level the bot finishes in one or two
+placements has a meaningless win-rate: the prefill did the work, not the
+player. Check median moves alongside win-rate on every accept.
+
 ## Star thresholds
-s2 ≈ p40 of winning bot scores, s3 ≈ p10 — then round to friendly numbers.
+s2 ≈ p40 of winning bot scores, s3 ≈ p10 — counted **from the top**, i.e. the
+score the best 40% and best 10% of WINNING runs reach. In ascending-percentile
+terms that is p60 and p90. Round to friendly numbers, and force s3 > s2: on a
+tight score spread both round to the same value, and §7.5 needs the 3rd star
+strictly harder than the 2nd.
 
 ## Live retuning loop (post-beta)
 - Pull level_fail / level_quit / attempts-per-level weekly
