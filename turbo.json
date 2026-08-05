@@ -10,7 +10,7 @@
     },
     "test": {
       "dependsOn": ["^typecheck"],
-      "outputs": ["coverage/**"]
+      "outputs": ["coverage/**", "!coverage/.tmp/**"]
     }
   }
 }

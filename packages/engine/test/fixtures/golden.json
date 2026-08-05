@@ -1,0 +1,841 @@
+[
+  {
+    "name": "endless-baseline",
+    "seed": "golden-endless",
+    "config": {
+      "mode": "endless",
+      "tuning": {
+        "mercy_threshold": 0.55,
+        "mercy_small_prob": 0.65,
+        "score_clear_base": 10,
+        "combo_step": 0.25,
+        "perfect_clear_bonus": 300
+      }
+    },
+    "moves": [
+      {
+        "pieceIndex": 1,
+        "r": 5,
+        "c": 5
+      },
+      {
+        "pieceIndex": 2,
+        "r": 0,
+        "c": 5
+      },
+      {
+        "pieceIndex": 0,
+        "r": 2,
+        "c": 3
+      },
+      {
+        "pieceIndex": 1,
+        "r": 0,
+        "c": 7
+      },
+      {
+        "pieceIndex": 0,
+        "r": 0,
+        "c": 2
+      },
+      {
+        "pieceIndex": 2,
+        "r": 7,
+        "c": 4
+      },
+      {
+        "pieceIndex": 0,
+        "r": 2,
+        "c": 6
+      },
+      {
+        "pieceIndex": 1,
+        "r": 3,
+        "c": 4
+      },
+      {
+        "pieceIndex": 2,
+        "r": 7,
+        "c": 6
+      },
+      {
+        "pieceIndex": 0,
+        "r": 4,
+        "c": 0
+      },
+      {
+        "pieceIndex": 2,
+        "r": 6,
+        "c": 1
+      },
+      {
+        "pieceIndex": 1,
+        "r": 4,
+        "c": 1
+      },
+      {
+        "pieceIndex": 0,
+        "r": 0,
+        "c": 6
+      },
+      {
+        "pieceIndex": 2,
+        "r": 0,
+        "c": 0
+      },
+      {
+        "pieceIndex": 1,
+        "r": 7,
+        "c": 0
+      },
+      {
+        "pieceIndex": 1,
+        "r": 1,
+        "c": 0
+      },
+      {
+        "pieceIndex": 2,
+        "r": 1,
+        "c": 3
+      }
+    ],
+    "result": {
+      "status": "lost",
+      "score": 318,
+      "stars": 0,
+      "moves": 17,
+      "combo": 2,
+      "goals": [],
+      "fill": 34,
+      "boardHash": "129bafe3"
+    }
+  },
+  {
+    "name": "level-obstacles",
+    "seed": "golden-level",
+    "config": {
+      "mode": "level",
+      "tuning": {
+        "mercy_threshold": 0.55,
+        "mercy_small_prob": 0.65,
+        "score_clear_base": 10,
+        "combo_step": 0.25,
+        "perfect_clear_bonus": 300
+      },
+      "level": {
+        "id": 24,
+        "chapter": 1,
+        "seedSalt": "L24-a",
+        "prefill": [
+          {
+            "r": 2,
+            "c": 3,
+            "type": "crate"
+          },
+          {
+            "r": 2,
+            "c": 4,
+            "type": "crate2"
+          },
+          {
+            "r": 5,
+            "c": 1,
+            "type": "chain",
+            "color": 3
+          },
+          {
+            "r": 6,
+            "c": 6,
+            "type": "ivy"
+          },
+          {
+            "r": 0,
+            "c": 0,
+            "type": "heirloom"
+          }
+        ],
+        "goals": [
+          {
+            "type": "crate",
+            "count": 2
+          }
+        ],
+        "pieceWeightOverrides": {
+          "P11": 0
+        },
+        "mercy": true,
+        "stars": {
+          "s2": 1500,
+          "s3": 2600
+        },
+        "ivySpreadInterval": 3,
+        "ivyMaxTiles": 16,
+        "estMoves": 22,
+        "difficultyTier": "spike"
+      }
+    },
+    "moves": [
+      {
+        "pieceIndex": 2,
+        "r": 1,
+        "c": 4
+      },
+      {
+        "pieceIndex": 1,
+        "r": 3,
+        "c": 1
+      },
+      {
+        "pieceIndex": 0,
+        "r": 6,
+        "c": 4
+      },
+      {
+        "pieceIndex": 0,
+        "r": 0,
+        "c": 1
+      },
+      {
+        "pieceIndex": 2,
+        "r": 0,
+        "c": 5
+      },
+      {
+        "pieceIndex": 1,
+        "r": 3,
+        "c": 0
+      },
+      {
+        "pieceIndex": 0,
+        "r": 5,
+        "c": 3
+      },
+      {
+        "pieceIndex": 2,
+        "r": 6,
+        "c": 1
+      },
+      {
+        "pieceIndex": 1,
+        "r": 1,
+        "c": 7
+      },
+      {
+        "pieceIndex": 0,
+        "r": 1,
+        "c": 0
+      },
+      {
+        "pieceIndex": 1,
+        "r": 3,
+        "c": 4
+      },
+      {
+        "pieceIndex": 2,
+        "r": 7,
+        "c": 0
+      },
+      {
+        "pieceIndex": 1,
+        "r": 5,
+        "c": 7
+      },
+      {
+        "pieceIndex": 2,
+        "r": 7,
+        "c": 4
+      },
+      {
+        "pieceIndex": 0,
+        "r": 4,
+        "c": 1
+      },
+      {
+        "pieceIndex": 1,
+        "r": 7,
+        "c": 1
+      },
+      {
+        "pieceIndex": 0,
+        "r": 4,
+        "c": 0
+      },
+      {
+        "pieceIndex": 2,
+        "r": 7,
+        "c": 1
+      },
+      {
+        "pieceIndex": 2,
+        "r": 0,
+        "c": 1
+      },
+      {
+        "pieceIndex": 0,
+        "r": 6,
+        "c": 0
+      },
+      {
+        "pieceIndex": 1,
+        "r": 1,
+        "c": 0
+      },
+      {
+        "pieceIndex": 0,
+        "r": 6,
+        "c": 3
+      },
+      {
+        "pieceIndex": 1,
+        "r": 5,
+        "c": 4
+      }
+    ],
+    "result": {
+      "status": "lost",
+      "score": 383,
+      "stars": 0,
+      "moves": 23,
+      "combo": 1,
+      "goals": [
+        {
+          "type": "crate",
+          "remaining": 2
+        }
+      ],
+      "fill": 43,
+      "boardHash": "d04570ad"
+    }
+  },
+  {
+    "name": "level-ivy-tuned",
+    "seed": "golden-ivy",
+    "config": {
+      "mode": "level",
+      "tuning": {
+        "mercy_threshold": 0.55,
+        "mercy_small_prob": 0.65,
+        "score_clear_base": 10,
+        "combo_step": 0.25,
+        "perfect_clear_bonus": 300
+      },
+      "level": {
+        "id": 25,
+        "chapter": 1,
+        "seedSalt": "L25-ivy",
+        "prefill": [
+          {
+            "r": 3,
+            "c": 3,
+            "type": "ivy"
+          },
+          {
+            "r": 4,
+            "c": 4,
+            "type": "ivy"
+          }
+        ],
+        "goals": [
+          {
+            "type": "ivy",
+            "count": 3
+          }
+        ],
+        "pieceWeightOverrides": {},
+        "mercy": true,
+        "stars": {
+          "s2": 800,
+          "s3": 1600
+        },
+        "ivySpreadInterval": 2,
+        "ivyMaxTiles": 5
+      }
+    },
+    "moves": [
+      {
+        "pieceIndex": 2,
+        "r": 2,
+        "c": 0
+      },
+      {
+        "pieceIndex": 0,
+        "r": 4,
+        "c": 6
+      },
+      {
+        "pieceIndex": 1,
+        "r": 1,
+        "c": 3
+      },
+      {
+        "pieceIndex": 1,
+        "r": 3,
+        "c": 4
+      },
+      {
+        "pieceIndex": 2,
+        "r": 5,
+        "c": 2
+      },
+      {
+        "pieceIndex": 0,
+        "r": 1,
+        "c": 2
+      },
+      {
+        "pieceIndex": 0,
+        "r": 0,
+        "c": 4
+      },
+      {
+        "pieceIndex": 2,
+        "r": 5,
+        "c": 1
+      },
+      {
+        "pieceIndex": 1,
+        "r": 0,
+        "c": 6
+      },
+      {
+        "pieceIndex": 0,
+        "r": 0,
+        "c": 1
+      },
+      {
+        "pieceIndex": 2,
+        "r": 0,
+        "c": 3
+      }
+    ],
+    "result": {
+      "status": "won",
+      "score": 300,
+      "stars": 1,
+      "moves": 11,
+      "combo": 2,
+      "goals": [
+        {
+          "type": "ivy",
+          "remaining": 0
+        }
+      ],
+      "fill": 21,
+      "boardHash": "2c69d5a9"
+    }
+  },
+  {
+    "name": "daily-no-mercy-no-redraw",
+    "seed": "golden-daily",
+    "config": {
+      "mode": "daily",
+      "tuning": {
+        "mercy_threshold": 0.55,
+        "mercy_small_prob": 0.65,
+        "score_clear_base": 10,
+        "combo_step": 0.25,
+        "perfect_clear_bonus": 300
+      }
+    },
+    "moves": [
+      {
+        "pieceIndex": 2,
+        "r": 2,
+        "c": 5
+      },
+      {
+        "pieceIndex": 1,
+        "r": 5,
+        "c": 4
+      },
+      {
+        "pieceIndex": 0,
+        "r": 0,
+        "c": 3
+      },
+      {
+        "pieceIndex": 0,
+        "r": 7,
+        "c": 5
+      },
+      {
+        "pieceIndex": 1,
+        "r": 3,
+        "c": 3
+      },
+      {
+        "pieceIndex": 2,
+        "r": 0,
+        "c": 0
+      },
+      {
+        "pieceIndex": 0,
+        "r": 6,
+        "c": 0
+      },
+      {
+        "pieceIndex": 2,
+        "r": 3,
+        "c": 5
+      },
+      {
+        "pieceIndex": 1,
+        "r": 2,
+        "c": 1
+      },
+      {
+        "pieceIndex": 1,
+        "r": 1,
+        "c": 6
+      },
+      {
+        "pieceIndex": 2,
+        "r": 6,
+        "c": 3
+      },
+      {
+        "pieceIndex": 0,
+        "r": 3,
+        "c": 4
+      },
+      {
+        "pieceIndex": 2,
+        "r": 5,
+        "c": 7
+      },
+      {
+        "pieceIndex": 0,
+        "r": 0,
+        "c": 0
+      },
+      {
+        "pieceIndex": 1,
+        "r": 4,
+        "c": 1
+      },
+      {
+        "pieceIndex": 1,
+        "r": 1,
+        "c": 4
+      },
+      {
+        "pieceIndex": 0,
+        "r": 6,
+        "c": 4
+      },
+      {
+        "pieceIndex": 2,
+        "r": 2,
+        "c": 0
+      },
+      {
+        "pieceIndex": 1,
+        "r": 2,
+        "c": 4
+      },
+      {
+        "pieceIndex": 2,
+        "r": 7,
+        "c": 4
+      },
+      {
+        "pieceIndex": 0,
+        "r": 2,
+        "c": 4
+      },
+      {
+        "pieceIndex": 0,
+        "r": 4,
+        "c": 6
+      },
+      {
+        "pieceIndex": 1,
+        "r": 3,
+        "c": 4
+      },
+      {
+        "pieceIndex": 2,
+        "r": 3,
+        "c": 1
+      },
+      {
+        "pieceIndex": 1,
+        "r": 3,
+        "c": 5
+      },
+      {
+        "pieceIndex": 2,
+        "r": 3,
+        "c": 0
+      },
+      {
+        "pieceIndex": 0,
+        "r": 4,
+        "c": 2
+      },
+      {
+        "pieceIndex": 2,
+        "r": 4,
+        "c": 4
+      },
+      {
+        "pieceIndex": 0,
+        "r": 1,
+        "c": 3
+      },
+      {
+        "pieceIndex": 1,
+        "r": 3,
+        "c": 6
+      },
+      {
+        "pieceIndex": 1,
+        "r": 3,
+        "c": 1
+      },
+      {
+        "pieceIndex": 0,
+        "r": 2,
+        "c": 2
+      }
+    ],
+    "result": {
+      "status": "lost",
+      "score": 607,
+      "stars": 0,
+      "moves": 32,
+      "combo": 0,
+      "goals": [],
+      "fill": 39,
+      "boardHash": "f6ec36bb"
+    }
+  },
+  {
+    "name": "daily-sequence-exhausted",
+    "seed": "golden-seq",
+    "config": {
+      "mode": "daily",
+      "tuning": {
+        "mercy_threshold": 0.55,
+        "mercy_small_prob": 0.65,
+        "score_clear_base": 10,
+        "combo_step": 0.25,
+        "perfect_clear_bonus": 300
+      },
+      "pieceSequence": [
+        "P10",
+        "P01",
+        "P13",
+        "P03",
+        "P04",
+        "P16",
+        "P13",
+        "P05",
+        "P07",
+        "P09",
+        "P05",
+        "P12"
+      ]
+    },
+    "moves": [
+      {
+        "pieceIndex": 0,
+        "r": 5,
+        "c": 3
+      },
+      {
+        "pieceIndex": 1,
+        "r": 4,
+        "c": 0
+      },
+      {
+        "pieceIndex": 2,
+        "r": 0,
+        "c": 1
+      },
+      {
+        "pieceIndex": 2,
+        "r": 5,
+        "c": 5
+      },
+      {
+        "pieceIndex": 1,
+        "r": 3,
+        "c": 1
+      },
+      {
+        "pieceIndex": 0,
+        "r": 0,
+        "c": 6
+      },
+      {
+        "pieceIndex": 1,
+        "r": 3,
+        "c": 6
+      },
+      {
+        "pieceIndex": 0,
+        "r": 6,
+        "c": 0
+      },
+      {
+        "pieceIndex": 2,
+        "r": 1,
+        "c": 7
+      },
+      {
+        "pieceIndex": 0,
+        "r": 0,
+        "c": 5
+      },
+      {
+        "pieceIndex": 2,
+        "r": 6,
+        "c": 2
+      },
+      {
+        "pieceIndex": 1,
+        "r": 1,
+        "c": 5
+      }
+    ],
+    "result": {
+      "status": "completed",
+      "score": 118,
+      "stars": 0,
+      "moves": 12,
+      "combo": 0,
+      "goals": [],
+      "fill": 30,
+      "boardHash": "a0cbb4d1"
+    }
+  },
+  {
+    "name": "daily-sequence-death-first",
+    "seed": "golden-seq",
+    "config": {
+      "mode": "daily",
+      "tuning": {
+        "mercy_threshold": 0.55,
+        "mercy_small_prob": 0.65,
+        "score_clear_base": 10,
+        "combo_step": 0.25,
+        "perfect_clear_bonus": 300
+      },
+      "pieceSequence": [
+        "P10",
+        "P01",
+        "P13",
+        "P03",
+        "P04",
+        "P16",
+        "P13",
+        "P05",
+        "P07",
+        "P09",
+        "P05",
+        "P12",
+        "P11",
+        "P03",
+        "P04",
+        "P09",
+        "P05",
+        "P19",
+        "P18",
+        "P03",
+        "P22",
+        "P19",
+        "P21",
+        "P20",
+        "P22",
+        "P07",
+        "P20",
+        "P12",
+        "P13",
+        "P17"
+      ]
+    },
+    "moves": [
+      {
+        "pieceIndex": 0,
+        "r": 5,
+        "c": 3
+      },
+      {
+        "pieceIndex": 1,
+        "r": 5,
+        "c": 1
+      },
+      {
+        "pieceIndex": 2,
+        "r": 0,
+        "c": 3
+      },
+      {
+        "pieceIndex": 1,
+        "r": 4,
+        "c": 5
+      },
+      {
+        "pieceIndex": 0,
+        "r": 3,
+        "c": 3
+      },
+      {
+        "pieceIndex": 2,
+        "r": 2,
+        "c": 0
+      },
+      {
+        "pieceIndex": 1,
+        "r": 5,
+        "c": 2
+      },
+      {
+        "pieceIndex": 0,
+        "r": 0,
+        "c": 0
+      },
+      {
+        "pieceIndex": 2,
+        "r": 0,
+        "c": 5
+      },
+      {
+        "pieceIndex": 2,
+        "r": 6,
+        "c": 6
+      },
+      {
+        "pieceIndex": 0,
+        "r": 0,
+        "c": 2
+      },
+      {
+        "pieceIndex": 1,
+        "r": 5,
+        "c": 0
+      },
+      {
+        "pieceIndex": 1,
+        "r": 2,
+        "c": 0
+      },
+      {
+        "pieceIndex": 2,
+        "r": 5,
+        "c": 5
+      }
+    ],
+    "result": {
+      "status": "lost",
+      "score": 223,
+      "stars": 0,
+      "moves": 14,
+      "combo": 0,
+      "goals": [],
+      "fill": 27,
+      "boardHash": "e4226b3d"
+    }
+  }
+]
