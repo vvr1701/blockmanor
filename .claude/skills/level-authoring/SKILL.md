@@ -40,10 +40,14 @@ seeds carries ~±7.5pp of sampling noise at 95% confidence — wider than the
 50%→35.4%). Sweep cheap at 150 to find candidates; **always confirm at 500
 before committing.** 500 seeds gives ~±4pp, which fits inside the band.
 
-**Measure with the seedSalt you will actually ship.** The salt IS the layout —
-same density and pattern with a different salt is a different board with a
-different win-rate. Measuring one salt and shipping another silently voids the
-balance evidence.
+**Measure with the level id AND seedSalt you will actually ship.** The salt IS
+the layout — same density and pattern under a different salt is a different
+board with a different win-rate. The **id** matters too: the harness derives its
+per-playout seeds from it (`L<id>-s<n>` / `bot-<id>-<n>`), so sweeping under id
+1 and shipping under id 904 measures a different seed stream and lands a few pp
+off the real gate. Measuring one and shipping the other silently voids the
+balance evidence. `balance/sweep.bal.ts` takes both as required inputs for this
+reason — use it rather than rolling a one-off probe.
 
 **Reject `medianMoves < 8`.** A level the bot finishes in one or two
 placements has a meaningless win-rate: the prefill did the work, not the
