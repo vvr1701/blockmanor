@@ -43,11 +43,24 @@ submission ALWAYS gets backend-engineer + qa-prd-auditor review.
 - qa-prd-auditor sign-off for: engine, wallet, daily board, IAP, ads
 
 ## Current stage
-STAGE 0 — in progress. `packages/engine` is COMPLETE per PRD §6 (100 tests,
-99.5% lines, 1,000-game determinism fuzz with a pinned corpus hash, 6 byte-locked
-golden replays). Still outstanding for Stage-0 DoD: the level generator and the
-greedy-bot balance harness in `packages/content`, plus the `_balance_report.json`
-format and its CI job. Update this line as stages complete.
-Consult PRD §5 for scope; note Stage 0 tooling explicitly includes the level
+STAGE 0 — **CODE-COMPLETE, pending the human device gate.** Do NOT start Stage 1
+work until that gate passes and the operator flips this line.
+
+Done:
+- `packages/engine` complete per PRD §6 — 100 tests, 99.5% lines, 1,000-game
+  determinism fuzz with a PINNED corpus hash (`392ad7a4`), 6 byte-locked golden
+  replays. PRD amended to v1.7 en route (§6.6 combo timing, §7.8 ivy rule,
+  §4.3 `pieceSequence`, §8.2 frozen `engineConfig` snapshot).
+- `packages/content` Stage-0 tooling complete per §5 — level generator, greedy-bot
+  balance harness, `_balance_report.json`, and the `balance` CI job. Validated on
+  5 throwaway levels in `levels/_test/`, all inside §7.9's ±10pp band.
+- CI green on 4 jobs: typecheck, lint, test, balance.
+
+REMAINING for Stage-0 DoD — human, not agent: **app boots to placeholder Home on a
+2019-class Android (Redmi Note 8) and on iOS.** The other DoD clause, `simulate()`
+reproducing 1,000 fuzzed games identically, is proven by the CI `test` job on
+every run.
+
+Consult PRD §5 for scope; Stage 0 tooling explicitly includes the level
 generator + greedy-bot balance harness (tooling only — level content is S1).
 Design mockups: docs/design/spec/*.dc.html (PRD §15).
