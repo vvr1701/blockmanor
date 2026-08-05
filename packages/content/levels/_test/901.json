@@ -1,0 +1,117 @@
+{
+  "id": 901,
+  "chapter": 1,
+  "seedSalt": "T01-bands-ivy",
+  "stars": {
+    "s2": 0,
+    "s3": 0
+  },
+  "prefill": [
+    {
+      "r": 0,
+      "c": 2,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 7,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 5,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 4,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 1,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 0,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 6,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 3,
+      "type": "filled"
+    },
+    {
+      "r": 2,
+      "c": 6,
+      "type": "filled"
+    },
+    {
+      "r": 2,
+      "c": 4,
+      "type": "filled"
+    },
+    {
+      "r": 2,
+      "c": 0,
+      "type": "filled"
+    },
+    {
+      "r": 2,
+      "c": 5,
+      "type": "filled"
+    },
+    {
+      "r": 2,
+      "c": 2,
+      "type": "filled"
+    },
+    {
+      "r": 2,
+      "c": 1,
+      "type": "filled"
+    },
+    {
+      "r": 2,
+      "c": 7,
+      "type": "filled"
+    },
+    {
+      "r": 2,
+      "c": 3,
+      "type": "filled"
+    },
+    {
+      "r": 4,
+      "c": 2,
+      "type": "ivy"
+    },
+    {
+      "r": 4,
+      "c": 4,
+      "type": "ivy"
+    },
+    {
+      "r": 4,
+      "c": 0,
+      "type": "ivy"
+    }
+  ],
+  "goals": [
+    {
+      "type": "ivy",
+      "count": 3
+    }
+  ],
+  "pieceWeightOverrides": {},
+  "mercy": true,
+  "ivySpreadInterval": 3,
+  "ivyMaxTiles": 16,
+  "difficultyTier": "tutorial"
+}

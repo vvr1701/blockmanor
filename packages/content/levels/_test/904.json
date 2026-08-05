@@ -1,0 +1,72 @@
+{
+  "id": 904,
+  "chapter": 1,
+  "seedSalt": "T04-edges-crate",
+  "stars": {
+    "s2": 0,
+    "s3": 0
+  },
+  "prefill": [
+    {
+      "r": 0,
+      "c": 6,
+      "type": "filled"
+    },
+    {
+      "r": 7,
+      "c": 0,
+      "type": "filled"
+    },
+    {
+      "r": 7,
+      "c": 1,
+      "type": "filled"
+    },
+    {
+      "r": 1,
+      "c": 7,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 5,
+      "type": "filled"
+    },
+    {
+      "r": 7,
+      "c": 6,
+      "type": "filled"
+    },
+    {
+      "r": 6,
+      "c": 0,
+      "type": "filled"
+    },
+    {
+      "r": 3,
+      "c": 7,
+      "type": "filled"
+    },
+    {
+      "r": 7,
+      "c": 5,
+      "type": "crate"
+    },
+    {
+      "r": 0,
+      "c": 4,
+      "type": "crate"
+    }
+  ],
+  "goals": [
+    {
+      "type": "crate",
+      "count": 2
+    }
+  ],
+  "pieceWeightOverrides": {},
+  "mercy": true,
+  "ivySpreadInterval": 3,
+  "ivyMaxTiles": 16,
+  "difficultyTier": "sustained"
+}
