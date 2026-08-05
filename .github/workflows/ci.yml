@@ -47,5 +47,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
-      # Engine coverage gate (PRD §6.8, ≥90% lines) is added with packages/engine
-      # in the next Stage-0 session — there is no engine to measure yet.
+      # Engine coverage gate (PRD §6.8, ≥90% lines) runs inside `pnpm test`:
+      # packages/engine's test script is `vitest run --coverage`, and the
+      # threshold is enforced in packages/engine/vitest.config.ts. A drop below
+      # 90% fails the step above.
