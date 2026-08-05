@@ -30,7 +30,9 @@ const config: ExpoConfig = {
     bundleIdentifier: 'com.ashfieldgames.blockmanor',
     supportsTablet: false,
   },
+  owner: 'vvr1701',
   extra: {
+    eas: { projectId: '38d85265-4670-4f6b-95c2-76c1efebd319' },
     firebase: {
       apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
       authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
