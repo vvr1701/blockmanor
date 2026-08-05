@@ -43,7 +43,11 @@ submission ALWAYS gets backend-engineer + qa-prd-auditor review.
 - qa-prd-auditor sign-off for: engine, wallet, daily board, IAP, ads
 
 ## Current stage
-STAGE 0 — no product code written yet. Update this line as stages complete.
+STAGE 0 — in progress. `packages/engine` is COMPLETE per PRD §6 (100 tests,
+99.5% lines, 1,000-game determinism fuzz with a pinned corpus hash, 6 byte-locked
+golden replays). Still outstanding for Stage-0 DoD: the level generator and the
+greedy-bot balance harness in `packages/content`, plus the `_balance_report.json`
+format and its CI job. Update this line as stages complete.
 Consult PRD §5 for scope; note Stage 0 tooling explicitly includes the level
 generator + greedy-bot balance harness (tooling only — level content is S1).
 Design mockups: docs/design/spec/*.dc.html (PRD §15).

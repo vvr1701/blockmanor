@@ -52,6 +52,12 @@ export const MAX_TRAY_REDRAWS = 5;
  * The [RC] engine knobs of §13, keyed exactly as the Remote Config keys so a
  * config snapshot is assignable with no mapping layer (and no call-site literal
  * can drift from the registry — CLAUDE.md rule 3).
+ *
+ * §13 scope note: live Remote Config feeds these for level/endless ONLY. The
+ * Daily Board must pass the frozen `engineConfig` snapshot from
+ * `dailyBoards/{date}` (§8.2) instead, so that server re-simulation (§8.5)
+ * survives an RC push mid-day. The engine cannot tell the difference and must
+ * not try to — it takes tuning as data, and the caller owns which snapshot.
  */
 export interface EngineTuning {
   mercy_threshold: number;

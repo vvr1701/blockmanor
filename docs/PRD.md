@@ -1,6 +1,6 @@
 # BLOCK MANOR — Product Requirements Document (Source of Truth)
 
-**Version:** 1.6 · **Date:** 2026-08-05 · **Status:** Approved for build
+**Version:** 1.7 · **Date:** 2026-08-05 · **Status:** Approved for build
 **Product type:** Hybrid-casual mobile puzzle game · **Platforms:** Android + iOS
 **Stack:** React Native + Expo + react-native-skia · TypeScript everywhere · Firebase backend
 
@@ -27,6 +27,7 @@
 | 1.4 | 2026-08-04 | Coherence audit fixes: §0.2a stage-rule scope (B) · §8.2/§8.5 daily sequence exhaustion (C) · §0.5 + §13 flag scope (D) · §13 unregistered [RC] keys (E) · §8.6 streak credit on abandonment (F) · §16.1 canonical screen names (G) · §4.3 PRNG pinned to mulberry32 (H) · version/date/section-numbering normalization (I) · §5 level generator + bot harness named as Stage 0 tooling |
 | 1.5 | 2026-08-04 | §9–§10 LiveOps tunability sweep — 17 bare literals promoted to §13 RC keys: `rv_life_daily_cap · wheel_ad_spins · wheel_free_spins · wheel_prize_table · rv_double_coins_multiplier · streak_repair_ads · starting_coin_balance · lives_max · life_forfeit_min_moves · relief_clear_cells · continue_max_per_attempt · interstitial_iap_suppress_h · starter_pack_offer_ttl_h · starter_pack_repeat_level · remove_ads_prompt_cooldown_d · streak_freeze_max · iap_pending_timeout_s`. §13 ads/IAP groups split. Design constants deliberately NOT promoted: §7.4 juice timings and all animation/layout numbers stay code-side tokens (`src/game/juice.ts`), store price points stay store-managed, and content-tied level numbers (chest cadence, booster showcase levels L12/18/26) stay in `packages/content` |
 | 1.6 | 2026-08-05 | Stage-0 engine ambiguity rulings (raised by the §6 implementation, resolved here before code): §6.6 combo multiplier uses the PRE-increment counter and `LINES_CLEARED` carries the POST-increment value as `comboDisplay` (both now explicit; §4.3 event example renamed) · §7.8 ivy growth candidates restricted to ivy with ≥1 empty orthogonal neighbour, no growth and no RNG consumed when none exist (**replay-affecting** — golden fixtures regenerated once under this amendment) · §7.8 `crate2`'s 2nd hit credits the `crate` goal, no `crate2` goal type · §7.8 content-stage note: engine supports all 5 obstacles from Stage 0, **heirloom levels ship Stage 3** (§5 Stage 3 scope updated) · §7.7 `chapter` + `stars` REQUIRED, `estMoves` + `difficultyTier` optional harness-written metadata · §7.8 ivy constants promoted to §7.7 level fields `ivySpreadInterval` (3) + `ivyMaxTiles` (16), deliberately level-scoped and NOT `[RC]` to preserve replay determinism · §4.3 + §8.2 engine contract gains optional `GameConfig.pieceSequence`, `SEQUENCE_EXHAUSTED` event and terminal status `'completed'` |
+| 1.7 | 2026-08-05 | Daily-Board determinism contract + two §6.6 follow-ons: §8.2 `dailyBoards/{date}` embeds a **frozen `engineConfig` snapshot** (scoring constants, mercy values, piece sequence, prefill) captured at generation; client plays from it and §8.5 re-simulates from it, and **Remote Config is never consulted in the daily path** — an RC push mid-day could otherwise turn an honest submission into a `daily_cheat_rejected` · §13 scopes the five engine `[RC]` keys to level/endless only, with the rationale · §8.2 exhaustion returns `'completed'` even when the final piece fills the board (completion = the sequence ended without a prior death; exhaustion is evaluated before the death check) · §7.4 clear-chime pitch is `+1 semitone × (comboDisplay − 1)`, so a first clear plays unshifted rather than a semitone sharp (cap +7 unchanged) |
 
 ---
 
@@ -239,7 +240,7 @@ Top HUD: pause · goal bar (icon + remaining count per goal) · score (tabular n
 |---|---|---|---|
 | Piece lift | scale-up 120ms | selection | soft pick |
 | Legal snap | 90ms spring settle | impactLight | wooden thock |
-| Line clear | per-cell pop 320ms staggered 12ms/cell outward from placement, star particles, +N floating score | impactMedium | chime (pitch +1 semitone per combo level, cap +7) |
+| Line clear | per-cell pop 320ms staggered 12ms/cell outward from placement, star particles, +N floating score | impactMedium | chime (pitch `+1 semitone × (comboDisplay − 1)`, cap +7 — a first clear is `comboDisplay: 1` per §6.6 and so plays unshifted) |
 | Multi-line | above + screen flash 8% white 80ms + "COMBO xN!" text slam | impactHeavy | layered chime |
 | Perfect clear | gold fullscreen shimmer 600ms | notificationSuccess | harp gliss |
 | Near-death (fill>0.8) | red edge vignette pulse 1.2s loop | none | low ambience |
@@ -310,6 +311,8 @@ One globally identical challenge per UTC day: identical prefill pattern + identi
 ### 8.2 Generation (server-authoritative)
 - Cloud Function scheduled 00:00 UTC: `seed = HMAC_SHA256(secretSalt, "YYYY-MM-DD")`. From seed: (a) prefill = 6–14 obstacle-free filled cells from curated pattern templates; (b) piece sequence = the first `daily_piece_count [RC, 60]` piece IDs drawn from §6.2 weights (no mercy). Board doc published to `dailyBoards/{date}` with the sequence ENCRYPTED; client receives decryption via the play-start callable → prevents pre-computing.
 - **Sequence exhaustion:** placing the final piece of the sequence with the board still alive ends the run as a **completed attempt** — identical handling to board-death for scoring, percentile (§8.4), streak (§8.6), and the `daily_complete` event. The Daily Board has no win state; it ends on death or exhaustion, whichever comes first.
+  - Exhaustion returns `'completed'` **even when the final piece fills the board**. Completion means the sequence ended without a prior death — it is not a claim that space remained. Exhaustion is therefore evaluated before the board-death check, never after.
+- **Frozen `engineConfig` snapshot (the §8.5 determinism contract).** The `dailyBoards/{date}` document embeds an `engineConfig` captured at generation time, holding every engine-relevant value for that day: the scoring constants (`score_clear_base`, `combo_step`, `perfect_clear_bonus`), the mercy values (recorded even though mercy is off on the Daily Board, so the snapshot is complete), the piece sequence, and the board prefill. The client plays **from that snapshot** and the server re-simulates **from that same snapshot**. **Remote Config is never consulted anywhere in the daily path** — not at play time, not at validation time. A LiveOps RC push mid-day must not be able to turn an honest submission into a `daily_cheat_rejected`.
 - **Engine mechanism.** The generated sequence is handed to the engine as `GameConfig.pieceSequence` (§4.3). That single field is what makes a run a fixed-sequence run: draws consume it in order, mercy (§6.4) and the redraw guarantee (§6.3) switch off, and running out of pieces ends the run with status `'completed'` and a `SEQUENCE_EXHAUSTED` event. `'completed'` is a distinct terminal status from `'lost'` — both are "attempt over" for §8.4/§8.6, but only exhaustion means the player outlived the board.
 - Solvability check at generation: greedy bot must survive ≥15 placements across 200 trials median; else re-roll with seed+"-r1".
 
@@ -321,7 +324,7 @@ Gate screen (countdown to next board, "one attempt", yesterday's percentile) →
 Cloud Function maintains per-day histogram (100 buckets); percentile = rank vs all submissions so far, floor display "Top X%". Before 100 submissions exist, show "Early bird! 🌅" instead of percentile.
 
 ### 8.5 Anti-cheat (uses §4.3 determinism)
-Client submits `{date, moves[], claimedScore}` via callable. Server re-runs `simulate(dailyConfig, seed, moves)`; mismatch → rejected, `daily_cheat_rejected` logged. Server also rejects: >1 submission/user/day, `moves.length > daily_piece_count` (§8.2 — a submission cannot contain more moves than the sequence has pieces), submission for a past date >36h old.
+Client submits `{date, moves[], claimedScore}` via callable. Server re-runs `simulate(dailyConfig, seed, moves)` where `dailyConfig` is built from the **frozen `engineConfig` snapshot** in `dailyBoards/{date}` (§8.2) — never from live Remote Config, or a mid-day RC push would fail honest submissions. Mismatch → rejected, `daily_cheat_rejected` logged. Server also rejects: >1 submission/user/day, `moves.length > daily_piece_count` (§8.2 — a submission cannot contain more moves than the sequence has pieces), submission for a past date >36h old.
 
 ### 8.6 Streak (counter in Stage 1; economy in Stage 2)
 - Streak +1 requires a **submitted attempt** for that UTC day — playing, not winning; score is irrelevant. A missed UTC day resets to 0. Server-authoritative (`users/{uid}.streak`), client-displayed flame + calendar month view.
@@ -428,6 +431,7 @@ Sky Race (async ladder vs matched ghost), 72h collection events (special tiles o
 ## 13. REMOTE CONFIG & FLAGS (initial registry — every key listed here MUST exist in code)
 **Flags:** `flag_daily_board(S1,on) · flag_endless(S1,on) · flag_share_card(S1,on) · flag_push(S1,on) · flag_economy(S2) · flag_ads(S2) · flag_iap(S2) · flag_manor(S3) · flag_events(S4)`
 **Engine & scoring:** `mercy_threshold .55 · mercy_small_prob .65 · score_clear_base 10 · combo_step .25 · perfect_clear_bonus 300`
+> **Scope:** these five keys apply to **level and endless modes only**. The Daily Board reads them from the frozen `engineConfig` snapshot in `dailyBoards/{date}` (§8.2), never from Remote Config, so that server re-simulation (§8.5) stays reproducible across an RC push. Level and endless have no server re-simulation, so live RC is safe there.
 **Daily board:** `daily_piece_count 60 · daily_streak_min_moves 3 · daily_push_hour 8 · streak_repair_price 89`
 **Economy (S2):** `starting_coin_balance 500 · coins_level_win_base 40 · coins_per_star 10 · coins_chest 150 · coins_daily_complete 50 · continue_price_1 900 · continue_price_2 1200 · continue_price_3 1600 · continue_max_per_attempt 3 · second_chance_daily_cap 1 · relief_clear_cells 12 · booster_price_hammer 600 · booster_price_broom 800 · booster_price_hourglass 500 · lives_max 5 · life_refill_price 900 · life_regen_minutes 30 · life_forfeit_min_moves 3 · winstreak_thresholds "2:1,3:2,5:2+200"`
 **Ads (S2):** `interstitial_min_level 12 · interstitial_cooldown_s 180 · interstitial_daily_cap 10 · interstitial_iap_suppress_h 24 · rv_daily_cap 8 · rv_life_daily_cap 2 · rv_double_coins_multiplier 2 · streak_repair_ads 3 · wheel_free_spins 1 · wheel_ad_spins 1 · wheel_prize_table (JSON: prize set + odds; the §10.1 odds disclosure renders from this key)`
@@ -527,4 +531,4 @@ Content ops: 60 levels balanced (§7.9 report) · 30 daily-board pattern templat
 | Clone competition | speed + daily ritual moat + India localization; ship Stage 1 in 6 weeks |
 | Scope creep from Stage 3/4 dreams | §0 rules 2 + 2a: stage gates are hard; only specced layout reservations cross a stage line |
 
-*End of PRD v1.6 — amendments require a changelog entry (§0).*
+*End of PRD v1.7 — amendments require a changelog entry (§0).*
