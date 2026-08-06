@@ -43,10 +43,11 @@ submission ALWAYS gets backend-engineer + qa-prd-auditor review.
 - qa-prd-auditor sign-off for: engine, wallet, daily board, IAP, ads
 
 ## Current stage
-STAGE 0 — **CODE-COMPLETE, pending the human device gate.** Do NOT start Stage 1
-work until that gate passes and the operator flips this line.
+STAGE 1 — in progress. Stage 0 is DONE; the Android device gate passed on
+2026-08-05 (preview APK, Redmi Note 8: boots to placeholder Home, tokens render,
+MMKV meta state + RC snapshot resolve).
 
-Done:
+Stage 0 delivered:
 - `packages/engine` complete per PRD §6 — 100 tests, 99.5% lines, 1,000-game
   determinism fuzz with a PINNED corpus hash (`392ad7a4`), 6 byte-locked golden
   replays. PRD amended to v1.7 en route (§6.6 combo timing, §7.8 ivy rule,
@@ -56,11 +57,14 @@ Done:
   5 throwaway levels in `levels/_test/`, all inside §7.9's ±10pp band.
 - CI green on 4 jobs: typecheck, lint, test, balance.
 
-REMAINING for Stage-0 DoD — human, not agent: **app boots to placeholder Home on a
-2019-class Android (Redmi Note 8) and on iOS.** The other DoD clause, `simulate()`
-reproducing 1,000 fuzzed games identically, is proven by the CI `test` job on
-every run.
+Carried forward — do these before the Stage-1 beta, not before starting:
+- **iOS boot unverified.** Deferred by the operator: needs an Apple Developer
+  account + `eas device:create`. Deliberately not blocking Stage 1.
+- **Firebase dev project not provisioned.** Home shows "not configured" on
+  device, which is the designed offline path. `EXPO_PUBLIC_FIREBASE_*` bake in
+  at build time, so wiring it needs a fresh build — required before §8.
 
-Consult PRD §5 for scope; Stage 0 tooling explicitly includes the level
-generator + greedy-bot balance harness (tooling only — level content is S1).
-Design mockups: docs/design/spec/*.dc.html (PRD §15).
+Device builds: EAS project `@vvr1701/blockmanor`. Preview APK =
+`pnpm dlx eas-cli@latest build -p android --profile preview`.
+
+Consult PRD §5 for scope. Design mockups: docs/design/spec/*.dc.html (PRD §15).
