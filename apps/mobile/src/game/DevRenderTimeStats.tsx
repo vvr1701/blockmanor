@@ -11,10 +11,11 @@
  * measured or reported here (see the delivery report). This overlay is the
  * instrumentation the OPERATOR reads on a real Redmi-class Android: it times
  * how long each state-driven re-render of the board+tray takes to build and
- * commit, keeps a rolling window, and shows last/avg on-screen. `__DEV__`-gated
+ * commit, keeps a rolling window, and shows last/avg on-screen. DEV_BOARD_ENABLED-gated
  * and a no-op in production (no timer, no extra state, no render).
  */
 
+import { DEV_BOARD_ENABLED } from './devFlag';
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors, fontSize, spacing } from '../components/tokens';
@@ -33,10 +34,10 @@ function useDevRenderTimeStats(dep: unknown): Stats {
   const history = useRef<number[]>([]);
   const [stats, setStats] = useState<Stats>({ lastMs: 0, avgMs: 0, samples: 0 });
 
-  if (__DEV__) startedAt.current = performance.now();
+  if (DEV_BOARD_ENABLED) startedAt.current = performance.now();
 
   useLayoutEffect(() => {
-    if (!__DEV__) return;
+    if (!DEV_BOARD_ENABLED) return;
     const ms = performance.now() - startedAt.current;
     const list = history.current;
     list.push(ms);
@@ -55,7 +56,7 @@ function useDevRenderTimeStats(dep: unknown): Stats {
 
 export function DevRenderTimeStats({ dep }: { dep: unknown }): React.JSX.Element | null {
   const stats = useDevRenderTimeStats(dep);
-  if (!__DEV__) return null;
+  if (!DEV_BOARD_ENABLED) return null;
   return (
     <View style={styles.box} pointerEvents="none">
       <Text style={styles.text}>
