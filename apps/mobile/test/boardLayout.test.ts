@@ -4,6 +4,7 @@ import {
   cellRect,
   computeBoardLayout,
   computeTrayLayout,
+  computeTrayRowLayout,
   pieceBounds,
   trayCellRect,
 } from '../src/game/boardLayout';
@@ -35,6 +36,35 @@ describe('computeBoardLayout (PRD §7.2 board sizing)', () => {
     const layout = computeBoardLayout(10);
     expect(layout.cellSize).toBe(0);
     expect(Number.isNaN(layout.cellSize)).toBe(false);
+  });
+
+  // §4.5 v1.8 prereq regression: a 360×640-class device clips a width-only
+  // board when the flex-shrunk slot below the HUD/goal bar is short.
+  describe('height constraint (§4.5 v1.8 prereq: size from height too)', () => {
+    it('is unaffected by an unconstrained (default) maxHeight', () => {
+      const unconstrained = computeBoardLayout(400);
+      const explicit = computeBoardLayout(400, Infinity);
+      expect(explicit).toEqual(unconstrained);
+    });
+
+    it('shrinks the cell size when height is the tighter constraint', () => {
+      const wide = computeBoardLayout(400);
+      const short = computeBoardLayout(400, 200);
+      expect(short.cellSize).toBeLessThan(wide.cellSize);
+      expect(short.canvasSize).toBeLessThanOrEqual(200);
+    });
+
+    it('is a no-op when width is still the tighter constraint', () => {
+      const widthOnly = computeBoardLayout(320);
+      const generousHeight = computeBoardLayout(320, 900);
+      expect(generousHeight).toEqual(widthOnly);
+    });
+
+    it('degrades to a zero-size board on a too-short height, not negative/NaN', () => {
+      const layout = computeBoardLayout(400, 10);
+      expect(layout.cellSize).toBe(0);
+      expect(Number.isNaN(layout.cellSize)).toBe(false);
+    });
   });
 });
 
@@ -96,6 +126,58 @@ describe('tray scaling (§7.2 v1.8 exact: pieces render at 50% board-cell scale)
       const widestPieceWidth = widestCols * tray.pieceCellSize + (widestCols - 1) * tray.gap;
       expect(widestPieceWidth * 3).toBeLessThanOrEqual(containerWidth);
     }
+  });
+});
+
+describe('computeTrayRowLayout (single source of truth for TrayCanvas + DragLayer)', () => {
+  const DOT: readonly (readonly [number, number])[] = [[0, 0]];
+  const DUO_V: readonly (readonly [number, number])[] = [
+    [0, 0],
+    [1, 0],
+  ];
+
+  it('gives a used slot a null layout', () => {
+    const tray = computeTrayLayout(40);
+    const row = computeTrayRowLayout([{ used: true, cells: DOT }], tray, 300);
+    expect(row.slots).toEqual([null]);
+  });
+
+  it('centers each slot within its own containerWidth/N share', () => {
+    const tray = computeTrayLayout(40); // pieceCellSize 20
+    const row = computeTrayRowLayout(
+      [
+        { used: false, cells: DOT },
+        { used: false, cells: DOT },
+        { used: false, cells: DOT },
+      ],
+      tray,
+      300,
+    );
+    const slotWidth = 100;
+    row.slots.forEach((slot, i) => {
+      expect(slot).not.toBeNull();
+      const pieceW = tray.pieceCellSize;
+      expect(slot?.originX).toBeCloseTo(i * slotWidth + (slotWidth - pieceW) / 2);
+    });
+  });
+
+  it('sizes canvasHeight off the tallest piece in the row, not a fixed piece', () => {
+    const tray = computeTrayLayout(40); // pieceCellSize 20, gap 2
+    const shortRow = computeTrayRowLayout([{ used: false, cells: DOT }], tray, 300);
+    const tallRow = computeTrayRowLayout([{ used: false, cells: DUO_V }], tray, 300);
+    expect(tallRow.canvasHeight).toBeGreaterThan(shortRow.canvasHeight);
+  });
+
+  it('TrayCanvas and DragLayer calling this with identical inputs get identical layouts (no drift)', () => {
+    const tray = computeTrayLayout(38);
+    const shapes = [
+      { used: false, cells: DOT },
+      { used: true, cells: DOT },
+      { used: false, cells: DUO_V },
+    ];
+    const a = computeTrayRowLayout(shapes, tray, 360);
+    const b = computeTrayRowLayout(shapes, tray, 360);
+    expect(a).toEqual(b);
   });
 });
 

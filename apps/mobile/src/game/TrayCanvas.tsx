@@ -1,74 +1,75 @@
 /**
- * The 3-piece tray — PRD §7.2: pieces render at 60% board-cell scale. ONE Skia
- * canvas (§4.5), separate from the board canvas since it's a visually and
- * layout-independent region (its own height, driven by the tallest piece).
+ * The 3-piece tray — PRD §7.2 v1.8: pieces render at 50% board-cell scale.
+ * ONE Skia canvas (§4.5), separate from the board canvas since it's a
+ * visually and layout-independent region (its own height, driven by the
+ * tallest piece).
  *
- * State-driven only — no drag (§7.3 is a later session). A used slot (piece
- * already placed on the board, tray not yet refilled — a real mid-turn state
- * per §6.3) simply renders nothing in that slot.
+ * State-driven only. `hiddenSlot` (§7.3) is the one exception: while a piece
+ * is being dragged, `DragLayer`'s overlay canvas draws it instead (so there's
+ * never a duplicate — one static copy here, one flying copy there) — this is
+ * a prop toggle, not a per-frame re-render, so it doesn't touch §4.5's
+ * budget. A used slot (piece already placed on the board, tray not yet
+ * refilled — a real mid-turn state per §6.3) simply renders nothing either.
  */
 
 import { PIECE_BY_ID, pieceColor, type TraySlot } from '@blockmanor/engine';
 import { Canvas } from '@shopify/react-native-skia';
 import React, { useMemo } from 'react';
 import { GlossyBlock } from './GlossyBlock';
-import { computeTrayLayout, pieceBounds, trayCellRect } from './boardLayout';
+import { computeTrayLayout, computeTrayRowLayout, trayCellRect } from './boardLayout';
 import { blockColors } from '../components/tokens';
 import { glossyGradient } from './colorMath';
-import { TRAY_ROW_PADDING_V } from './boardTokens';
 
 const BLOCK_PALETTE: readonly string[] = Object.values(blockColors);
 
 export interface TrayCanvasProps {
   tray: readonly TraySlot[];
-  /** Board cell size (px) — tray pieces render at §7.2's fixed 60% of this. */
+  /** Board cell size (px) — tray pieces render at §7.2's fixed 50% of this. */
   boardCellSize: number;
   containerWidth: number;
+  /** §7.3: the tray slot index currently being dragged, or `null`. */
+  hiddenSlot?: number | null;
 }
 
 export const TrayCanvas = React.memo(function TrayCanvas({
   tray,
   boardCellSize,
   containerWidth,
+  hiddenSlot = null,
 }: TrayCanvasProps): React.JSX.Element {
   const trayLayout = useMemo(() => computeTrayLayout(boardCellSize), [boardCellSize]);
 
-  const slots = useMemo(() => {
-    const slotWidth = containerWidth / 3;
-    let tallest = trayLayout.pieceCellSize;
-    const built = tray.map((slot, i) => {
-      if (slot.used) return null;
-      const piece = PIECE_BY_ID[slot.pieceId];
-      const bounds = pieceBounds(piece.cells);
-      const pieceW = bounds.cols * trayLayout.pieceCellSize + (bounds.cols - 1) * trayLayout.gap;
-      const pieceH = bounds.rows * trayLayout.pieceCellSize + (bounds.rows - 1) * trayLayout.gap;
-      if (pieceH > tallest) tallest = pieceH;
-      const originX = i * slotWidth + (slotWidth - pieceW) / 2;
-      const gradient = glossyGradient(
-        BLOCK_PALETTE[pieceColor(slot.pieceId) % BLOCK_PALETTE.length] as string,
-      );
-      return { key: i, piece, originX, pieceH, gradient };
-    });
-    return { built, canvasHeight: tallest + TRAY_ROW_PADDING_V * 2 };
-  }, [tray, trayLayout, containerWidth]);
+  const row = useMemo(
+    () =>
+      computeTrayRowLayout(
+        tray.map((s) => ({ used: s.used, cells: PIECE_BY_ID[s.pieceId].cells })),
+        trayLayout,
+        containerWidth,
+      ),
+    [tray, trayLayout, containerWidth],
+  );
 
   return (
-    <Canvas style={{ width: containerWidth, height: slots.canvasHeight }}>
-      {slots.built.map((slot) => {
-        if (!slot) return null;
-        const originY =
-          TRAY_ROW_PADDING_V + (slots.canvasHeight - TRAY_ROW_PADDING_V * 2 - slot.pieceH) / 2;
+    <Canvas style={{ width: containerWidth, height: row.canvasHeight }}>
+      {row.slots.map((slot, i) => {
+        if (!slot || i === hiddenSlot) return null;
+        const trayPiece = tray[i];
+        if (!trayPiece) return null;
+        const piece = PIECE_BY_ID[trayPiece.pieceId];
+        const gradient = glossyGradient(
+          BLOCK_PALETTE[pieceColor(trayPiece.pieceId) % BLOCK_PALETTE.length] as string,
+        );
         return (
-          <React.Fragment key={slot.key}>
-            {slot.piece.cells.map(([r, c], i) => {
+          <React.Fragment key={i}>
+            {piece.cells.map(([r, c], j) => {
               const rect = trayCellRect(r, c, trayLayout);
               return (
                 <GlossyBlock
-                  key={i}
+                  key={j}
                   x={slot.originX + rect.x}
-                  y={originY + rect.y}
+                  y={slot.originY + rect.y}
                   size={rect.size}
-                  gradient={slot.gradient}
+                  gradient={gradient}
                 />
               );
             })}

@@ -11,3 +11,7 @@ docs/design
 # are the source of truth (§0) and reflowing them makes amendment diffs
 # unreadable. Prettier owns code style only (PRD §16).
 *.md
+
+# Agent worktrees are scratch checkouts of this same repo — formatting them
+# double-reports every file and fails CI on another agent's in-flight work.
+.claude/worktrees

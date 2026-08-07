@@ -5,10 +5,11 @@
  *
  * State-driven only: this component re-renders React at most once per
  * placement, when `board` changes, and does nothing else. §4.5 (v1.8) is
- * explicit that this is as far as this file goes: drag preview (§7.3) and
- * clear/combo juice (§7.4) must animate via Skia/Reanimated shared values on
- * the UI thread in a later session, never by re-rendering this cell tree
- * per frame — that re-render-per-frame path is the one §4.5 actually bans.
+ * explicit that this is as far as this file goes: drag preview (§7.3, now
+ * `DragLayer.tsx`) and clear/combo juice (§7.4, still a later session) must
+ * animate via Skia/Reanimated shared values on the UI thread — a separate
+ * overlay canvas — never by re-rendering this cell tree per frame, which is
+ * the re-render-per-frame path §4.5 actually bans.
  */
 
 import { BOARD_SIZE, cellColor, cellKind, type Board } from '@blockmanor/engine';
@@ -272,16 +273,23 @@ export interface BoardCanvasProps {
   board: Board;
   /** Available width to fit the (always-square) board into. */
   containerWidth: number;
+  /** Available height (§4.5 v1.8 prereq: size from height too, not just
+   * width, so a 360×640-class device doesn't clip). Defaults unconstrained. */
+  maxHeight?: number;
 }
 
-/** `React.memo`'d: re-renders only when the board reference or width changes —
- * placements always clone the board (§4.3 `cloneState`), so reference equality
- * is a correct, cheap "did anything change" check. */
+/** `React.memo`'d: re-renders only when the board reference or layout inputs
+ * change — placements always clone the board (§4.3 `cloneState`), so
+ * reference equality is a correct, cheap "did anything change" check. */
 export const BoardCanvas = React.memo(function BoardCanvas({
   board,
   containerWidth,
+  maxHeight = Infinity,
 }: BoardCanvasProps): React.JSX.Element {
-  const layout: BoardLayout = useMemo(() => computeBoardLayout(containerWidth), [containerWidth]);
+  const layout: BoardLayout = useMemo(
+    () => computeBoardLayout(containerWidth, maxHeight),
+    [containerWidth, maxHeight],
+  );
 
   // One system-font match per layout (not per cell/frame) for crate2's "2" badge.
   const badgeFont = useMemo(

@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { colors } from './components/tokens';
 import { DEV_BOARD_ENABLED } from './game/devFlag';
@@ -16,30 +17,37 @@ import { HomeScreen } from './screens/HomeScreen';
  * reach `GameplayScreen`'s Skia canvas on a physical device to profile it —
  * nothing else has ever rendered it at runtime. Production still boots
  * straight to `HomeScreen`, unchanged, per the Stage-0 DoD.
+ *
+ * `GestureHandlerRootView` wraps the whole app (react-native-gesture-handler
+ * v2 requirement) from §7.3 on, since `GameplayScreen`'s drag now needs it —
+ * harmless everywhere else, `HomeScreen` has no gestures yet.
  */
 export default function App(): React.JSX.Element {
   const [devBoard, setDevBoard] = useState(false);
   const demoState = useMemo(() => (DEV_BOARD_ENABLED ? createDemoGameState() : null), []);
 
   return (
-    <SafeAreaProvider>
-      {DEV_BOARD_ENABLED && devBoard && demoState ? (
-        <GameplayScreen state={demoState} />
-      ) : (
-        <>
-          <HomeScreen />
-          {DEV_BOARD_ENABLED ? (
-            <Pressable style={styles.devButton} onPress={() => setDevBoard(true)}>
-              <Text style={styles.devButtonText}>DEV: Board</Text>
-            </Pressable>
-          ) : null}
-        </>
-      )}
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={styles.root}>
+      <SafeAreaProvider>
+        {DEV_BOARD_ENABLED && devBoard && demoState ? (
+          <GameplayScreen initialState={demoState} />
+        ) : (
+          <>
+            <HomeScreen />
+            {DEV_BOARD_ENABLED ? (
+              <Pressable style={styles.devButton} onPress={() => setDevBoard(true)}>
+                <Text style={styles.devButtonText}>DEV: Board</Text>
+              </Pressable>
+            ) : null}
+          </>
+        )}
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1 },
   devButton: {
     position: 'absolute',
     bottom: 24,
