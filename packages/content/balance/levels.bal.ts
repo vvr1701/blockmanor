@@ -146,35 +146,52 @@ const SHIPPED_LEVELS: ShippedLevel[] = [
     obstacles: { crate: 1 },
     noBig: true,
   },
+  // L6-L10 retuned (operator ruling, feat/7.9-levels follow-up): biased every
+  // dial toward forgiveness — lowest workable goal count given the adjacency
+  // constraint (consecutive obstacle mixes must differ; L5=crate:1 and
+  // L11=crate:2+crate2:1 are fixed anchors outside this retune's scope), the
+  // gentlest two placement patterns only (`edges` hugs the border, `bands`
+  // fills border-ward rows first — never `scatter`/`mid-fragments`, the
+  // generator's own harshest shapes), and `noBig` (P08/P09/P11 removed from
+  // the draw, the L5/L6 precedent). Within that space, density AND seedSalt
+  // both move the number (the generator's own sweep-tool docstring: "density
+  // is not monotonic... never bisect, sweep the whole range") — same dials,
+  // different salt, is a different realized board. Confirmed at the full 500
+  // seeds; see the task's before/after table for the reject pile.
   {
     id: 6,
     chapter: 1,
     target: 0.9,
     difficultyTier: 'tutorial',
-    pattern: 'bands',
-    density: 0.45,
+    pattern: 'edges',
+    density: 0.36,
     obstacles: { crate: 2 },
     noBig: true,
-    seedSalt: 'L6-fix4-nb-bands-0.45',
+    seedSalt: 'SALTSCAN5-id6-c2-edges-0.360-s5',
   },
   {
     id: 7,
     chapter: 1,
     target: 0.9,
     difficultyTier: 'tutorial',
-    pattern: 'edges',
-    density: 0.4,
-    obstacles: { crate: 3 },
+    pattern: 'bands',
+    density: 0.46,
+    obstacles: { crate: 1 },
+    noBig: true,
+    seedSalt: 'SALTSCAN-id7-c1-bands-0.460-s6',
   },
-  // first crate2 (double-crate) — gentle, still tutorial band.
+  // first crate2 (double-crate) — gentle, still tutorial band. Kept at the
+  // minimum that still teaches it: one crate2 alongside one plain crate.
   {
     id: 8,
     chapter: 1,
     target: 0.9,
     difficultyTier: 'tutorial',
     pattern: 'edges',
-    density: 0.45,
-    obstacles: { crate: 2, crate2: 1 },
+    density: 0.4,
+    obstacles: { crate: 1, crate2: 1 },
+    noBig: true,
+    seedSalt: 'SALTSCAN3-id8-c1cr2-edges-0.400-s11',
   },
   {
     id: 9,
@@ -182,8 +199,10 @@ const SHIPPED_LEVELS: ShippedLevel[] = [
     target: 0.9,
     difficultyTier: 'tutorial',
     pattern: 'bands',
-    density: 0.35,
-    obstacles: { crate: 1, crate2: 1 },
+    density: 0.46,
+    obstacles: { crate: 1 },
+    noBig: true,
+    seedSalt: 'SALTSCAN4-id9-c1-bands-0.460-s157',
   },
   {
     id: 10,
@@ -191,8 +210,10 @@ const SHIPPED_LEVELS: ShippedLevel[] = [
     target: 0.9,
     difficultyTier: 'tutorial',
     pattern: 'edges',
-    density: 0.45,
-    obstacles: { crate: 3, crate2: 1 },
+    density: 0.34,
+    obstacles: { crate: 2 },
+    noBig: true,
+    seedSalt: 'SALTSCAN4-id10-c2-edges-0.340-s62',
   },
 
   // ---- L11-14: ramp down to the L15 spike ----

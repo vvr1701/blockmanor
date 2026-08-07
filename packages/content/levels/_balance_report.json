@@ -82,71 +82,71 @@
     {
       "id": 6,
       "target": 0.9,
-      "winRate": 0.862,
-      "deltaPp": -3.8,
+      "winRate": 0.902,
+      "deltaPp": 0.2,
       "withinTolerance": true,
-      "medianMoves": 10,
-      "p10Score": 814,
-      "p90Score": 1635,
+      "medianMoves": 8,
+      "p10Score": 173,
+      "p90Score": 999,
       "suggestedStars": {
-        "s2": 900,
-        "s3": 1600
+        "s2": 400,
+        "s3": 1000
       }
     },
     {
       "id": 7,
       "target": 0.9,
-      "winRate": 0.822,
-      "deltaPp": -7.8,
+      "winRate": 0.918,
+      "deltaPp": 1.8,
       "withinTolerance": true,
-      "medianMoves": 9,
-      "p10Score": 662,
-      "p90Score": 1464,
+      "medianMoves": 10,
+      "p10Score": 815,
+      "p90Score": 1365,
       "suggestedStars": {
-        "s2": 850,
-        "s3": 1500
+        "s2": 900,
+        "s3": 1400
       }
     },
     {
       "id": 8,
       "target": 0.9,
-      "winRate": 0.844,
-      "deltaPp": -5.6,
+      "winRate": 0.922,
+      "deltaPp": 2.2,
       "withinTolerance": true,
-      "medianMoves": 13,
-      "p10Score": 1222,
-      "p90Score": 1753,
+      "medianMoves": 10,
+      "p10Score": 394,
+      "p90Score": 979,
       "suggestedStars": {
-        "s2": 1500,
-        "s3": 1800
+        "s2": 650,
+        "s3": 1000
       }
     },
     {
       "id": 9,
       "target": 0.9,
-      "winRate": 0.832,
-      "deltaPp": -6.8,
+      "winRate": 0.898,
+      "deltaPp": -0.2,
       "withinTolerance": true,
       "medianMoves": 10,
-      "p10Score": 414,
-      "p90Score": 1023,
+      "p10Score": 815,
+      "p90Score": 1357,
       "suggestedStars": {
-        "s2": 600,
-        "s3": 1000
+        "s2": 900,
+        "s3": 1400
       }
     },
     {
       "id": 10,
       "target": 0.9,
-      "winRate": 0.826,
-      "deltaPp": -7.4,
+      "winRate": 0.9,
+      "deltaPp": 0,
       "withinTolerance": true,
-      "medianMoves": 13,
-      "p10Score": 1222,
-      "p90Score": 1751,
+      "medianMoves": 10,
+      "p10Score": 83,
+      "p90Score": 1007,
       "suggestedStars": {
-        "s2": 1400,
-        "s3": 1800
+        "s2": 400,
+        "s3": 1000
       }
     },
     {

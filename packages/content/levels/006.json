@@ -1,20 +1,20 @@
 {
   "id": 6,
   "chapter": 1,
-  "seedSalt": "L6-fix4-nb-bands-0.45",
+  "seedSalt": "SALTSCAN5-id6-c2-edges-0.360-s5",
   "stars": {
-    "s2": 900,
-    "s3": 1600
+    "s2": 400,
+    "s3": 1000
   },
   "prefill": [
     {
-      "r": 0,
+      "r": 4,
       "c": 7,
       "type": "filled"
     },
     {
-      "r": 0,
-      "c": 6,
+      "r": 7,
+      "c": 4,
       "type": "filled"
     },
     {
@@ -23,18 +23,8 @@
       "type": "filled"
     },
     {
-      "r": 0,
-      "c": 1,
-      "type": "filled"
-    },
-    {
-      "r": 0,
-      "c": 2,
-      "type": "filled"
-    },
-    {
-      "r": 0,
-      "c": 0,
+      "r": 7,
+      "c": 7,
       "type": "filled"
     },
     {
@@ -44,112 +34,92 @@
     },
     {
       "r": 0,
-      "c": 3,
-      "type": "filled"
-    },
-    {
-      "r": 2,
-      "c": 5,
-      "type": "filled"
-    },
-    {
-      "r": 2,
       "c": 0,
       "type": "filled"
     },
     {
-      "r": 2,
-      "c": 4,
+      "r": 7,
+      "c": 0,
       "type": "filled"
     },
     {
-      "r": 2,
-      "c": 2,
+      "r": 3,
+      "c": 0,
       "type": "filled"
     },
     {
-      "r": 2,
+      "r": 1,
+      "c": 7,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 7,
+      "type": "filled"
+    },
+    {
+      "r": 3,
+      "c": 7,
+      "type": "filled"
+    },
+    {
+      "r": 1,
+      "c": 0,
+      "type": "filled"
+    },
+    {
+      "r": 4,
+      "c": 0,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 3,
+      "type": "filled"
+    },
+    {
+      "r": 0,
       "c": 1,
       "type": "filled"
     },
     {
-      "r": 2,
+      "r": 7,
       "c": 6,
       "type": "filled"
     },
     {
-      "r": 2,
-      "c": 7,
-      "type": "filled"
-    },
-    {
-      "r": 2,
-      "c": 3,
-      "type": "filled"
-    },
-    {
-      "r": 4,
-      "c": 4,
-      "type": "filled"
-    },
-    {
-      "r": 4,
-      "c": 0,
-      "type": "filled"
-    },
-    {
-      "r": 4,
-      "c": 3,
-      "type": "filled"
-    },
-    {
-      "r": 4,
-      "c": 7,
-      "type": "filled"
-    },
-    {
-      "r": 4,
+      "r": 7,
       "c": 2,
       "type": "filled"
     },
     {
-      "r": 4,
-      "c": 5,
+      "r": 5,
+      "c": 7,
       "type": "filled"
     },
     {
-      "r": 4,
-      "c": 6,
+      "r": 6,
+      "c": 7,
       "type": "filled"
     },
     {
-      "r": 4,
+      "r": 5,
+      "c": 0,
+      "type": "filled"
+    },
+    {
+      "r": 7,
       "c": 1,
       "type": "filled"
     },
     {
-      "r": 6,
-      "c": 7,
-      "type": "filled"
-    },
-    {
-      "r": 6,
+      "r": 7,
       "c": 3,
-      "type": "filled"
-    },
-    {
-      "r": 6,
-      "c": 2,
-      "type": "filled"
-    },
-    {
-      "r": 6,
-      "c": 0,
       "type": "crate"
     },
     {
-      "r": 6,
-      "c": 6,
+      "r": 0,
+      "c": 2,
       "type": "crate"
     }
   ],
@@ -167,6 +137,6 @@
   "mercy": true,
   "ivySpreadInterval": 3,
   "ivyMaxTiles": 16,
-  "estMoves": 10,
+  "estMoves": 8,
   "difficultyTier": "tutorial"
 }
