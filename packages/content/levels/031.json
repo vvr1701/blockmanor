@@ -1,0 +1,73 @@
+{
+  "id": 31,
+  "chapter": 2,
+  "seedSalt": "L31-mid-fragments-0.15",
+  "stars": {
+    "s2": 500,
+    "s3": 950
+  },
+  "prefill": [
+    {
+      "r": 4,
+      "c": 3,
+      "type": "filled"
+    },
+    {
+      "r": 4,
+      "c": 4,
+      "type": "filled"
+    },
+    {
+      "r": 3,
+      "c": 3,
+      "type": "filled"
+    },
+    {
+      "r": 3,
+      "c": 4,
+      "type": "filled"
+    },
+    {
+      "r": 5,
+      "c": 4,
+      "type": "filled"
+    },
+    {
+      "r": 3,
+      "c": 5,
+      "type": "filled"
+    },
+    {
+      "r": 5,
+      "c": 5,
+      "type": "filled"
+    },
+    {
+      "r": 4,
+      "c": 2,
+      "type": "crate"
+    },
+    {
+      "r": 5,
+      "c": 2,
+      "type": "crate"
+    },
+    {
+      "r": 3,
+      "c": 2,
+      "type": "crate"
+    }
+  ],
+  "goals": [
+    {
+      "type": "crate",
+      "count": 3
+    }
+  ],
+  "pieceWeightOverrides": {},
+  "mercy": true,
+  "ivySpreadInterval": 3,
+  "ivyMaxTiles": 16,
+  "estMoves": 14,
+  "difficultyTier": "breather"
+}

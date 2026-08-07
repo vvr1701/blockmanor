@@ -1,0 +1,81 @@
+{
+  "id": 35,
+  "chapter": 2,
+  "seedSalt": "L35-scatter-0.15",
+  "stars": {
+    "s2": 1100,
+    "s3": 1600
+  },
+  "prefill": [
+    {
+      "r": 7,
+      "c": 7,
+      "type": "filled"
+    },
+    {
+      "r": 6,
+      "c": 7,
+      "type": "filled"
+    },
+    {
+      "r": 3,
+      "c": 2,
+      "type": "filled"
+    },
+    {
+      "r": 3,
+      "c": 7,
+      "type": "filled"
+    },
+    {
+      "r": 2,
+      "c": 5,
+      "type": "ivy"
+    },
+    {
+      "r": 0,
+      "c": 5,
+      "type": "ivy"
+    },
+    {
+      "r": 7,
+      "c": 5,
+      "type": "chain"
+    },
+    {
+      "r": 4,
+      "c": 2,
+      "type": "chain"
+    },
+    {
+      "r": 2,
+      "c": 2,
+      "type": "crate"
+    },
+    {
+      "r": 7,
+      "c": 4,
+      "type": "crate"
+    }
+  ],
+  "goals": [
+    {
+      "type": "crate",
+      "count": 2
+    },
+    {
+      "type": "chain",
+      "count": 2
+    },
+    {
+      "type": "ivy",
+      "count": 2
+    }
+  ],
+  "pieceWeightOverrides": {},
+  "mercy": true,
+  "ivySpreadInterval": 3,
+  "ivyMaxTiles": 16,
+  "estMoves": 20,
+  "difficultyTier": "ramp"
+}
