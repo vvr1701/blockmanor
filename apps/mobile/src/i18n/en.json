@@ -4,5 +4,10 @@
   "home.play": "PLAY — Level {{level}}",
   "home.status.firebase.ready": "Firebase: configured",
   "home.status.firebase.missing": "Firebase: not configured (.env)",
-  "home.status.dailyBoard": "Daily Board flag: {{state}}"
+  "home.status.dailyBoard": "Daily Board flag: {{state}}",
+  "gameplay.level": "Level {{id}}",
+  "gameplay.goal.crate": "Crates",
+  "gameplay.goal.chain": "Chains",
+  "gameplay.goal.ivy": "Ivy",
+  "gameplay.goal.heirloom": "Heirlooms"
 }

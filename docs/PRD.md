@@ -1,6 +1,6 @@
 # BLOCK MANOR — Product Requirements Document (Source of Truth)
 
-**Version:** 1.7 · **Date:** 2026-08-05 · **Status:** Approved for build
+**Version:** 1.8 · **Date:** 2026-08-07 · **Status:** Approved for build
 **Product type:** Hybrid-casual mobile puzzle game · **Platforms:** Android + iOS
 **Stack:** React Native + Expo + react-native-skia · TypeScript everywhere · Firebase backend
 
@@ -28,6 +28,7 @@
 | 1.5 | 2026-08-04 | §9–§10 LiveOps tunability sweep — 17 bare literals promoted to §13 RC keys: `rv_life_daily_cap · wheel_ad_spins · wheel_free_spins · wheel_prize_table · rv_double_coins_multiplier · streak_repair_ads · starting_coin_balance · lives_max · life_forfeit_min_moves · relief_clear_cells · continue_max_per_attempt · interstitial_iap_suppress_h · starter_pack_offer_ttl_h · starter_pack_repeat_level · remove_ads_prompt_cooldown_d · streak_freeze_max · iap_pending_timeout_s`. §13 ads/IAP groups split. Design constants deliberately NOT promoted: §7.4 juice timings and all animation/layout numbers stay code-side tokens (`src/game/juice.ts`), store price points stay store-managed, and content-tied level numbers (chest cadence, booster showcase levels L12/18/26) stay in `packages/content` |
 | 1.6 | 2026-08-05 | Stage-0 engine ambiguity rulings (raised by the §6 implementation, resolved here before code): §6.6 combo multiplier uses the PRE-increment counter and `LINES_CLEARED` carries the POST-increment value as `comboDisplay` (both now explicit; §4.3 event example renamed) · §7.8 ivy growth candidates restricted to ivy with ≥1 empty orthogonal neighbour, no growth and no RNG consumed when none exist (**replay-affecting** — golden fixtures regenerated once under this amendment) · §7.8 `crate2`'s 2nd hit credits the `crate` goal, no `crate2` goal type · §7.8 content-stage note: engine supports all 5 obstacles from Stage 0, **heirloom levels ship Stage 3** (§5 Stage 3 scope updated) · §7.7 `chapter` + `stars` REQUIRED, `estMoves` + `difficultyTier` optional harness-written metadata · §7.8 ivy constants promoted to §7.7 level fields `ivySpreadInterval` (3) + `ivyMaxTiles` (16), deliberately level-scoped and NOT `[RC]` to preserve replay determinism · §4.3 + §8.2 engine contract gains optional `GameConfig.pieceSequence`, `SEQUENCE_EXHAUSTED` event and terminal status `'completed'` |
 | 1.7 | 2026-08-05 | Daily-Board determinism contract + two §6.6 follow-ons: §8.2 `dailyBoards/{date}` embeds a **frozen `engineConfig` snapshot** (scoring constants, mercy values, piece sequence, prefill) captured at generation; client plays from it and §8.5 re-simulates from it, and **Remote Config is never consulted in the daily path** — an RC push mid-day could otherwise turn an honest submission into a `daily_cheat_rejected` · §13 scopes the five engine `[RC]` keys to level/endless only, with the rationale · §8.2 exhaustion returns `'completed'` even when the final piece fills the board (completion = the sequence ended without a prior death; exhaustion is evaluated before the death check) · §7.4 clear-chime pitch is `+1 semitone × (comboDisplay − 1)`, so a first clear plays unshifted rather than a semitone sharp (cap +7 unchanged) |
+| 1.8 | 2026-08-07 | §7.2 board-renderer ambiguities resolved by the §7.2 implementation, ruled before code: §4.5 "no per-cell React components" reworded to say what it actually bans — no per-cell React Native views (no per-cell shadow node/native view/layout pass); per-cell **Skia** scene-graph nodes inside the one board canvas are explicitly permitted, board state changes may re-render React at most once per placement, and §7.3/§7.4 drag preview and clear/combo juice MUST animate via Skia/Reanimated shared values on the UI thread, never by re-rendering the cell tree per frame · §7.2 tray scale corrected from 60% to **50%** board-cell scale (matches the approved mockup's 19px-on-38px cells; 60% overflows a 3-slot tray for the widest 5-wide piece on realistic device widths) |
 
 ---
 
@@ -126,7 +127,7 @@ The engine is a **pure, deterministic, seedable state machine**:
 - Server is authoritative for: daily results, leaderboards, streak count, coin balance (Stage 2+). Client caches optimistically; reconciliation on app-foreground.
 
 ### 4.5 Performance budgets
-- 60fps board interaction on a 2019-class Android (e.g. Redmi Note 8, 2–3GB RAM). Skia draws batched; no per-cell React components — the board is ONE Skia canvas.
+- 60fps board interaction on a 2019-class Android (e.g. Redmi Note 8, 2–3GB RAM). Skia draws batched; the board is ONE Skia canvas. No per-cell React Native views (no per-cell shadow node / native view / layout pass). Per-cell Skia scene-graph nodes are permitted. Board state changes may re-render React at most once per placement; drag preview (§7.3) and clear/combo juice (§7.4) MUST animate via Skia/Reanimated shared values on the UI thread, never by re-rendering the cell tree per frame.
 - Cold start ≤ 3.0s to interactive Home on that device. App size ≤ 40MB Android download.
 - Full offline play for levels; Daily Board requires connectivity (graceful offline state §12.4).
 
@@ -227,7 +228,7 @@ Level/endless: game over when no unused tray piece has any legal placement. Leve
 - Skip logic: returning users (existing cloud/local save) bypass all FTUE.
 
 ### 7.2 Gameplay screen layout
-Top HUD: pause · goal bar (icon + remaining count per goal) · score (tabular numerals). Center: Skia board canvas. Bottom: 3-piece tray (pieces rendered at 60% board-cell scale). Stage-2 adds booster row between board and tray.
+Top HUD: pause · goal bar (icon + remaining count per goal) · score (tabular numerals). Center: Skia board canvas. Bottom: 3-piece tray (pieces rendered at 50% board-cell scale — §0 v1.8, matches the approved mockup's 19px-on-38px cells; a fixed ratio on every device, no clamp). Stage-2 adds booster row between board and tray.
 
 ### 7.3 Input & drag feel (exact values)
 - Touch on tray piece → piece lifts: scale to 100% board scale, offset **-80px above finger** (thumb visibility), shadow + slight tilt (2°).
