@@ -58,10 +58,10 @@ describe('GameplayScreen', () => {
     expect(() => render(<GameplayScreen initialState={demoState()} />)).not.toThrow();
   });
 
-  it('renders exactly 3 Skia canvases: board, tray, and the §7.3 drag overlay', () => {
+  it('renders exactly 4 Skia canvases: board, tray, the §7.3 drag overlay, and the §7.4 juice overlay', () => {
     const renderer = render(<GameplayScreen initialState={demoState()} />);
     const canvases = renderer.root.findAllByType('SkCanvas' as never);
-    expect(canvases.length).toBe(3);
+    expect(canvases.length).toBe(4);
   });
 
   it('mounts one gesture zone per un-used tray slot (3 fresh pieces -> 3 zones)', () => {
@@ -110,9 +110,9 @@ describe('GameplayScreen', () => {
     });
 
     // The placed slot's piece is now `used` — its gesture zone is gone, and
-    // the 3 canvases (board/tray/drag-overlay) are all still exactly 3, not
-    // duplicated by the extra re-render placement causes.
+    // the 4 canvases (board/tray/drag-overlay/juice-overlay) are all still
+    // exactly 4, not duplicated by the one re-render placement causes.
     expect(renderer.root.findAllByType('GHDetector' as never).length).toBe(2);
-    expect(renderer.root.findAllByType('SkCanvas' as never).length).toBe(3);
+    expect(renderer.root.findAllByType('SkCanvas' as never).length).toBe(4);
   });
 });

@@ -8,14 +8,40 @@
  * string host tags are enough to prove the tree builds without throwing.
  */
 
+import { createElement, isValidElement, type ReactNode } from 'react';
+
 export const Canvas = 'SkCanvas';
-export const Group = 'SkGroup';
 export const Circle = 'SkCircle';
 export const Path = 'SkPath';
 export const RoundedRect = 'SkRoundedRect';
+export const Rect = 'SkRect';
 export const Text = 'SkText';
 export const LinearGradient = 'SkLinearGradient';
 export const Shadow = 'SkShadow';
+export const Paint = 'SkPaint';
+export const ColorMatrix = 'SkColorMatrix';
+
+/**
+ * The real `Group`'s `layer` prop accepts EITHER a plain paint value or a
+ * React element (`<Paint><ColorMatrix .../></Paint>`) — when it's an
+ * element, real react-native-skia wraps it as `<skLayer>{layer}<skGroup/>
+ * </skLayer>` so the paint (and any color filter inside it) actually shows
+ * up as a node in the tree (§7.4 board-desaturate depends on exactly this —
+ * `BoardCanvas`'s own `<Group layer={<Paint><ColorMatrix/></Paint>}>`).
+ * Mirrors `Group.tsx`'s own `isValidElement` branch; every OTHER caller
+ * (no `layer`, the overwhelming majority — every `DragLayer`/`BoardCanvas`
+ * `transform`/`opacity` group) still resolves to a single plain `SkGroup`
+ * host node, unchanged from before.
+ */
+export function Group({
+  layer,
+  ...props
+}: { layer?: ReactNode } & Record<string, unknown>): ReactNode {
+  if (isValidElement(layer)) {
+    return createElement('SkLayer', null, layer, createElement('SkGroup', props));
+  }
+  return createElement('SkGroup', { layer, ...props });
+}
 
 export interface SkFont {
   measureText(text: string): { width: number; height: number };

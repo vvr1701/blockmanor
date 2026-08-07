@@ -9,6 +9,7 @@ import React from 'react';
 import TestRenderer, { act, type ReactTestRenderer } from 'react-test-renderer';
 import { describe, expect, it } from 'vitest';
 import { BoardCanvas } from '../../src/game/BoardCanvas';
+import { desaturationMatrix } from '../../src/game/colorMath';
 import { GlossyBlock } from '../../src/game/GlossyBlock';
 import { TrayCanvas } from '../../src/game/TrayCanvas';
 
@@ -109,6 +110,25 @@ describe('BoardCanvas (PRD §7.2 static render, all 5 §7.8 obstacle motifs)', (
     expect(() =>
       render(<BoardCanvas board={state.board} containerWidth={400} maxHeight={0} />),
     ).not.toThrow();
+  });
+
+  it('omits `desaturateSV` -> no ColorMatrix layer, unchanged output (§7.4)', () => {
+    const state = demoState();
+    const renderer = render(<BoardCanvas board={state.board} containerWidth={400} />);
+    expect(renderer.root.findAllByType('SkColorMatrix' as never).length).toBe(0);
+    expect(renderer.root.findAllByType('SkPaint' as never).length).toBe(0);
+  });
+
+  it('provided `desaturateSV` -> wraps cells in a Paint/ColorMatrix layer driven by desaturationMatrix (§7.4 "Fail | desaturate board")', () => {
+    const state = demoState();
+    const desaturateSV = { value: 0.5 };
+    const renderer = render(
+      <BoardCanvas board={state.board} containerWidth={400} desaturateSV={desaturateSV as never} />,
+    );
+    const matrixNode = renderer.root.findByType('SkColorMatrix' as never);
+    expect(renderer.root.findAllByType('SkPaint' as never).length).toBe(1);
+    const matrix = (matrixNode.props as { matrix: { value: number[] } }).matrix;
+    expect(matrix.value).toEqual(desaturationMatrix(0.5));
   });
 });
 
