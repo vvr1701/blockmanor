@@ -236,6 +236,15 @@ const SHIPPED_LEVELS: ShippedLevel[] = [
     density: 0.22,
     obstacles: { crate: 2, chain: 2 },
   },
+  // crate2 reinforcement (operator ruling, feat/7.9-crate2-ramp): intro'd at L8,
+  // then dropped from L9-L10 by the forgiveness retune, leaving it a one-off
+  // inside the tutorial band. L13 alongside `chain` (not displacing it) is the
+  // reinforcement — chosen over L12/L14 because L12 is chain's own gentle-intro
+  // level (skill: "new obstacle types get a showcase level with a gentle
+  // intro" — don't compound a second dial onto that), and at L13's confirmed
+  // dials the addition is balance-neutral (66.8% win, unchanged from
+  // pre-crate2, still +1.8pp from target) where the L14 candidate measured
+  // further from target (+3.8pp) for no accuracy gain.
   {
     id: 13,
     chapter: 1,
@@ -243,7 +252,7 @@ const SHIPPED_LEVELS: ShippedLevel[] = [
     difficultyTier: 'ramp',
     pattern: 'bands',
     density: 0.28,
-    obstacles: { crate: 1, chain: 2 },
+    obstacles: { crate: 1, chain: 2, crate2: 1 },
   },
   {
     id: 14,

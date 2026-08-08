@@ -183,12 +183,12 @@
       "winRate": 0.668,
       "deltaPp": 1.8,
       "withinTolerance": true,
-      "medianMoves": 19,
-      "p10Score": 430,
-      "p90Score": 1552,
+      "medianMoves": 16,
+      "p10Score": 425,
+      "p90Score": 1302,
       "suggestedStars": {
-        "s2": 900,
-        "s3": 1600
+        "s2": 750,
+        "s3": 1300
       }
     },
     {
