@@ -3,8 +3,8 @@
   "chapter": 1,
   "seedSalt": "L13-bands-0.28",
   "stars": {
-    "s2": 900,
-    "s3": 1600
+    "s2": 750,
+    "s3": 1300
   },
   "prefill": [
     {
@@ -80,7 +80,7 @@
     {
       "r": 2,
       "c": 2,
-      "type": "filled"
+      "type": "crate2"
     },
     {
       "r": 2,
@@ -112,6 +112,6 @@
   "mercy": true,
   "ivySpreadInterval": 3,
   "ivyMaxTiles": 16,
-  "estMoves": 19,
+  "estMoves": 16,
   "difficultyTier": "ramp"
 }
