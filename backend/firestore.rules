@@ -1,0 +1,44 @@
+rules_version = '2';
+
+// Firestore security rules — PRD §4.4 ("Server is authoritative for: daily
+// results, leaderboards, streak count, coin balance"), §8.2, §8.5.
+//
+// Shape of the whole ruleset: DENY by default, and never grant a client write.
+// Every server-authoritative collection — dailyBoards, submissions, streak,
+// wallet, leaderboards — mutates only through Cloud Functions, which use the
+// Admin SDK and bypass these rules entirely. There is therefore nothing to
+// "allow" for writes at any stage; a later stage adds callables, not rules.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // §8.2: the generated board. Readable by any signed-in player (§4.3
+    // anonymous auth), but the piece sequence inside it is ENCRYPTED — the
+    // decryption key arrives from the §8.3 play-start callable, so reading this
+    // document early buys an attacker nothing. Written only by the 00:00 UTC
+    // scheduled function.
+    match /dailyBoards/{date} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // §4.4 / §12.6: a player reads their own document (progress, streak, and
+    // from Stage 2 the wallet) and writes none of it. §8.6 streak and §9.1
+    // wallet are server-authoritative across a skewed device clock, which only
+    // holds if the client cannot touch them.
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+
+      match /{document=**} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if false;
+      }
+    }
+
+    // Everything else, including anything a future stage adds before its rules
+    // are written: closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

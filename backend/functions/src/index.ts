@@ -1,8 +1,30 @@
 /**
  * Cloud Functions entrypoint (PRD §4.2).
  *
- * Empty by design: Stage 0 provisions the Firebase project and this workspace only.
- * The first functions arrive with the Daily Board — generation (§8.2) and
- * submission/anti-cheat (§8.5), which import packages/engine for re-simulation.
+ * Deployed functions:
+ *  - `generateDailyBoardScheduled` — §8.2 Daily Board generation, 00:00 UTC.
+ *
+ * Still to come: §8.3's play-start callable (hands the client the sequence key)
+ * and §8.5's submission/anti-cheat callable, which re-simulates from the frozen
+ * `engineConfig` snapshot this function publishes.
  */
-export {};
+
+export { generateDailyBoardScheduled } from './daily/publish';
+
+// The §8.3 / §8.5 seam, exported so those functions consume the snapshot rather
+// than re-deriving anything from Remote Config.
+export {
+  dailyGameConfig,
+  dailyPlaySeed,
+  type DailyBoardDoc,
+  type DailyEngineConfig,
+  type DailyPrefillCell,
+} from './daily/generate';
+export {
+  attemptSeed,
+  dailySeed,
+  openSequence,
+  sequenceKey,
+  type SealedSequence,
+} from './daily/seal';
+export { DAILY_BOARDS_COLLECTION, DAILY_BOARD_SALT } from './daily/publish';
