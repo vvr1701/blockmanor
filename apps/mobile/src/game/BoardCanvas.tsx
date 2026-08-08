@@ -5,18 +5,29 @@
  *
  * State-driven only: this component re-renders React at most once per
  * placement, when `board` changes, and does nothing else. §4.5 (v1.8) is
- * explicit that this is as far as this file goes: drag preview (§7.3, now
- * `DragLayer.tsx`) and clear/combo juice (§7.4, still a later session) must
- * animate via Skia/Reanimated shared values on the UI thread — a separate
- * overlay canvas — never by re-rendering this cell tree per frame, which is
- * the re-render-per-frame path §4.5 actually bans.
+ * explicit that this is as far as this file goes: drag preview (§7.3,
+ * `DragLayer.tsx`) and clear/combo juice (§7.4, `JuiceLayer.tsx`) animate via
+ * Skia/Reanimated shared values on the UI thread — a separate overlay canvas
+ * — never by re-rendering this cell tree per frame, which is the
+ * re-render-per-frame path §4.5 actually bans.
+ *
+ * The one exception is `desaturateSV` (§7.4 "Fail | desaturate board 400ms"):
+ * that juice genuinely needs to act ON this canvas's own pixels (a color
+ * filter over every cell it draws), not float above them in a sibling
+ * overlay — so it's wired in here as an optional shared value, applied via a
+ * Skia layer `Paint`/`ColorMatrix`, still driven purely off the UI thread
+ * (no React re-render on every animation frame, no per-cell subscription:
+ * ONE `useDerivedValue` for the whole canvas). Undefined (every other
+ * caller) skips the wrapping `Group` entirely — zero cost, unchanged output.
  */
 
 import { BOARD_SIZE, cellColor, cellKind, type Board } from '@blockmanor/engine';
 import {
   Canvas,
   Circle,
+  ColorMatrix,
   Group,
+  Paint,
   Path,
   RoundedRect,
   Text,
@@ -25,6 +36,8 @@ import {
   type SkFont,
 } from '@shopify/react-native-skia';
 import React, { useMemo } from 'react';
+import { useDerivedValue, type SharedValue } from 'react-native-reanimated';
+import { desaturationMatrix } from './colorMath';
 import { GlossyBlock } from './GlossyBlock';
 import {
   CELL_RADIUS_MIN,
@@ -276,15 +289,21 @@ export interface BoardCanvasProps {
   /** Available height (§4.5 v1.8 prereq: size from height too, not just
    * width, so a 360×640-class device doesn't clip). Defaults unconstrained. */
   maxHeight?: number;
+  /** §7.4 fail juice: 0 (untouched) -> 1 (fully desaturated), animated by
+   * `JuiceLayer` on `GAME_OVER`. Omitted by every other caller. */
+  desaturateSV?: SharedValue<number>;
 }
 
 /** `React.memo`'d: re-renders only when the board reference or layout inputs
  * change — placements always clone the board (§4.3 `cloneState`), so
- * reference equality is a correct, cheap "did anything change" check. */
+ * reference equality is a correct, cheap "did anything change" check.
+ * `desaturateSV` is a stable shared-value ref (§4.5: mutating `.value` is
+ * NOT a prop change), so it never defeats this memoization. */
 export const BoardCanvas = React.memo(function BoardCanvas({
   board,
   containerWidth,
   maxHeight = Infinity,
+  desaturateSV,
 }: BoardCanvasProps): React.JSX.Element {
   const layout: BoardLayout = useMemo(
     () => computeBoardLayout(containerWidth, maxHeight),
@@ -316,11 +335,31 @@ export const BoardCanvas = React.memo(function BoardCanvas({
     return out;
   }, [board, layout]);
 
+  // Always called (rules-of-hooks: hook count must never depend on whether
+  // the optional prop was passed) — reads `.value` defensively since
+  // `desaturateSV` may be undefined; the matrix itself is only ever USED
+  // below when the prop is actually present.
+  const colorMatrix = useDerivedValue(() => desaturationMatrix(desaturateSV?.value ?? 0));
+
+  const cellNodes = cells.map(({ key, rect, visual }) => (
+    <Cell key={key} rect={rect} visual={visual} badgeFont={badgeFont} />
+  ));
+
   return (
     <Canvas style={{ width: layout.canvasSize, height: layout.canvasSize }}>
-      {cells.map(({ key, rect, visual }) => (
-        <Cell key={key} rect={rect} visual={visual} badgeFont={badgeFont} />
-      ))}
+      {desaturateSV ? (
+        <Group
+          layer={
+            <Paint>
+              <ColorMatrix matrix={colorMatrix} />
+            </Paint>
+          }
+        >
+          {cellNodes}
+        </Group>
+      ) : (
+        cellNodes
+      )}
     </Canvas>
   );
 });

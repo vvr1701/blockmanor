@@ -31,6 +31,14 @@
  * targets the CENTER stays correct regardless of the current scale — no
  * separate "recompute top-left for this scale" step needed when the illegal
  * return shrinks the piece from 100% board scale down to the tray's 50%.
+ *
+ * §7.4 additions on top of the above (the lift's END-state and the
+ * illegal-drop haptic are §7.3's, unchanged): the lift's tray-scale ->
+ * 100%-board-scale transition now animates over `LIFT_SCALE_UP_MS` instead
+ * of jumping, with a `selection` haptic on pick-up; a legal snap fires
+ * `impactLight` (§7.4's own value for that row, a separate token from the
+ * illegal-drop haptic even though both are currently `Light`). Audio is the
+ * `sfx.ts` no-op seam (blocked on assets — see that file).
  */
 
 import {
@@ -75,7 +83,10 @@ import {
   GHOST_HIDE_MARGIN_CELLS,
   GHOST_TINT_OPACITY,
   ILLEGAL_DROP_HAPTIC_STYLE,
+  LEGAL_SNAP_HAPTIC_STYLE,
+  LIFT_BOARD_SCALE,
   LIFT_OFFSET_Y,
+  LIFT_SCALE_UP_MS,
   LIFT_SHADOW_BLUR,
   LIFT_SHADOW_COLOR,
   LIFT_SHADOW_DX,
@@ -87,6 +98,7 @@ import {
   SNAP_SPRING_MS,
   TRAY_HITBOX_MIN_DP,
 } from './juice';
+import { playCue } from './sfx';
 
 const BLOCK_PALETTE: readonly string[] = Object.values(blockColors);
 
@@ -171,6 +183,16 @@ export function DragLayer({
   const triggerIllegalHaptic = (): void => {
     void Haptics.impactAsync(ILLEGAL_DROP_HAPTIC_STYLE);
   };
+  /** §7.4 "Piece lift | ... | selection". */
+  const triggerLiftFeedback = (): void => {
+    void Haptics.selectionAsync();
+    playCue('piece_pick');
+  };
+  /** §7.4 "Legal snap | 90ms spring settle | impactLight". */
+  const triggerLegalSnapFeedback = (): void => {
+    void Haptics.impactAsync(LEGAL_SNAP_HAPTIC_STYLE);
+    playCue('snap_thock');
+  };
 
   // One Pan gesture per un-used tray slot. Rebuilt whenever the board/tray
   // state changes (a real re-render, not a per-frame event) so every
@@ -216,11 +238,16 @@ export function DragLayer({
           const fingerY = hitboxTop + e.y;
           dragX.value = fingerX;
           dragY.value = fingerY - LIFT_OFFSET_Y + headroom;
-          dragScale.value = 1;
+          // §7.4 "Piece lift | scale-up 120ms": starts at the tray's own 50%
+          // scale (where the piece visually WAS, in `TrayCanvas`) and tweens
+          // up to §7.3's 100%-board-scale end-state — not a hard jump.
+          dragScale.value = TRAY_SCALE;
+          dragScale.value = withTiming(LIFT_BOARD_SCALE, { duration: LIFT_SCALE_UP_MS });
           dragOpacity.value = 1;
           tiltDeg.value = LIFT_TILT_DEG;
           ghost.value = GHOST_HIDDEN;
           runOnJS(startDrag)(index, slot.pieceId);
+          runOnJS(triggerLiftFeedback)();
         })
         .onUpdate((e) => {
           'worklet';
@@ -292,6 +319,7 @@ export function DragLayer({
               if (finished) runOnJS(endDrag)();
             });
             runOnJS(onPlace)(index, g.r, g.c);
+            runOnJS(triggerLegalSnapFeedback)();
             return;
           }
 

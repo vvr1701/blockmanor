@@ -36,7 +36,7 @@ export function useReducedMotion(): boolean {
 type AnimCallback = (finished?: boolean) => void;
 
 export interface MockAnimationCall {
-  fn: 'withTiming' | 'withSpring';
+  fn: 'withTiming' | 'withSpring' | 'withDelay' | 'withRepeat';
   toValue: unknown;
   config: unknown;
 }
@@ -63,6 +63,32 @@ export function withSequence<T>(...values: readonly T[]): T | undefined {
   return values[values.length - 1];
 }
 
+/**
+ * Real Reanimated defers `animation` by `delayMs` on the UI thread. This mock
+ * (like every other animator here) resolves synchronously: `animation` was
+ * already fully evaluated (its own `withTiming`/`withSpring` already fired
+ * and pushed its own `mockAnimationCalls` entry) by the time it's passed in
+ * as an argument — `withDelay` just records the delay alongside it so a test
+ * can still assert the requested delay value.
+ */
+export function withDelay<T>(delayMs: number, animation: T): T {
+  mockAnimationCalls.push({ fn: 'withDelay', toValue: animation, config: { delay: delayMs } });
+  return animation;
+}
+
+export function withRepeat<T>(animation: T, numberOfReps?: number, reverse?: boolean): T {
+  mockAnimationCalls.push({
+    fn: 'withRepeat',
+    toValue: animation,
+    config: { numberOfReps, reverse },
+  });
+  return animation;
+}
+
+export function cancelAnimation<T>(_sharedValue: SharedValueMock<T>): void {
+  // No-op: nothing async is pending in this synchronous mock.
+}
+
 export function runOnJS<Args extends unknown[], R>(fn: (...args: Args) => R): (...args: Args) => R {
   return fn;
 }
@@ -77,5 +103,5 @@ export const Easing = {
       t,
 };
 
-const Animated = { View: 'AnimatedView' };
+const Animated = { View: 'AnimatedView', Text: 'AnimatedText' };
 export default Animated;

@@ -1,4 +1,11 @@
-import { PIECE_BY_ID, applyPlacement, type GameState, type Placement } from '@blockmanor/engine';
+import {
+  PIECE_BY_ID,
+  applyPlacement,
+  fillRatio,
+  type GameEvent,
+  type GameState,
+  type Placement,
+} from '@blockmanor/engine';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useMemo, useState } from 'react';
 import { StyleSheet, Text, View, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
@@ -28,6 +35,7 @@ import {
 import { DevRenderTimeStats } from '../../game/DevRenderTimeStats';
 import { DragLayer } from '../../game/DragLayer';
 import { deriveGoalBar, type GoalBarEntry } from '../../game/goalBar';
+import { JuiceLayer } from '../../game/JuiceLayer';
 import { spriteForObstacle } from '../../game/obstacleSprites';
 import { TrayCanvas } from '../../game/TrayCanvas';
 import { colors, fontSize, radius, spacing } from '../../components/tokens';
@@ -97,17 +105,29 @@ export interface GameplayScreenProps {
  * already draws); this screen just needs SOME state to mutate so dragging is
  * actually demonstrable.
  *
- * Deliberately NOT here: §7.4 clear/combo juice, haptics beyond the §7.3
- * illegal-drop one, audio. Those are next session, wiring into this same
- * renderer + `DragLayer`.
+ * §7.4 clear/combo/perfect/near-death/win/fail juice is wired in here too,
+ * via `JuiceLayer` — purely `GameEvent[]`-driven off `applyPlacement`'s own
+ * return value, never a re-derived clear/combo/win. Audio stays a no-op seam
+ * (`sfx.ts`, blocked on assets); the §7.5 win/fail SCREENS themselves are a
+ * later session — `JuiceLayer` only ever renders the board-side celebration/
+ * fail visuals, it never navigates.
  */
 export function GameplayScreen({ initialState }: GameplayScreenProps): React.JSX.Element {
   const [state, setState] = useState(initialState);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
+  // The most recent `applyPlacement` call's events (§4.3) — `JuiceLayer`'s
+  // only input, never re-derived. A fresh (possibly empty) array reference
+  // each placement, set in the SAME handler as `setState` below so React 18
+  // batches both into the one re-render §4.5 v1.8 budgets per placement.
+  const [juiceEvents, setJuiceEvents] = useState<readonly GameEvent[]>([]);
   const { width } = useWindowDimensions();
   const containerWidth = width - spacing.md * 2;
   const reducedMotion = useReducedMotion();
   const boardShakeX = useSharedValue(0);
+  // §7.4 "Fail | desaturate board 400ms" — owned here (like `boardShakeX`)
+  // since both `BoardCanvas` (reads it to render) and `JuiceLayer` (writes it
+  // on `GAME_OVER`) need the same stable shared-value ref.
+  const desaturateSV = useSharedValue(0);
 
   // §4.5 v1.8 prereq: size the board from available HEIGHT too, not just
   // width — a 360×640-class device clips the width-only stack. `flexHeight`
@@ -167,9 +187,12 @@ export function GameplayScreen({ initialState }: GameplayScreenProps): React.JSX
 
   const handlePlace = useCallback((pieceIndex: number, r: number, c: number) => {
     const placement: Placement = { pieceIndex, r, c };
+    let events: readonly GameEvent[] = [];
     setState((prev) => {
       try {
-        return applyPlacement(prev, placement).state;
+        const result = applyPlacement(prev, placement);
+        events = result.events;
+        return result.state;
       } catch (err) {
         // The DragLayer only commits a placement it already snapped to a
         // legal anchor (§7.3); this should be unreachable. Fail soft rather
@@ -181,6 +204,7 @@ export function GameplayScreen({ initialState }: GameplayScreenProps): React.JSX
         return prev;
       }
     });
+    setJuiceEvents(events);
   }, []);
 
   const boardShakeStyle = useAnimatedStyle(() => ({
@@ -218,6 +242,7 @@ export function GameplayScreen({ initialState }: GameplayScreenProps): React.JSX
               board={state.board}
               containerWidth={containerWidth}
               maxHeight={boardMaxHeight}
+              desaturateSV={desaturateSV}
             />
           </Animated.View>
 
@@ -245,6 +270,18 @@ export function GameplayScreen({ initialState }: GameplayScreenProps): React.JSX
             onDragIndexChange={setDraggingIndex}
             boardShakeX={boardShakeX}
             reducedMotion={reducedMotion}
+          />
+
+          <JuiceLayer
+            events={juiceEvents}
+            placementSeq={state.placements}
+            boardLayout={boardLayout}
+            boardOffsetX={boardOffsetX}
+            containerWidth={containerWidth}
+            playAreaHeight={playAreaHeight}
+            fill={fillRatio(state.board)}
+            reducedMotion={reducedMotion}
+            desaturateSV={desaturateSV}
           />
         </View>
       </View>

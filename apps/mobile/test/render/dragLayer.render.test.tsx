@@ -37,12 +37,15 @@ import {
   computeTrayRowLayout,
   type BoardLayout,
 } from '../../src/game/boardLayout';
-import { BOOSTER_ROW_RESERVED_HEIGHT } from '../../src/game/boardTokens';
+import { BOOSTER_ROW_RESERVED_HEIGHT, TRAY_SCALE } from '../../src/game/boardTokens';
 import { DragLayer } from '../../src/game/DragLayer';
 import {
   BOARD_SHAKE_PX,
   GHOST_TINT_OPACITY,
+  LEGAL_SNAP_HAPTIC_STYLE,
+  LIFT_BOARD_SCALE,
   LIFT_OFFSET_Y,
+  LIFT_SCALE_UP_MS,
   LIFT_TILT_DEG,
   RETURN_EASE_MS,
   SNAP_RADIUS_CELLS,
@@ -383,5 +386,50 @@ describe('DragLayer — §7.3 v1.9 release outcomes', () => {
     const style = hitbox.props.style as [unknown, { width: number; height: number }];
     expect(style[1].width).toBe(TRAY_HITBOX_MIN_DP);
     expect(style[1].height).toBe(TRAY_HITBOX_MIN_DP);
+  });
+
+  it('§7.4 "Piece lift": scale-up animates TRAY_SCALE -> LIFT_BOARD_SCALE over LIFT_SCALE_UP_MS (120), plus a selection haptic', () => {
+    const state = emptyBoardState();
+    const { gesture, toBoardEvent } = mount(state);
+    const selection = vi.spyOn(Haptics, 'selectionAsync');
+
+    act(() => {
+      gesture.__handlers.onBegin.forEach((cb) => cb(toBoardEvent(0, 0)));
+    });
+
+    const timings = mockAnimationCalls.filter((c) => c.fn === 'withTiming');
+    const scaleUp = timings.find(
+      (c) =>
+        c.toValue === LIFT_BOARD_SCALE &&
+        (c.config as { duration?: number } | undefined)?.duration === LIFT_SCALE_UP_MS,
+    );
+    expect(scaleUp).toBeDefined();
+    expect(selection).toHaveBeenCalledTimes(1);
+  });
+
+  it('§7.4 "Piece lift": a mutated LIFT_SCALE_UP_MS token would fail the above (mutation check)', () => {
+    // Asserts the recorded duration is the IMPORTED token, not a hardcoded
+    // 120 — retuning `LIFT_SCALE_UP_MS` in juice.ts must move this too.
+    expect(LIFT_SCALE_UP_MS).toBe(120);
+    expect(LIFT_BOARD_SCALE).toBe(1);
+    expect(TRAY_SCALE).toBe(0.5);
+  });
+
+  it('§7.4 "Legal snap": fires LEGAL_SNAP_HAPTIC_STYLE (impactLight) on top of the §7.3 90ms spring', () => {
+    const state = emptyBoardState();
+    const { gesture, toBoardEvent } = mount(state);
+    const haptic = vi.spyOn(Haptics, 'impactAsync');
+
+    act(() => {
+      driveGesture(gesture, [toBoardEvent(0, 0), toBoardEvent(1 * CELL, 1 * CELL)], {
+        success: true,
+      });
+    });
+
+    expect(haptic).toHaveBeenCalledWith(LEGAL_SNAP_HAPTIC_STYLE);
+    // Literal check: `toHaveBeenCalledWith(LEGAL_SNAP_HAPTIC_STYLE)` alone
+    // reads the same (possibly mutated) token on both sides and can't catch
+    // a retune — this pins the actual §7.4 value.
+    expect(LEGAL_SNAP_HAPTIC_STYLE).toBe(Haptics.ImpactFeedbackStyle.Light);
   });
 });
