@@ -1,0 +1,853 @@
+{
+  "harnessVersion": 1,
+  "seeds": 500,
+  "tuning": {
+    "mercy_threshold": 0.55,
+    "mercy_small_prob": 0.65,
+    "score_clear_base": 10,
+    "combo_step": 0.25,
+    "perfect_clear_bonus": 300
+  },
+  "levels": [
+    {
+      "id": 1,
+      "target": 0.9,
+      "winRate": 0.848,
+      "deltaPp": -5.2,
+      "withinTolerance": true,
+      "medianMoves": 10,
+      "p10Score": 414,
+      "p90Score": 1030,
+      "suggestedStars": {
+        "s2": 550,
+        "s3": 1000
+      }
+    },
+    {
+      "id": 2,
+      "target": 0.9,
+      "winRate": 0.87,
+      "deltaPp": -3,
+      "withinTolerance": true,
+      "medianMoves": 9,
+      "p10Score": 173,
+      "p90Score": 950,
+      "suggestedStars": {
+        "s2": 400,
+        "s3": 950
+      }
+    },
+    {
+      "id": 3,
+      "target": 0.9,
+      "winRate": 0.834,
+      "deltaPp": -6.6,
+      "withinTolerance": true,
+      "medianMoves": 10,
+      "p10Score": 814,
+      "p90Score": 1475,
+      "suggestedStars": {
+        "s2": 950,
+        "s3": 1500
+      }
+    },
+    {
+      "id": 4,
+      "target": 0.9,
+      "winRate": 0.84,
+      "deltaPp": -6,
+      "withinTolerance": true,
+      "medianMoves": 10,
+      "p10Score": 413,
+      "p90Score": 1272,
+      "suggestedStars": {
+        "s2": 600,
+        "s3": 1300
+      }
+    },
+    {
+      "id": 5,
+      "target": 0.9,
+      "winRate": 0.87,
+      "deltaPp": -3,
+      "withinTolerance": true,
+      "medianMoves": 10,
+      "p10Score": 814,
+      "p90Score": 1535,
+      "suggestedStars": {
+        "s2": 900,
+        "s3": 1500
+      }
+    },
+    {
+      "id": 6,
+      "target": 0.9,
+      "winRate": 0.902,
+      "deltaPp": 0.2,
+      "withinTolerance": true,
+      "medianMoves": 8,
+      "p10Score": 173,
+      "p90Score": 999,
+      "suggestedStars": {
+        "s2": 400,
+        "s3": 1000
+      }
+    },
+    {
+      "id": 7,
+      "target": 0.9,
+      "winRate": 0.918,
+      "deltaPp": 1.8,
+      "withinTolerance": true,
+      "medianMoves": 10,
+      "p10Score": 815,
+      "p90Score": 1365,
+      "suggestedStars": {
+        "s2": 900,
+        "s3": 1400
+      }
+    },
+    {
+      "id": 8,
+      "target": 0.9,
+      "winRate": 0.922,
+      "deltaPp": 2.2,
+      "withinTolerance": true,
+      "medianMoves": 10,
+      "p10Score": 394,
+      "p90Score": 979,
+      "suggestedStars": {
+        "s2": 650,
+        "s3": 1000
+      }
+    },
+    {
+      "id": 9,
+      "target": 0.9,
+      "winRate": 0.898,
+      "deltaPp": -0.2,
+      "withinTolerance": true,
+      "medianMoves": 10,
+      "p10Score": 815,
+      "p90Score": 1357,
+      "suggestedStars": {
+        "s2": 900,
+        "s3": 1400
+      }
+    },
+    {
+      "id": 10,
+      "target": 0.9,
+      "winRate": 0.9,
+      "deltaPp": 0,
+      "withinTolerance": true,
+      "medianMoves": 10,
+      "p10Score": 83,
+      "p90Score": 1007,
+      "suggestedStars": {
+        "s2": 400,
+        "s3": 1000
+      }
+    },
+    {
+      "id": 11,
+      "target": 0.82,
+      "winRate": 0.774,
+      "deltaPp": -4.6,
+      "withinTolerance": true,
+      "medianMoves": 12,
+      "p10Score": 192,
+      "p90Score": 895,
+      "suggestedStars": {
+        "s2": 450,
+        "s3": 900
+      }
+    },
+    {
+      "id": 12,
+      "target": 0.75,
+      "winRate": 0.738,
+      "deltaPp": -1.2,
+      "withinTolerance": true,
+      "medianMoves": 11,
+      "p10Score": 174,
+      "p90Score": 1147,
+      "suggestedStars": {
+        "s2": 400,
+        "s3": 1100
+      }
+    },
+    {
+      "id": 13,
+      "target": 0.65,
+      "winRate": 0.668,
+      "deltaPp": 1.8,
+      "withinTolerance": true,
+      "medianMoves": 19,
+      "p10Score": 430,
+      "p90Score": 1552,
+      "suggestedStars": {
+        "s2": 900,
+        "s3": 1600
+      }
+    },
+    {
+      "id": 14,
+      "target": 0.52,
+      "winRate": 0.538,
+      "deltaPp": 1.8,
+      "withinTolerance": true,
+      "medianMoves": 19,
+      "p10Score": 295,
+      "p90Score": 1454,
+      "suggestedStars": {
+        "s2": 850,
+        "s3": 1500
+      }
+    },
+    {
+      "id": 15,
+      "target": 0.4,
+      "winRate": 0.386,
+      "deltaPp": -1.4,
+      "withinTolerance": true,
+      "medianMoves": 20,
+      "p10Score": 476,
+      "p90Score": 1551,
+      "suggestedStars": {
+        "s2": 1000,
+        "s3": 1600
+      }
+    },
+    {
+      "id": 16,
+      "target": 0.72,
+      "winRate": 0.68,
+      "deltaPp": -4,
+      "withinTolerance": true,
+      "medianMoves": 17,
+      "p10Score": 189,
+      "p90Score": 1162,
+      "suggestedStars": {
+        "s2": 600,
+        "s3": 1200
+      }
+    },
+    {
+      "id": 17,
+      "target": 0.7,
+      "winRate": 0.674,
+      "deltaPp": -2.6,
+      "withinTolerance": true,
+      "medianMoves": 17,
+      "p10Score": 181,
+      "p90Score": 1449,
+      "suggestedStars": {
+        "s2": 700,
+        "s3": 1400
+      }
+    },
+    {
+      "id": 18,
+      "target": 0.7,
+      "winRate": 0.696,
+      "deltaPp": -0.4,
+      "withinTolerance": true,
+      "medianMoves": 14,
+      "p10Score": 203,
+      "p90Score": 1169,
+      "suggestedStars": {
+        "s2": 600,
+        "s3": 1200
+      }
+    },
+    {
+      "id": 19,
+      "target": 0.7,
+      "winRate": 0.72,
+      "deltaPp": 2,
+      "withinTolerance": true,
+      "medianMoves": 11,
+      "p10Score": 288,
+      "p90Score": 952,
+      "suggestedStars": {
+        "s2": 600,
+        "s3": 950
+      }
+    },
+    {
+      "id": 20,
+      "target": 0.7,
+      "winRate": 0.702,
+      "deltaPp": 0.2,
+      "withinTolerance": true,
+      "medianMoves": 16,
+      "p10Score": 288,
+      "p90Score": 1155,
+      "suggestedStars": {
+        "s2": 600,
+        "s3": 1200
+      }
+    },
+    {
+      "id": 21,
+      "target": 0.68,
+      "winRate": 0.654,
+      "deltaPp": -2.6,
+      "withinTolerance": true,
+      "medianMoves": 17,
+      "p10Score": 369,
+      "p90Score": 1454,
+      "suggestedStars": {
+        "s2": 750,
+        "s3": 1500
+      }
+    },
+    {
+      "id": 22,
+      "target": 0.68,
+      "winRate": 0.694,
+      "deltaPp": 1.4,
+      "withinTolerance": true,
+      "medianMoves": 17,
+      "p10Score": 378,
+      "p90Score": 1238,
+      "suggestedStars": {
+        "s2": 750,
+        "s3": 1200
+      }
+    },
+    {
+      "id": 23,
+      "target": 0.62,
+      "winRate": 0.614,
+      "deltaPp": -0.6,
+      "withinTolerance": true,
+      "medianMoves": 19,
+      "p10Score": 420,
+      "p90Score": 1455,
+      "suggestedStars": {
+        "s2": 900,
+        "s3": 1500
+      }
+    },
+    {
+      "id": 24,
+      "target": 0.58,
+      "winRate": 0.59,
+      "deltaPp": 1,
+      "withinTolerance": true,
+      "medianMoves": 20,
+      "p10Score": 518,
+      "p90Score": 1621,
+      "suggestedStars": {
+        "s2": 1000,
+        "s3": 1600
+      }
+    },
+    {
+      "id": 25,
+      "target": 0.55,
+      "winRate": 0.534,
+      "deltaPp": -1.6,
+      "withinTolerance": true,
+      "medianMoves": 19,
+      "p10Score": 480,
+      "p90Score": 1416,
+      "suggestedStars": {
+        "s2": 900,
+        "s3": 1400
+      }
+    },
+    {
+      "id": 26,
+      "target": 0.5,
+      "winRate": 0.566,
+      "deltaPp": 6.6,
+      "withinTolerance": true,
+      "medianMoves": 14,
+      "p10Score": 413,
+      "p90Score": 1424,
+      "suggestedStars": {
+        "s2": 800,
+        "s3": 1400
+      }
+    },
+    {
+      "id": 27,
+      "target": 0.47,
+      "winRate": 0.466,
+      "deltaPp": -0.4,
+      "withinTolerance": true,
+      "medianMoves": 14,
+      "p10Score": 378,
+      "p90Score": 1299,
+      "suggestedStars": {
+        "s2": 800,
+        "s3": 1300
+      }
+    },
+    {
+      "id": 28,
+      "target": 0.44,
+      "winRate": 0.482,
+      "deltaPp": 4.2,
+      "withinTolerance": true,
+      "medianMoves": 17,
+      "p10Score": 478,
+      "p90Score": 1663,
+      "suggestedStars": {
+        "s2": 1000,
+        "s3": 1700
+      }
+    },
+    {
+      "id": 29,
+      "target": 0.4,
+      "winRate": 0.46,
+      "deltaPp": 6,
+      "withinTolerance": true,
+      "medianMoves": 16,
+      "p10Score": 537,
+      "p90Score": 1541,
+      "suggestedStars": {
+        "s2": 1000,
+        "s3": 1500
+      }
+    },
+    {
+      "id": 30,
+      "target": 0.35,
+      "winRate": 0.326,
+      "deltaPp": -2.4,
+      "withinTolerance": true,
+      "medianMoves": 17,
+      "p10Score": 613,
+      "p90Score": 1711,
+      "suggestedStars": {
+        "s2": 1100,
+        "s3": 1700
+      }
+    },
+    {
+      "id": 31,
+      "target": 0.7,
+      "winRate": 0.704,
+      "deltaPp": 0.4,
+      "withinTolerance": true,
+      "medianMoves": 14,
+      "p10Score": 97,
+      "p90Score": 950,
+      "suggestedStars": {
+        "s2": 500,
+        "s3": 950
+      }
+    },
+    {
+      "id": 32,
+      "target": 0.65,
+      "winRate": 0.578,
+      "deltaPp": -7.2,
+      "withinTolerance": true,
+      "medianMoves": 16,
+      "p10Score": 413,
+      "p90Score": 1380,
+      "suggestedStars": {
+        "s2": 850,
+        "s3": 1400
+      }
+    },
+    {
+      "id": 33,
+      "target": 0.6,
+      "winRate": 0.574,
+      "deltaPp": -2.6,
+      "withinTolerance": true,
+      "medianMoves": 16,
+      "p10Score": 396,
+      "p90Score": 1504,
+      "suggestedStars": {
+        "s2": 800,
+        "s3": 1500
+      }
+    },
+    {
+      "id": 34,
+      "target": 0.55,
+      "winRate": 0.554,
+      "deltaPp": 0.4,
+      "withinTolerance": true,
+      "medianMoves": 20,
+      "p10Score": 429,
+      "p90Score": 1945,
+      "suggestedStars": {
+        "s2": 1100,
+        "s3": 1900
+      }
+    },
+    {
+      "id": 35,
+      "target": 0.5,
+      "winRate": 0.5,
+      "deltaPp": 0,
+      "withinTolerance": true,
+      "medianMoves": 20,
+      "p10Score": 426,
+      "p90Score": 1639,
+      "suggestedStars": {
+        "s2": 1100,
+        "s3": 1600
+      }
+    },
+    {
+      "id": 36,
+      "target": 0.65,
+      "winRate": 0.692,
+      "deltaPp": 4.2,
+      "withinTolerance": true,
+      "medianMoves": 13,
+      "p10Score": 295,
+      "p90Score": 983,
+      "suggestedStars": {
+        "s2": 650,
+        "s3": 1000
+      }
+    },
+    {
+      "id": 37,
+      "target": 0.6,
+      "winRate": 0.64,
+      "deltaPp": 4,
+      "withinTolerance": true,
+      "medianMoves": 11,
+      "p10Score": 198,
+      "p90Score": 792,
+      "suggestedStars": {
+        "s2": 500,
+        "s3": 800
+      }
+    },
+    {
+      "id": 38,
+      "target": 0.55,
+      "winRate": 0.592,
+      "deltaPp": 4.2,
+      "withinTolerance": true,
+      "medianMoves": 16,
+      "p10Score": 467,
+      "p90Score": 1330,
+      "suggestedStars": {
+        "s2": 850,
+        "s3": 1300
+      }
+    },
+    {
+      "id": 39,
+      "target": 0.5,
+      "winRate": 0.46,
+      "deltaPp": -4,
+      "withinTolerance": true,
+      "medianMoves": 19,
+      "p10Score": 567,
+      "p90Score": 1510,
+      "suggestedStars": {
+        "s2": 1000,
+        "s3": 1500
+      }
+    },
+    {
+      "id": 40,
+      "target": 0.45,
+      "winRate": 0.44,
+      "deltaPp": -1,
+      "withinTolerance": true,
+      "medianMoves": 20,
+      "p10Score": 415,
+      "p90Score": 1954,
+      "suggestedStars": {
+        "s2": 1100,
+        "s3": 2000
+      }
+    },
+    {
+      "id": 41,
+      "target": 0.6,
+      "winRate": 0.552,
+      "deltaPp": -4.8,
+      "withinTolerance": true,
+      "medianMoves": 20,
+      "p10Score": 522,
+      "p90Score": 1752,
+      "suggestedStars": {
+        "s2": 1100,
+        "s3": 1800
+      }
+    },
+    {
+      "id": 42,
+      "target": 0.55,
+      "winRate": 0.542,
+      "deltaPp": -0.8,
+      "withinTolerance": true,
+      "medianMoves": 16,
+      "p10Score": 423,
+      "p90Score": 1378,
+      "suggestedStars": {
+        "s2": 850,
+        "s3": 1400
+      }
+    },
+    {
+      "id": 43,
+      "target": 0.5,
+      "winRate": 0.472,
+      "deltaPp": -2.8,
+      "withinTolerance": true,
+      "medianMoves": 19,
+      "p10Score": 530,
+      "p90Score": 1652,
+      "suggestedStars": {
+        "s2": 1000,
+        "s3": 1700
+      }
+    },
+    {
+      "id": 44,
+      "target": 0.45,
+      "winRate": 0.416,
+      "deltaPp": -3.4,
+      "withinTolerance": true,
+      "medianMoves": 22,
+      "p10Score": 534,
+      "p90Score": 2001,
+      "suggestedStars": {
+        "s2": 1300,
+        "s3": 2000
+      }
+    },
+    {
+      "id": 45,
+      "target": 0.4,
+      "winRate": 0.362,
+      "deltaPp": -3.8,
+      "withinTolerance": true,
+      "medianMoves": 17,
+      "p10Score": 643,
+      "p90Score": 1687,
+      "suggestedStars": {
+        "s2": 1200,
+        "s3": 1700
+      }
+    },
+    {
+      "id": 46,
+      "target": 0.65,
+      "winRate": 0.66,
+      "deltaPp": 1,
+      "withinTolerance": true,
+      "medianMoves": 15,
+      "p10Score": 181,
+      "p90Score": 1462,
+      "suggestedStars": {
+        "s2": 600,
+        "s3": 1500
+      }
+    },
+    {
+      "id": 47,
+      "target": 0.62,
+      "winRate": 0.624,
+      "deltaPp": 0.4,
+      "withinTolerance": true,
+      "medianMoves": 16,
+      "p10Score": 177,
+      "p90Score": 1347,
+      "suggestedStars": {
+        "s2": 600,
+        "s3": 1300
+      }
+    },
+    {
+      "id": 48,
+      "target": 0.6,
+      "winRate": 0.59,
+      "deltaPp": -1,
+      "withinTolerance": true,
+      "medianMoves": 19,
+      "p10Score": 518,
+      "p90Score": 1718,
+      "suggestedStars": {
+        "s2": 1000,
+        "s3": 1700
+      }
+    },
+    {
+      "id": 49,
+      "target": 0.58,
+      "winRate": 0.596,
+      "deltaPp": 1.6,
+      "withinTolerance": true,
+      "medianMoves": 16,
+      "p10Score": 383,
+      "p90Score": 1331,
+      "suggestedStars": {
+        "s2": 850,
+        "s3": 1300
+      }
+    },
+    {
+      "id": 50,
+      "target": 0.56,
+      "winRate": 0.564,
+      "deltaPp": 0.4,
+      "withinTolerance": true,
+      "medianMoves": 19,
+      "p10Score": 491,
+      "p90Score": 1482,
+      "suggestedStars": {
+        "s2": 950,
+        "s3": 1500
+      }
+    },
+    {
+      "id": 51,
+      "target": 0.55,
+      "winRate": 0.602,
+      "deltaPp": 5.2,
+      "withinTolerance": true,
+      "medianMoves": 17,
+      "p10Score": 298,
+      "p90Score": 1413,
+      "suggestedStars": {
+        "s2": 800,
+        "s3": 1400
+      }
+    },
+    {
+      "id": 52,
+      "target": 0.54,
+      "winRate": 0.492,
+      "deltaPp": -4.8,
+      "withinTolerance": true,
+      "medianMoves": 13,
+      "p10Score": 195,
+      "p90Score": 1070,
+      "suggestedStars": {
+        "s2": 550,
+        "s3": 1100
+      }
+    },
+    {
+      "id": 53,
+      "target": 0.53,
+      "winRate": 0.498,
+      "deltaPp": -3.2,
+      "withinTolerance": true,
+      "medianMoves": 19,
+      "p10Score": 439,
+      "p90Score": 1725,
+      "suggestedStars": {
+        "s2": 1000,
+        "s3": 1700
+      }
+    },
+    {
+      "id": 54,
+      "target": 0.52,
+      "winRate": 0.512,
+      "deltaPp": -0.8,
+      "withinTolerance": true,
+      "medianMoves": 18,
+      "p10Score": 513,
+      "p90Score": 1690,
+      "suggestedStars": {
+        "s2": 950,
+        "s3": 1700
+      }
+    },
+    {
+      "id": 55,
+      "target": 0.51,
+      "winRate": 0.568,
+      "deltaPp": 5.8,
+      "withinTolerance": true,
+      "medianMoves": 16,
+      "p10Score": 352,
+      "p90Score": 1164,
+      "suggestedStars": {
+        "s2": 700,
+        "s3": 1200
+      }
+    },
+    {
+      "id": 56,
+      "target": 0.5,
+      "winRate": 0.564,
+      "deltaPp": 6.4,
+      "withinTolerance": true,
+      "medianMoves": 19,
+      "p10Score": 475,
+      "p90Score": 1604,
+      "suggestedStars": {
+        "s2": 950,
+        "s3": 1600
+      }
+    },
+    {
+      "id": 57,
+      "target": 0.5,
+      "winRate": 0.518,
+      "deltaPp": 1.8,
+      "withinTolerance": true,
+      "medianMoves": 19,
+      "p10Score": 385,
+      "p90Score": 1391,
+      "suggestedStars": {
+        "s2": 950,
+        "s3": 1400
+      }
+    },
+    {
+      "id": 58,
+      "target": 0.5,
+      "winRate": 0.542,
+      "deltaPp": 4.2,
+      "withinTolerance": true,
+      "medianMoves": 14,
+      "p10Score": 383,
+      "p90Score": 1291,
+      "suggestedStars": {
+        "s2": 800,
+        "s3": 1300
+      }
+    },
+    {
+      "id": 59,
+      "target": 0.5,
+      "winRate": 0.482,
+      "deltaPp": -1.8,
+      "withinTolerance": true,
+      "medianMoves": 14,
+      "p10Score": 303,
+      "p90Score": 1114,
+      "suggestedStars": {
+        "s2": 650,
+        "s3": 1100
+      }
+    },
+    {
+      "id": 60,
+      "target": 0.5,
+      "winRate": 0.53,
+      "deltaPp": 3,
+      "withinTolerance": true,
+      "medianMoves": 21,
+      "p10Score": 516,
+      "p90Score": 1536,
+      "suggestedStars": {
+        "s2": 950,
+        "s3": 1500
+      }
+    }
+  ]
+}

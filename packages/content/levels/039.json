@@ -1,0 +1,121 @@
+{
+  "id": 39,
+  "chapter": 2,
+  "seedSalt": "L39-scatter-0.28",
+  "stars": {
+    "s2": 1000,
+    "s3": 1500
+  },
+  "prefill": [
+    {
+      "r": 3,
+      "c": 0,
+      "type": "filled"
+    },
+    {
+      "r": 5,
+      "c": 5,
+      "type": "filled"
+    },
+    {
+      "r": 4,
+      "c": 7,
+      "type": "filled"
+    },
+    {
+      "r": 6,
+      "c": 0,
+      "type": "filled"
+    },
+    {
+      "r": 2,
+      "c": 4,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 0,
+      "type": "filled"
+    },
+    {
+      "r": 7,
+      "c": 0,
+      "type": "filled"
+    },
+    {
+      "r": 3,
+      "c": 3,
+      "type": "filled"
+    },
+    {
+      "r": 5,
+      "c": 0,
+      "type": "filled"
+    },
+    {
+      "r": 4,
+      "c": 2,
+      "type": "filled"
+    },
+    {
+      "r": 2,
+      "c": 0,
+      "type": "chain"
+    },
+    {
+      "r": 6,
+      "c": 4,
+      "type": "chain"
+    },
+    {
+      "r": 7,
+      "c": 1,
+      "type": "ivy"
+    },
+    {
+      "r": 5,
+      "c": 4,
+      "type": "ivy"
+    },
+    {
+      "r": 0,
+      "c": 7,
+      "type": "ivy"
+    },
+    {
+      "r": 4,
+      "c": 0,
+      "type": "crate2"
+    },
+    {
+      "r": 3,
+      "c": 2,
+      "type": "crate"
+    },
+    {
+      "r": 0,
+      "c": 1,
+      "type": "crate"
+    }
+  ],
+  "goals": [
+    {
+      "type": "crate",
+      "count": 2
+    },
+    {
+      "type": "chain",
+      "count": 2
+    },
+    {
+      "type": "ivy",
+      "count": 3
+    }
+  ],
+  "pieceWeightOverrides": {},
+  "mercy": true,
+  "ivySpreadInterval": 3,
+  "ivyMaxTiles": 16,
+  "estMoves": 19,
+  "difficultyTier": "ramp"
+}

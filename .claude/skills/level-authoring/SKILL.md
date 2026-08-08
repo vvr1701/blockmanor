@@ -23,6 +23,28 @@ overrides (invisible to players — use sparingly, feels unfair if extreme)
 
 ## Dial behavior notes (learned the hard way — Stage 0, don't rediscover)
 
+**The bot is goal-blind, so it UNDER-measures goal levels.** The greedy bot
+maximises immediate line clears; it does not steer toward goal cells. On any
+level whose win condition is "destroy these specific cells", it therefore plays
+worse than a human who can see the goal, and the measured win-rate reads low.
+Observed on the shipped tutorial band (§7.9 authoring): all ten of L1–L10 came
+in at 82–87% against a ≥90% target — **every one missing low**, which is bias,
+not sampling noise. Density was pushed to 0.55 and large pieces stripped; the
+ceiling held around 85–88%.
+
+Consequences for how you read a number:
+- A bot win-rate is an **instrument reading, not a player-experience
+  prediction** (PRD §0 v1.10). A one-sided miss across a whole band is the
+  instrument, not the content.
+- Do NOT compensate by inflating targets, and do NOT "fix" the bot mid-curve —
+  changing the heuristic re-measures every level authored against the old one,
+  so half a curve calibrated one way and half the other is worse than a known
+  constant bias.
+- The upgrade happens **ONCE, post-beta**: make the bot goal-aware and compute
+  the bot→human offset from real funnel data in the same pass, then re-measure
+  all 60 against human-calibrated targets. Until that lands, treat the bias as
+  a known constant and author against it.
+
 **Density is NOT monotonic in difficulty.** More prefill can make a level
 EASIER, because a partly-filled row needs fewer cells to complete. Measured on
 the `edges` pattern with a fixed goal: d=0.15 → 51% win, d=0.25 → 40%,

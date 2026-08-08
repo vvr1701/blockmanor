@@ -1,0 +1,142 @@
+{
+  "id": 6,
+  "chapter": 1,
+  "seedSalt": "SALTSCAN5-id6-c2-edges-0.360-s5",
+  "stars": {
+    "s2": 400,
+    "s3": 1000
+  },
+  "prefill": [
+    {
+      "r": 4,
+      "c": 7,
+      "type": "filled"
+    },
+    {
+      "r": 7,
+      "c": 4,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 5,
+      "type": "filled"
+    },
+    {
+      "r": 7,
+      "c": 7,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 4,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 0,
+      "type": "filled"
+    },
+    {
+      "r": 7,
+      "c": 0,
+      "type": "filled"
+    },
+    {
+      "r": 3,
+      "c": 0,
+      "type": "filled"
+    },
+    {
+      "r": 1,
+      "c": 7,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 7,
+      "type": "filled"
+    },
+    {
+      "r": 3,
+      "c": 7,
+      "type": "filled"
+    },
+    {
+      "r": 1,
+      "c": 0,
+      "type": "filled"
+    },
+    {
+      "r": 4,
+      "c": 0,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 3,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 1,
+      "type": "filled"
+    },
+    {
+      "r": 7,
+      "c": 6,
+      "type": "filled"
+    },
+    {
+      "r": 7,
+      "c": 2,
+      "type": "filled"
+    },
+    {
+      "r": 5,
+      "c": 7,
+      "type": "filled"
+    },
+    {
+      "r": 6,
+      "c": 7,
+      "type": "filled"
+    },
+    {
+      "r": 5,
+      "c": 0,
+      "type": "filled"
+    },
+    {
+      "r": 7,
+      "c": 1,
+      "type": "filled"
+    },
+    {
+      "r": 7,
+      "c": 3,
+      "type": "crate"
+    },
+    {
+      "r": 0,
+      "c": 2,
+      "type": "crate"
+    }
+  ],
+  "goals": [
+    {
+      "type": "crate",
+      "count": 2
+    }
+  ],
+  "pieceWeightOverrides": {
+    "P08": 0,
+    "P09": 0,
+    "P11": 0
+  },
+  "mercy": true,
+  "ivySpreadInterval": 3,
+  "ivyMaxTiles": 16,
+  "estMoves": 8,
+  "difficultyTier": "tutorial"
+}

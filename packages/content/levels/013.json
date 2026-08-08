@@ -1,0 +1,117 @@
+{
+  "id": 13,
+  "chapter": 1,
+  "seedSalt": "L13-bands-0.28",
+  "stars": {
+    "s2": 900,
+    "s3": 1600
+  },
+  "prefill": [
+    {
+      "r": 0,
+      "c": 6,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 5,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 3,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 0,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 1,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 2,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 7,
+      "type": "filled"
+    },
+    {
+      "r": 0,
+      "c": 4,
+      "type": "filled"
+    },
+    {
+      "r": 2,
+      "c": 7,
+      "type": "filled"
+    },
+    {
+      "r": 2,
+      "c": 3,
+      "type": "filled"
+    },
+    {
+      "r": 2,
+      "c": 0,
+      "type": "filled"
+    },
+    {
+      "r": 2,
+      "c": 5,
+      "type": "filled"
+    },
+    {
+      "r": 2,
+      "c": 1,
+      "type": "filled"
+    },
+    {
+      "r": 2,
+      "c": 4,
+      "type": "filled"
+    },
+    {
+      "r": 2,
+      "c": 2,
+      "type": "filled"
+    },
+    {
+      "r": 2,
+      "c": 6,
+      "type": "chain"
+    },
+    {
+      "r": 4,
+      "c": 2,
+      "type": "chain"
+    },
+    {
+      "r": 4,
+      "c": 1,
+      "type": "crate"
+    }
+  ],
+  "goals": [
+    {
+      "type": "crate",
+      "count": 1
+    },
+    {
+      "type": "chain",
+      "count": 2
+    }
+  ],
+  "pieceWeightOverrides": {},
+  "mercy": true,
+  "ivySpreadInterval": 3,
+  "ivyMaxTiles": 16,
+  "estMoves": 19,
+  "difficultyTier": "ramp"
+}
