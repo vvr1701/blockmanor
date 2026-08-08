@@ -96,6 +96,7 @@ export function runOnJS<Args extends unknown[], R>(fn: (...args: Args) => R): (.
 export const Easing = {
   out: (fn: (t: number) => number) => fn,
   in: (fn: (t: number) => number) => fn,
+  inOut: (fn: (t: number) => number) => fn,
   ease: (t: number): number => t,
   back:
     () =>

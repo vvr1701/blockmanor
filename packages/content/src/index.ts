@@ -12,6 +12,7 @@ export {
   prefillTypeSchema,
   type LevelJson,
 } from './schema';
+export { FTUE_LEVELS } from './ftueLevels';
 export { chooseMove, playout, MAX_BOT_MOVES, type BotRun } from './bot';
 export {
   generateLevel,

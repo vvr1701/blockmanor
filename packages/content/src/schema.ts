@@ -50,6 +50,14 @@ export const levelSchema = z
     mercy: z.boolean().default(true),
     ivySpreadInterval: z.number().int().positive().default(3),
     ivyMaxTiles: z.number().int().positive().default(16),
+    /**
+     * §4.3 fixed piece sequence, §0 v1.11: the L1–L5 scripted-FTUE mechanism.
+     * This is NOT part of the engine's `LevelConfig` (§4.3: `pieceSequence`
+     * lives on `GameConfig`, a sibling of `level`, not inside it — the engine
+     * stays untouched) — callers building a `GameConfig` for a level that
+     * carries one must lift it onto `GameConfig.pieceSequence` themselves.
+     */
+    pieceSequence: z.array(pieceIdSchema).optional(),
 
     // --- optional harness-written metadata (§7.7); the engine never reads these ---
     estMoves: z.number().int().nonnegative().optional(),

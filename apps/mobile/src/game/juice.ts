@@ -215,3 +215,10 @@ export const WIN_CONFETTI_MS = 900;
 // --- fail (§7.4: "desaturate board 400ms | notificationError") -------------
 
 export const FAIL_DESATURATE_MS = 400;
+
+// --- FTUE (§7.1 v1.11: "L5: free play, HUD fades in") -----------------------
+
+/** L5's top HUD (pause/level/score) fade-in duration, ms. Not PRD-specified —
+ * slow enough to read as a deliberate reveal rather than a flicker, matching
+ * the general feel of `LIFT_SCALE_UP_MS`/`RETURN_EASE_MS`'s pacing above. */
+export const HUD_FADE_IN_MS = 500;

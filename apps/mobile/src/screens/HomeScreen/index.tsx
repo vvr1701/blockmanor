@@ -5,6 +5,7 @@ import { t } from '../../i18n';
 import { isFirebaseConfigured } from '../../services/firebase';
 import { useConfigStore } from '../../state/useConfigStore';
 import { useMetaStore } from '../../state/useMetaStore';
+import { DailyBoardTile } from './DailyBoardTile';
 
 /**
  * HomeScreen — PRD §7.11 / §16.1.
@@ -27,6 +28,10 @@ export function HomeScreen(): React.JSX.Element {
         <View style={styles.cta}>
           <Text style={styles.ctaText}>{t('home.play', { level: currentLevel })}</Text>
         </View>
+
+        {/* §7.1.3 / §7.11(c): the tile's pulsing presence only — daily-board
+            behavior (countdown, LIVE state, percentile) is §7.11/§8 scope. */}
+        {dailyBoardFlag ? <DailyBoardTile /> : null}
 
         <View style={styles.status}>
           <Text style={styles.statusText}>

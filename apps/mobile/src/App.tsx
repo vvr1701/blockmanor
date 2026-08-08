@@ -3,10 +3,12 @@ import { Pressable, StyleSheet, Text } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { colors } from './components/tokens';
-import { DEV_BOARD_ENABLED } from './game/devFlag';
+import { DEV_BOARD_ENABLED, FTUE_FORCE_REPLAY } from './game/devFlag';
 import { createDemoGameState } from './game/demoGameState';
+import { FtueScreen } from './screens/FtueScreen';
 import { GameplayScreen } from './screens/GameplayScreen';
 import { HomeScreen } from './screens/HomeScreen';
+import { useMetaStore } from './state/useMetaStore';
 
 /**
  * Root component. Navigation arrives in Stage 1 with the second screen —
@@ -26,11 +28,24 @@ export default function App(): React.JSX.Element {
   const [devBoard, setDevBoard] = useState(false);
   const demoState = useMemo(() => (DEV_BOARD_ENABLED ? createDemoGameState() : null), []);
 
+  // §7.1 v1.11 skip logic: "returning users (existing cloud/local save)
+  // bypass all FTUE." `ftueComplete` is the authoritative persisted flag once
+  // a build carries it; `currentLevel > 1` additionally covers a save that
+  // predates the flag (zustand's default shallow-merge persist leaves a
+  // missing key at its initial-state default, so an old save would otherwise
+  // read `ftueComplete: false` and wrongly re-show FTUE to a real returner).
+  const ftueComplete = useMetaStore((s) => s.ftueComplete);
+  const currentLevel = useMetaStore((s) => s.currentLevel);
+  const isReturningUser = ftueComplete || currentLevel > 1;
+  const showFtue = FTUE_FORCE_REPLAY || !isReturningUser;
+
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
         {DEV_BOARD_ENABLED && devBoard && demoState ? (
           <GameplayScreen initialState={demoState} />
+        ) : showFtue ? (
+          <FtueScreen />
         ) : (
           <>
             <HomeScreen />

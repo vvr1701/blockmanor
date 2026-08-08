@@ -31,6 +31,8 @@ export default defineConfig({
       'react-native-safe-area-context': path.resolve(mocks, 'react-native-safe-area-context.ts'),
       'expo-haptics': path.resolve(mocks, 'expo-haptics.ts'),
       'expo-status-bar': path.resolve(mocks, 'expo-status-bar.ts'),
+      'expo-constants': path.resolve(mocks, 'expo-constants.ts'),
+      'react-native-mmkv': path.resolve(mocks, 'react-native-mmkv.ts'),
     },
   },
 });
