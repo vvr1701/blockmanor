@@ -1,133 +1,59 @@
 {
   "id": 4,
   "chapter": 1,
-  "seedSalt": "L4-bands-0.35",
+  "seedSalt": "L4-ftue-crate",
   "stars": {
-    "s2": 600,
-    "s3": 1300
+    "s2": 0,
+    "s3": 0
   },
   "prefill": [
     {
-      "r": 0,
+      "r": 7,
       "c": 0,
-      "type": "filled"
-    },
-    {
-      "r": 0,
-      "c": 6,
-      "type": "filled"
-    },
-    {
-      "r": 0,
-      "c": 7,
-      "type": "filled"
-    },
-    {
-      "r": 0,
-      "c": 5,
-      "type": "filled"
-    },
-    {
-      "r": 0,
-      "c": 4,
-      "type": "filled"
-    },
-    {
-      "r": 0,
-      "c": 2,
-      "type": "filled"
-    },
-    {
-      "r": 0,
-      "c": 3,
-      "type": "filled"
-    },
-    {
-      "r": 0,
-      "c": 1,
-      "type": "filled"
-    },
-    {
-      "r": 2,
-      "c": 4,
-      "type": "filled"
-    },
-    {
-      "r": 2,
-      "c": 7,
-      "type": "filled"
-    },
-    {
-      "r": 2,
-      "c": 3,
-      "type": "filled"
-    },
-    {
-      "r": 2,
-      "c": 2,
-      "type": "filled"
-    },
-    {
-      "r": 2,
-      "c": 0,
-      "type": "filled"
-    },
-    {
-      "r": 2,
-      "c": 6,
-      "type": "filled"
-    },
-    {
-      "r": 2,
-      "c": 1,
-      "type": "filled"
-    },
-    {
-      "r": 2,
-      "c": 5,
-      "type": "filled"
-    },
-    {
-      "r": 4,
-      "c": 6,
-      "type": "filled"
-    },
-    {
-      "r": 4,
-      "c": 2,
-      "type": "filled"
-    },
-    {
-      "r": 4,
-      "c": 1,
-      "type": "filled"
-    },
-    {
-      "r": 4,
-      "c": 4,
-      "type": "filled"
-    },
-    {
-      "r": 4,
-      "c": 3,
       "type": "crate"
     },
     {
-      "r": 4,
+      "r": 7,
+      "c": 1,
+      "type": "filled"
+    },
+    {
+      "r": 7,
+      "c": 2,
+      "type": "filled"
+    },
+    {
+      "r": 7,
+      "c": 3,
+      "type": "filled"
+    },
+    {
+      "r": 7,
+      "c": 4,
+      "type": "filled"
+    },
+    {
+      "r": 7,
       "c": 5,
-      "type": "crate"
+      "type": "filled"
+    },
+    {
+      "r": 7,
+      "c": 6,
+      "type": "filled"
     }
   ],
   "goals": [
     {
       "type": "crate",
-      "count": 2
+      "count": 1
     }
   ],
   "pieceWeightOverrides": {},
   "mercy": true,
   "ivySpreadInterval": 3,
   "ivyMaxTiles": 16,
-  "estMoves": 10,
-  "difficultyTier": "tutorial"
+  "pieceSequence": ["P01"],
+  "estMoves": 1,
+  "difficultyTier": "ftue"
 }

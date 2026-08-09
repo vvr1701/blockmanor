@@ -98,54 +98,12 @@ interface ShippedLevel {
  * out of scope for Stage 1 (§7.8 content-stage note).
  */
 const SHIPPED_LEVELS: ShippedLevel[] = [
-  // ---- L1-10: tutorial, target 90% (PRD §7.9 "win rate target >=90%") ----
-  {
-    id: 1,
-    chapter: 1,
-    target: 0.9,
-    difficultyTier: 'tutorial',
-    pattern: 'bands',
-    density: 0.35,
-    obstacles: { crate: 1 },
-    seedSalt: 'L1-p5-reg-bands-0.35',
-  },
-  {
-    id: 2,
-    chapter: 1,
-    target: 0.9,
-    difficultyTier: 'tutorial',
-    pattern: 'edges',
-    density: 0.3,
-    obstacles: { crate: 2 },
-  },
-  {
-    id: 3,
-    chapter: 1,
-    target: 0.9,
-    difficultyTier: 'tutorial',
-    pattern: 'bands',
-    density: 0.45,
-    obstacles: { crate: 1 },
-  },
-  {
-    id: 4,
-    chapter: 1,
-    target: 0.9,
-    difficultyTier: 'tutorial',
-    pattern: 'bands',
-    density: 0.35,
-    obstacles: { crate: 2 },
-  },
-  {
-    id: 5,
-    chapter: 1,
-    target: 0.9,
-    difficultyTier: 'tutorial',
-    pattern: 'bands',
-    density: 0.45,
-    obstacles: { crate: 1 },
-    noBig: true,
-  },
+  // ---- L1-5: PRD §7.1 FTUE — hand-authored scripted configs, NOT generator
+  // output (§0 v1.11). They live at packages/content/levels/00{1..5}.json,
+  // are gated by the replay test in balance/ftue.bal.ts instead of this bot
+  // sweep, and are deliberately absent from SHIPPED_LEVELS below — see the
+  // PRD §7.1 / §7.9 exemption note and the v1.11 changelog row.
+  // ---- L6-10: tutorial, target 90% (PRD §7.9 "win rate target >=90%") ----
   // L6-L10 retuned (operator ruling, feat/7.9-levels follow-up): biased every
   // dial toward forgiveness — lowest workable goal count given the adjacency
   // constraint (consecutive obstacle mixes must differ; L5=crate:1 and
@@ -713,8 +671,8 @@ describe('shipped-level plan sanity', () => {
     }
   });
 
-  it('is exactly levels 1-60, chapter 1 = L1-30, chapter 2 = L31-60 (§7.10)', () => {
-    expect(SHIPPED_LEVELS.map((l) => l.id)).toEqual(Array.from({ length: 60 }, (_, i) => i + 1));
+  it('is exactly levels 6-60 (L1-5 are the §7.1 scripted FTUE, §0 v1.11), chapter 1 = L1-30, chapter 2 = L31-60 (§7.10)', () => {
+    expect(SHIPPED_LEVELS.map((l) => l.id)).toEqual(Array.from({ length: 55 }, (_, i) => i + 6));
     for (const l of SHIPPED_LEVELS) expect(l.chapter).toBe(l.id <= 30 ? 1 : 2);
   });
 

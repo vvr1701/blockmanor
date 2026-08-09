@@ -1,156 +1,46 @@
 {
   "id": 5,
   "chapter": 1,
-  "seedSalt": "L5-bands-0.45",
+  "seedSalt": "L5-ftue-freeplay",
   "stars": {
-    "s2": 900,
-    "s3": 1500
+    "s2": 0,
+    "s3": 0
   },
   "prefill": [
     {
-      "r": 0,
-      "c": 3,
-      "type": "filled"
-    },
-    {
-      "r": 0,
-      "c": 0,
-      "type": "filled"
-    },
-    {
-      "r": 0,
-      "c": 4,
-      "type": "filled"
-    },
-    {
-      "r": 0,
-      "c": 6,
-      "type": "filled"
-    },
-    {
-      "r": 0,
-      "c": 7,
-      "type": "filled"
-    },
-    {
-      "r": 0,
-      "c": 1,
-      "type": "filled"
-    },
-    {
-      "r": 0,
-      "c": 5,
-      "type": "filled"
-    },
-    {
-      "r": 0,
-      "c": 2,
-      "type": "filled"
-    },
-    {
-      "r": 2,
-      "c": 6,
-      "type": "filled"
-    },
-    {
-      "r": 2,
-      "c": 4,
-      "type": "filled"
-    },
-    {
-      "r": 2,
-      "c": 5,
-      "type": "filled"
-    },
-    {
-      "r": 2,
-      "c": 1,
-      "type": "filled"
-    },
-    {
-      "r": 2,
-      "c": 0,
-      "type": "filled"
-    },
-    {
-      "r": 2,
-      "c": 7,
-      "type": "filled"
-    },
-    {
-      "r": 2,
-      "c": 2,
-      "type": "filled"
-    },
-    {
-      "r": 2,
-      "c": 3,
-      "type": "filled"
-    },
-    {
-      "r": 4,
-      "c": 1,
-      "type": "filled"
-    },
-    {
-      "r": 4,
-      "c": 2,
-      "type": "filled"
-    },
-    {
-      "r": 4,
-      "c": 4,
-      "type": "filled"
-    },
-    {
-      "r": 4,
-      "c": 6,
-      "type": "filled"
-    },
-    {
-      "r": 4,
-      "c": 7,
-      "type": "filled"
-    },
-    {
-      "r": 4,
-      "c": 3,
-      "type": "filled"
-    },
-    {
-      "r": 4,
-      "c": 5,
-      "type": "filled"
-    },
-    {
-      "r": 4,
-      "c": 0,
-      "type": "filled"
-    },
-    {
       "r": 6,
       "c": 0,
-      "type": "filled"
-    },
-    {
-      "r": 6,
-      "c": 4,
-      "type": "filled"
-    },
-    {
-      "r": 6,
-      "c": 3,
-      "type": "filled"
-    },
-    {
-      "r": 6,
-      "c": 6,
-      "type": "filled"
-    },
-    {
-      "r": 6,
-      "c": 7,
       "type": "crate"
+    },
+    {
+      "r": 6,
+      "c": 1,
+      "type": "filled"
+    },
+    {
+      "r": 6,
+      "c": 2,
+      "type": "filled"
+    },
+    {
+      "r": 6,
+      "c": 3,
+      "type": "filled"
+    },
+    {
+      "r": 6,
+      "c": 4,
+      "type": "filled"
+    },
+    {
+      "r": 6,
+      "c": 5,
+      "type": "filled"
+    },
+    {
+      "r": 6,
+      "c": 6,
+      "type": "filled"
     }
   ],
   "goals": [
@@ -159,14 +49,11 @@
       "count": 1
     }
   ],
-  "pieceWeightOverrides": {
-    "P08": 0,
-    "P09": 0,
-    "P11": 0
-  },
+  "pieceWeightOverrides": {},
   "mercy": true,
   "ivySpreadInterval": 3,
   "ivyMaxTiles": 16,
-  "estMoves": 10,
-  "difficultyTier": "tutorial"
+  "pieceSequence": ["P02", "P01"],
+  "estMoves": 2,
+  "difficultyTier": "ftue"
 }

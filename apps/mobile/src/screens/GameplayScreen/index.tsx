@@ -7,12 +7,13 @@ import {
   type Placement,
 } from '@blockmanor/engine';
 import { StatusBar } from 'expo-status-bar';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, View, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
+  withTiming,
 } from 'react-native-reanimated';
 // Major 7 (qa-prd-auditor): plain `react-native` SafeAreaView only applies
 // insets on iOS. Expo's Android edge-to-edge needs the real inset-aware one —
@@ -35,6 +36,7 @@ import {
 import { DevRenderTimeStats } from '../../game/DevRenderTimeStats';
 import { DragLayer } from '../../game/DragLayer';
 import { deriveGoalBar, type GoalBarEntry } from '../../game/goalBar';
+import { HUD_FADE_IN_MS } from '../../game/juice';
 import { JuiceLayer } from '../../game/JuiceLayer';
 import { spriteForObstacle } from '../../game/obstacleSprites';
 import { TrayCanvas } from '../../game/TrayCanvas';
@@ -88,6 +90,18 @@ export interface GameplayScreenProps {
    * board, so this is no longer a purely display-driven prop — see the "own
    * state locally" note below). */
   initialState: GameState;
+  /** §7.1 FTUE: hide the top HUD row + goal bar for the minimal-affordance
+   * early FTUE levels ("no HUD, no menus, no timers" — L1's mockup). Defaults
+   * `true` (every non-FTUE caller keeps today's always-visible HUD). */
+  hudVisible?: boolean;
+  /** §7.1 L5: the HUD fades in rather than snapping visible on mount. Only
+   * meaningful when `hudVisible` is true; ignored otherwise. */
+  hudFadeIn?: boolean;
+  /** §7.1: lets a caller (the FTUE step machine) observe every placement's
+   * events/resulting state without this screen knowing anything about FTUE —
+   * same `applyPlacement` return value `JuiceLayer` already consumes, just
+   * also handed upward. Never used to re-derive rules, only to react to them. */
+  onEvent?: (events: readonly GameEvent[], state: GameState) => void;
 }
 
 /**
@@ -112,7 +126,12 @@ export interface GameplayScreenProps {
  * later session — `JuiceLayer` only ever renders the board-side celebration/
  * fail visuals, it never navigates.
  */
-export function GameplayScreen({ initialState }: GameplayScreenProps): React.JSX.Element {
+export function GameplayScreen({
+  initialState,
+  hudVisible = true,
+  hudFadeIn = false,
+  onEvent,
+}: GameplayScreenProps): React.JSX.Element {
   const [state, setState] = useState(initialState);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
   // The most recent `applyPlacement` call's events (§4.3) — `JuiceLayer`'s
@@ -207,26 +226,67 @@ export function GameplayScreen({ initialState }: GameplayScreenProps): React.JSX
     setJuiceEvents(events);
   }, []);
 
+  // §7.1 v1.11: notify `onEvent` off a STATE-IDENTITY change, not by reading
+  // a side-channel variable synchronously right after the `setState` call
+  // above. React does not guarantee that functional updater runs
+  // synchronously with the call that scheduled it (it only does when its own
+  // "eager bailout" heuristic applies, e.g. the very first update since the
+  // last commit) — a second placement queued before the first commits would
+  // otherwise silently read a stale `null` and never notify the caller. An
+  // effect keyed on the committed `state` reference fires exactly once per
+  // REAL placement (a rejected/illegal placement returns the same `prev`
+  // reference, so `state` never changes and no notification fires) and never
+  // on initial mount (both refs start equal).
+  const lastNotifiedState = useRef(state);
+  useEffect(() => {
+    if (state !== lastNotifiedState.current) {
+      lastNotifiedState.current = state;
+      onEvent?.(juiceEvents, state);
+    }
+  }, [state, juiceEvents, onEvent]);
+
   const boardShakeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: boardShakeX.value }],
   }));
 
+  // §7.1 v1.11: HUD row + goal bar visibility/fade for the FTUE step machine.
+  // Snaps to the caller's starting visibility on mount, then (only when
+  // `hudFadeIn` asks for it) tweens to fully visible — L1-L4 skip this
+  // entirely by never mounting with `hudVisible` false-then-true.
+  const hudOpacity = useSharedValue(hudVisible && !hudFadeIn ? 1 : 0);
+  useEffect(() => {
+    if (hudVisible) {
+      hudOpacity.value = hudFadeIn ? withTiming(1, { duration: HUD_FADE_IN_MS }) : 1;
+    } else {
+      hudOpacity.value = 0;
+    }
+    // Only the MOUNT-time intent matters here (§7.1 L5 fades in once); a
+    // GameplayScreen instance never toggles `hudVisible` mid-life in any
+    // current caller (FTUE remounts a fresh instance per step via `key`).
+  }, []);
+  const hudAnimatedStyle = useAnimatedStyle(() => ({ opacity: hudOpacity.value }));
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="light" />
-      <View style={styles.hudRow}>
-        <View style={styles.pauseButton}>
-          <View style={styles.pauseBar} />
-          <View style={styles.pauseBar} />
+      <Animated.View style={hudAnimatedStyle} pointerEvents={hudVisible ? 'auto' : 'none'}>
+        <View style={styles.hudRow}>
+          <View style={styles.pauseButton}>
+            <View style={styles.pauseBar} />
+            <View style={styles.pauseBar} />
+          </View>
+          <Text style={styles.levelTitle}>
+            {levelId !== undefined ? t('gameplay.level', { id: levelId }) : ''}
+          </Text>
+          <View style={styles.scoreChip}>
+            <Text style={styles.scoreText}>{state.score}</Text>
+          </View>
         </View>
-        <Text style={styles.levelTitle}>
-          {levelId !== undefined ? t('gameplay.level', { id: levelId }) : ''}
-        </Text>
-        <View style={styles.scoreChip}>
-          <Text style={styles.scoreText}>{state.score}</Text>
-        </View>
-      </View>
+      </Animated.View>
 
+      {/* §7.1 v1.11: the goal bar stays visible even when `hudVisible` hides
+          the pause/score row above — L4 is the first FTUE level with a goal
+          and needs it lit for its own goal-bar callout. */}
       {goals.length > 0 ? (
         <View style={styles.goalBar}>
           {goals.map((goal, i) => (

@@ -14,7 +14,8 @@
       "channel": "preview",
       "android": { "buildType": "apk" },
       "env": {
-        "EXPO_PUBLIC_DEV_BOARD": "1"
+        "EXPO_PUBLIC_DEV_BOARD": "1",
+        "EXPO_PUBLIC_FTUE_FORCE_REPLAY": "1"
       }
     },
     "production": {
