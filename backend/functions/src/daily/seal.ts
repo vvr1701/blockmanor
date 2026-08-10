@@ -18,15 +18,8 @@
  */
 
 import { PIECE_BY_ID, type PieceId } from '@blockmanor/engine';
+import { type SealedSequence } from '@blockmanor/shared';
 import { createCipheriv, createDecipheriv, createHmac } from 'node:crypto';
-
-/** AES-256-GCM; `iv`/`ct`/`tag` are base64. */
-export interface SealedSequence {
-  alg: 'AES-256-GCM';
-  iv: string;
-  ct: string;
-  tag: string;
-}
 
 const CIPHER = 'aes-256-gcm';
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;

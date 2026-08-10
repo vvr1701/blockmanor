@@ -11,13 +11,23 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // §8.2: the generated board. Readable by any signed-in player (§4.3
-    // anonymous auth), but the piece sequence inside it is ENCRYPTED — the
-    // decryption key arrives from the §8.3 play-start callable, so reading this
-    // document early buys an attacker nothing. Written only by the 00:00 UTC
-    // scheduled function.
+    // §8.2: the generated board. Written only by the 23:45 UTC scheduled
+    // function, which publishes day D's board on D-1 (PRD v1.13).
+    //
+    // The read gate is `activatesAt`, and it is a real security control, not a
+    // client convention: pre-generating tomorrow means tomorrow's document
+    // EXISTS today, and its prefill and solvability median are in the clear.
+    // Without this comparison any signed-in player could read tomorrow's board a
+    // day early. `request.time` is server time, so a skewed device clock (§8.8)
+    // cannot move the boundary.
+    //
+    // Fails closed by construction: a document without `activatesAt` — an older
+    // generator, or a corrupt write — makes this expression error, which denies.
+    // The piece sequence stays encrypted regardless; the key only ever comes
+    // from the §8.3 play-start callable.
     match /dailyBoards/{date} {
-      allow read: if request.auth != null;
+      allow read: if request.auth != null
+                  && request.time.toMillis() >= resource.data.activatesAt;
       allow write: if false;
     }
 

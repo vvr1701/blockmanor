@@ -7,7 +7,14 @@
  * parts live in `publish.test.ts` and are skipped.
  */
 
-import { REMOTE_CONFIG_DEFAULTS } from '@blockmanor/shared';
+import {
+  ENGINE_VERSION,
+  REMOTE_CONFIG_DEFAULTS,
+  dailyGameConfig,
+  dailyPlaySeed,
+  parseDailyBoardDoc,
+  type DailyConfigSource,
+} from '@blockmanor/shared';
 import {
   BOARD_SIZE,
   PIECE_BY_ID,
@@ -24,14 +31,13 @@ import { createHmac } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {
   DAILY_GENERATOR_VERSION,
-  REROLL_REVISION,
   SOLVABILITY_MIN_MOVES,
   SOLVABILITY_TRIALS,
-  dailyGameConfig,
-  dailyPlaySeed,
   drawPrefill,
   drawSequence,
+  bestAttemptIndex,
   generateDailyBoard,
+  rerollRevision,
   solvabilityMedian,
   type DailyGenerationInput,
   type DailyGenerationResult,
@@ -67,11 +73,23 @@ const TUNING: EngineTuning = {
   perfect_clear_bonus: REMOTE_CONFIG_DEFAULTS.perfect_clear_bonus,
 };
 
+/** Every frozen value came from live Remote Config — the happy path. */
+const ALL_LIVE: DailyConfigSource = {
+  mercy_threshold: 'live',
+  mercy_small_prob: 'live',
+  score_clear_base: 'live',
+  combo_step: 'live',
+  perfect_clear_bonus: 'live',
+  daily_piece_count: 'live',
+};
+
 const input = (date: string, over: Partial<DailyGenerationInput> = {}): DailyGenerationInput => ({
   date,
   seed: dailySeed(SALT, date),
   tuning: TUNING,
   pieceCount: REMOTE_CONFIG_DEFAULTS.daily_piece_count,
+  rerollCap: REMOTE_CONFIG_DEFAULTS.daily_reroll_cap,
+  configSource: ALL_LIVE,
   generatedAt: `${date}T00:00:00.000Z`,
   ...over,
 });
@@ -311,7 +329,7 @@ describe('§8.2 sealed sequence', () => {
     const seed = dailySeed(SALT, '2026-08-09');
     expect(sequenceKey(attemptSeed(seed, ''))).toHaveLength(32);
     expect(sequenceKey(attemptSeed(seed, ''))).not.toStrictEqual(
-      sequenceKey(attemptSeed(seed, REROLL_REVISION)),
+      sequenceKey(attemptSeed(seed, rerollRevision(1))),
     );
     expect(sequenceKey(attemptSeed(dailySeed(SALT, '2026-08-10'), ''))).not.toStrictEqual(
       sequenceKey(attemptSeed(seed, '')),
@@ -341,6 +359,20 @@ describe('§8.2 frozen engineConfig snapshot (PRD v1.7)', () => {
       'prefill',
       'tuning',
     ]);
+    // `engineVersion` and `activatesAt` ride on the DOCUMENT, deliberately not
+    // inside the snapshot: §8.5 rebuilds a `GameConfig` from `engineConfig`, and
+    // a stray field there is a field the rebuild has to know to ignore.
+    expect(Object.keys(doc).sort()).toStrictEqual([
+      'activatesAt',
+      'configSource',
+      'date',
+      'engineConfig',
+      'engineVersion',
+      'generatedAt',
+      'generatorVersion',
+      'revision',
+      'solvability',
+    ]);
     // `tuning` is keyed exactly like `EngineTuning`, so §8.5 assigns it with no
     // mapping layer — a mapping layer is where a field silently goes missing.
     expect(Object.keys(snapshot.tuning).sort()).toStrictEqual([
@@ -358,7 +390,29 @@ describe('§8.2 frozen engineConfig snapshot (PRD v1.7)', () => {
     expect(doc.generatorVersion).toBe(DAILY_GENERATOR_VERSION);
     expect(doc.revision).toBe('');
     expect(doc.generatedAt).toBe('2026-08-09T00:00:00.000Z');
+    // v1.12: everything §8.5 re-simulation depends on travels WITH the board.
+    expect(doc.engineVersion).toBe(ENGINE_VERSION);
+    // v1.12: sealed at D-1 23:45, live at D 00:00 UTC.
+    expect(doc.activatesAt).toBe(Date.UTC(2026, 7, 9));
     expect(doc.solvability.trials).toBe(SOLVABILITY_TRIALS);
+    // Per-key Remote Config provenance rides on the document, not inside the
+    // frozen snapshot — `engineConfig` stays exactly what §8.5 rebuilds from.
+    expect(doc.configSource).toStrictEqual(ALL_LIVE);
+  });
+
+  it('publishes per-key Remote Config provenance for a partial fallback', () => {
+    const { doc } = generateDailyBoard(
+      input('2026-08-09', { configSource: { ...ALL_LIVE, score_clear_base: 'default' } }),
+    );
+    expect(doc.configSource.score_clear_base).toBe('default');
+    expect(doc.configSource.combo_step).toBe('live');
+    // …and it does not contaminate the snapshot §8.5 replays from.
+    expect(Object.keys(doc.engineConfig).sort()).toStrictEqual([
+      'pieceCount',
+      'pieceSequence',
+      'prefill',
+      'tuning',
+    ]);
   });
 
   it('freezes an off-default Remote Config value instead of the registry default', () => {
@@ -410,7 +464,9 @@ describe('§8.2 → §8.5 determinism contract', () => {
     const moves = playout(live, seed, 'player').moves;
     const expected = simulate(live, seed, moves);
 
-    const stored = JSON.parse(JSON.stringify(doc)) as typeof doc;
+    // Through the SAME zod boundary §8.3's client and §8.5's callable use, from
+    // `unknown` — nothing here is allowed to assume the document's shape.
+    const stored = parseDailyBoardDoc(JSON.parse(JSON.stringify(doc)) as unknown);
     const reopened = openSequence(
       attemptSeed(dailySeed(SALT, stored.date), stored.revision),
       stored.engineConfig.pieceSequence,
@@ -501,28 +557,78 @@ describe('§8.2 solvability gate', () => {
     expect(solvabilityMedian(config, '2026-08-09', 20)).toBeLessThan(SOLVABILITY_MIN_MOVES);
   });
 
-  it('re-rolls with seed + "-r1" when the first roll fails', () => {
-    // Force a failure by generating with a 1-piece sequence: the bot can never
-    // reach 15 placements, so the gate must fail twice and the document must
-    // carry the re-rolled revision.
-    const { doc, attempts, sequence } = generateDailyBoard(input('2026-08-09', { pieceCount: 1 }));
-    expect(attempts).toHaveLength(2);
+  it('runs the -r1…-r5 re-roll ladder when a roll fails (v1.12)', () => {
+    // Force failure with a 1-piece sequence: the bot can never reach 15
+    // placements, so every roll fails and the whole ladder runs.
+    const { attempts } = generateDailyBoard(input('2026-08-09', { pieceCount: 1 }));
+    expect(REMOTE_CONFIG_DEFAULTS.daily_reroll_cap).toBe(5);
+    // `daily_reroll_cap` re-rolls PLUS the un-suffixed first roll.
+    expect(attempts).toHaveLength(REMOTE_CONFIG_DEFAULTS.daily_reroll_cap + 1);
     expect(attempts.every((a) => !a.passed)).toBe(true);
-    expect(doc.revision).toBe(REROLL_REVISION);
-    expect(doc.solvability.passed).toBe(false);
+    expect([0, 1, 5].map(rerollRevision)).toStrictEqual(['', '-r1', '-r5']);
 
-    // The published board really is the -r1 roll: it opens with the -r1 key…
-    const rerolled = attemptSeed(dailySeed(SALT, '2026-08-09'), REROLL_REVISION);
-    expect(openSequence(rerolled, doc.engineConfig.pieceSequence)).toStrictEqual(sequence);
-    // …and NOT with the first-roll key.
-    expect(() =>
-      openSequence(attemptSeed(dailySeed(SALT, '2026-08-09'), ''), doc.engineConfig.pieceSequence),
-    ).toThrow();
-    // …and its content differs from the first roll's.
-    const firstRollSeed = attemptSeed(dailySeed(SALT, '2026-08-09'), '');
-    expect(drawSequence(sequenceSeed(rerolled), 1)).not.toStrictEqual(
-      drawSequence(sequenceSeed(firstRollSeed), 1),
+    // Each rung is a genuinely different board, not the same one six times:
+    // `-rN` changes the attempt seed, which changes both sub-seeds.
+    const seed = dailySeed(SALT, '2026-08-09');
+    const drawn = [0, 1, 2, 3, 4, 5].map((n) =>
+      drawSequence(sequenceSeed(attemptSeed(seed, rerollRevision(n))), 8).join(''),
     );
+    expect(new Set(drawn).size).toBe(6);
+  });
+
+  it('honours a Remote-Config-lowered cap, including 0 (no re-roll at all)', () => {
+    const none = generateDailyBoard(input('2026-08-09', { pieceCount: 1, rerollCap: 0 }));
+    expect(none.attempts).toHaveLength(1);
+    expect(none.doc.revision).toBe('');
+
+    const three = generateDailyBoard(input('2026-08-09', { pieceCount: 1, rerollCap: 3 }));
+    expect(three.attempts).toHaveLength(4);
+  });
+
+  it('rejects a nonsense cap rather than looping forever', () => {
+    expect(() => generateDailyBoard(input('2026-08-09', { rerollCap: -1 }))).toThrow(
+      /non-negative integer/,
+    );
+    expect(() => generateDailyBoard(input('2026-08-09', { rerollCap: 2.5 }))).toThrow(
+      /non-negative integer/,
+    );
+  });
+
+  it('picks the highest median, earliest roll on a tie (v1.12)', () => {
+    // The selection rule itself, on medians that cannot be produced through the
+    // generator's own inputs: below ~20 pieces the greedy bot never dies before
+    // the sequence runs out, so every forced-failure roll ties by construction.
+    expect(bestAttemptIndex([3, 9, 4])).toBe(1);
+    expect(bestAttemptIndex([9, 4, 3])).toBe(0);
+    expect(bestAttemptIndex([3, 4, 9])).toBe(2);
+    // Ties keep the earliest, so a failed day publishes the plain board rather
+    // than `-r5` for no reason, and the choice stays a pure function of the day.
+    expect(bestAttemptIndex([7, 7, 7])).toBe(0);
+    expect(bestAttemptIndex([0, 0])).toBe(0);
+    expect(bestAttemptIndex([])).toBe(-1);
+  });
+
+  it('publishes the best attempt, and only that attempt, when every roll fails', () => {
+    const { doc, attempts } = generateDailyBoard(input('2026-08-09', { pieceCount: 1 }));
+    expect(doc.solvability.passed).toBe(false);
+    expect(doc.solvability.medianMoves).toBe(Math.max(...attempts.map((a) => a.medianMoves)));
+    expect(doc.revision).toBe(rerollRevision(bestAttemptIndex(attempts.map((a) => a.medianMoves))));
+
+    // The published sequence really is that roll's: it opens with that
+    // revision's key and with no other rung's.
+    const seed = dailySeed(SALT, '2026-08-09');
+    expect(() =>
+      openSequence(attemptSeed(seed, doc.revision), doc.engineConfig.pieceSequence),
+    ).not.toThrow();
+    for (let n = 0; n <= REMOTE_CONFIG_DEFAULTS.daily_reroll_cap; n++) {
+      if (rerollRevision(n) === doc.revision) continue;
+      expect(() =>
+        openSequence(attemptSeed(seed, rerollRevision(n)), doc.engineConfig.pieceSequence),
+      ).toThrow();
+    }
+
+    // Deterministic: a scheduler retry of a failed day republishes the same doc.
+    expect(generateDailyBoard(input('2026-08-09', { pieceCount: 1 })).doc).toStrictEqual(doc);
   });
 
   it('takes the first roll (revision "") when it passes', () => {

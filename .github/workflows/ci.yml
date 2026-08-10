@@ -22,6 +22,11 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
+      # The deploy artifact, built the same way `firebase deploy`'s predeploy
+      # builds it. `backend/functions` cannot be uploaded as-is (workspace:*
+      # deps, a .ts `main`), so a broken bundle means a broken deploy — and
+      # nothing else in CI would notice.
+      - run: pnpm --filter @blockmanor/functions build
 
   lint:
     runs-on: ubuntu-latest
@@ -51,6 +56,33 @@ jobs:
       # packages/engine's test script is `vitest run --coverage`, and the
       # threshold is enforced in packages/engine/vitest.config.ts. A drop below
       # 90% fails the step above.
+
+  # PRD §4.4 / §8.2: executes `backend/firestore.rules` against the Firestore
+  # emulator, plus the §8.2 publication tests that need a real Firestore.
+  # Split from `test` because it needs a JRE and the Firebase CLI, which a plain
+  # dev box does not have — CI is where these actually run.
+  emulator:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      # The Firestore emulator is a Java binary.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: pnpm install --frozen-lockfile
+      # `demo-` project ids are emulator-only: no credentials, and the SDK
+      # refuses to reach a real project, so CI can never touch production. It
+      # also means .firebaserc's placeholder project id is irrelevant here.
+      - run: >
+          npx --yes firebase-tools@15 emulators:exec
+          --only firestore --project demo-blockmanor
+          "pnpm --filter @blockmanor/functions test:emulator"
 
   # PRD §7.9 / §5 Stage-0 tooling: re-derives every committed balance number.
   # Split from `test` because it is a 500-seed bot sweep per level — seconds

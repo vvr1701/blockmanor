@@ -1,92 +1,151 @@
 /**
- * PRD §8.2 publication + Firestore rules — EMULATOR-DEPENDENT, ALL SKIPPED.
+ * §8.2 publication against the Firestore emulator.
  *
- * WHY THEY ARE SKIPPED: these need the Firestore emulator, which needs the
- * Firebase CLI and a JRE. Neither is installed in this environment, and no
- * Firebase project has been provisioned yet either. They have therefore NEVER
- * BEEN RUN — do not read a green suite as coverage of anything in this file.
- *
- * TO RUN THEM: install a JRE and `npm i -g firebase-tools`, add
- * `@firebase/rules-unit-testing` to this package, then
- *   firebase emulators:exec --only firestore "pnpm --filter @blockmanor/functions test"
- * and change `describe.skip` to `describe`.
- *
- * Everything §8.2 specifies that can be checked WITHOUT an emulator is checked
- * in `generate.test.ts`, and that is the bulk of the section: seed derivation,
- * prefill, sequence, the frozen snapshot, sealing, the solvability gate and the
- * §8.5 determinism contract.
+ * Not part of the default `test` script — CI runs it under
+ * `firebase emulators:exec --only firestore` (see `.github/workflows/ci.yml`).
+ * Remote Config is mocked rather than emulated: there is no RC emulator, and its
+ * validation is covered in `publish.test.ts`. Firestore is real, because the two
+ * properties worth proving here are Firestore's: the document actually lands,
+ * and `create()` really does refuse to overwrite it.
  */
 
-import { describe, expect, it } from 'vitest';
-import { utcDate } from '../src/daily/publish';
+import {
+  parseDailyBoardDoc,
+  DAILY_BOARDS_COLLECTION,
+  ENGINE_VERSION,
+  REMOTE_CONFIG_DEFAULTS,
+} from '@blockmanor/shared';
+import { getApps, initializeApp } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
-describe('§8.2 publication (emulator required — NOT RUN)', () => {
-  it.skip('writes dailyBoards/{date} with the sealed sequence and frozen snapshot', () => {
-    // Would assert: after publishDailyBoard('2026-08-09', salt, iso), the doc at
-    // dailyBoards/2026-08-09 exists, its engineConfig.pieceSequence is a
-    // SealedSequence, and its plaintext appears nowhere in the stored JSON.
-    expect.fail('emulator unavailable');
+const mocks = vi.hoisted(() => ({ getNumber: vi.fn<(key: string) => number>() }));
+
+vi.mock('firebase-admin/remote-config', () => ({
+  getRemoteConfig: () => ({
+    getServerTemplate: async () => ({ evaluate: () => ({ getNumber: mocks.getNumber }) }),
+  }),
+}));
+
+const { OPS_ALERTS_COLLECTION, SOLVABILITY_ALERT, publishDailyBoard } =
+  await import('../src/daily/publish');
+const { openSequence, attemptSeed, dailySeed } = await import('../src/daily/seal');
+
+const SALT = 'test-salt-not-the-real-one';
+const DATE = '2026-08-09';
+/** The §13 default, so the solvability gate passes on the first roll. */
+const PIECE_COUNT = 60;
+
+beforeAll(() => {
+  if (!process.env.FIRESTORE_EMULATOR_HOST) {
+    throw new Error(
+      'FIRESTORE_EMULATOR_HOST is unset — run via `firebase emulators:exec --only firestore`',
+    );
+  }
+  if (getApps().length === 0) initializeApp({ projectId: 'demo-blockmanor' });
+});
+
+/** The §13 defaults, restored per test — several tests move Remote Config. */
+function liveDefaults(): void {
+  mocks.getNumber.mockImplementation((key) => {
+    if (key === 'daily_piece_count') return PIECE_COUNT;
+    const fallback = REMOTE_CONFIG_DEFAULTS[key as keyof typeof REMOTE_CONFIG_DEFAULTS];
+    return typeof fallback === 'number' ? fallback : 0;
+  });
+}
+
+// Cleaning BEFORE rather than after: the emulator is shared with
+// `rules.emulator.test.ts`, which seeds a `dailyBoards` document of its own, and
+// `create()` cannot tell a leftover fixture from a real prior publication.
+beforeEach(async () => {
+  liveDefaults();
+  await getFirestore().recursiveDelete(getFirestore().collection(DAILY_BOARDS_COLLECTION));
+  await getFirestore().recursiveDelete(getFirestore().collection(OPS_ALERTS_COLLECTION));
+});
+
+describe('§8.2 publication', () => {
+  it('writes dailyBoards/{date} with the sealed sequence and frozen snapshot', async () => {
+    const published = await publishDailyBoard(DATE, SALT, `${DATE}T00:00:00.000Z`);
+    expect(published.status).toBe('created');
+
+    const snap = await getFirestore().collection(DAILY_BOARDS_COLLECTION).doc(DATE).get();
+    expect(snap.exists).toBe(true);
+
+    // Round-tripped through Firestore, then through the §4.2 fetch schema —
+    // exactly what §8.3's client and §8.5's callable will do.
+    const stored = parseDailyBoardDoc(snap.data());
+    expect(stored.date).toBe(DATE);
+    expect(stored.engineConfig.pieceCount).toBe(PIECE_COUNT);
+    // v1.12: the two fields the publication boundary and §8.5 depend on survive
+    // the Firestore round trip as the types the rules and the callable expect.
+    expect(stored.engineVersion).toBe(ENGINE_VERSION);
+    expect(stored.activatesAt).toBe(Date.UTC(2026, 7, 9));
+    expect(typeof snap.get('activatesAt')).toBe('number');
+    expect(stored.engineConfig.pieceSequence.alg).toBe('AES-256-GCM');
+    expect(stored.configSource.daily_piece_count).toBe('live');
+
+    // The plaintext sequence must NOT be recoverable from the stored bytes…
+    const sequence = openSequence(
+      attemptSeed(dailySeed(SALT, stored.date), stored.revision),
+      stored.engineConfig.pieceSequence,
+    );
+    expect(sequence).toHaveLength(PIECE_COUNT);
+    expect(JSON.stringify(snap.data())).not.toContain(sequence.join(''));
+    expect(JSON.stringify(snap.data())).not.toContain(SALT);
   });
 
-  it.skip('is idempotent: a scheduler retry leaves the first document untouched', () => {
-    // Would assert: a second publishDailyBoard for the same date returns
-    // { status: 'exists' } and the stored doc is byte-unchanged — including the
-    // case where Remote Config changed between the two runs, which is the only
-    // way determinism alone would not have covered it.
-    expect.fail('emulator unavailable');
-  });
+  it('is idempotent: a scheduler retry leaves the first document untouched', async () => {
+    await publishDailyBoard(DATE, SALT, `${DATE}T00:00:00.000Z`);
+    const first = (await getFirestore().collection(DAILY_BOARDS_COLLECTION).doc(DATE).get()).data();
 
-  it.skip('reads Remote Config exactly once per generation', () => {
-    // Would assert against an instrumented admin RemoteConfig: one
-    // getServerTemplate call for a whole publish, and zero on any later read of
-    // the document (PRD v1.7 — RC is never in the daily path after generation).
-    expect.fail('emulator unavailable');
-  });
+    // Remote Config changes between the two runs — determinism alone would NOT
+    // have covered this, only `create()` refusing to overwrite does. Swapping
+    // the board out from under a mid-day player is the failure being prevented.
+    mocks.getNumber.mockImplementation((key) => (key === 'daily_piece_count' ? 8 : 1));
+    const retry = await publishDailyBoard(DATE, SALT, `${DATE}T00:05:00.000Z`);
+    expect(retry.status).toBe('exists');
 
-  it.skip('falls back to the §13 registry defaults when Remote Config is unreadable', () => {
-    // Would assert: with RC erroring, the published snapshot equals
-    // REMOTE_CONFIG_DEFAULTS for all five engine keys and daily_piece_count,
-    // and a warning is logged.
-    expect.fail('emulator unavailable');
+    const second = (
+      await getFirestore().collection(DAILY_BOARDS_COLLECTION).doc(DATE).get()
+    ).data();
+    expect(second).toStrictEqual(first);
+    expect((second as { engineConfig: { pieceCount: number } }).engineConfig.pieceCount).toBe(
+      PIECE_COUNT,
+    );
   });
 });
 
-describe('§8.2 Firestore rules (emulator required — NOT RUN)', () => {
-  it.skip('a signed-in client can read dailyBoards/{date}', () => {
-    expect.fail('emulator unavailable');
+describe('§8.2 solvability exhausted (PRD v1.12)', () => {
+  it('publishes the best board anyway AND raises a durable ops alert', async () => {
+    // A 1-piece sequence can never reach 15 placements, so every roll fails.
+    mocks.getNumber.mockImplementation((key) => (key === 'daily_piece_count' ? 1 : 5));
+    const published = await publishDailyBoard(DATE, SALT, `${DATE}T00:00:00.000Z`);
+
+    // §8.1: a board still ships. A missing document breaks every client for 24h.
+    expect(published.status).toBe('created');
+    expect(published.doc?.solvability.passed).toBe(false);
+    const board = await getFirestore().collection(DAILY_BOARDS_COLLECTION).doc(DATE).get();
+    expect(board.exists).toBe(true);
+
+    // …and it is not a bare log line: the alert is a document an operator can
+    // query long after the logs have aged out.
+    const alert = await getFirestore()
+      .collection(OPS_ALERTS_COLLECTION)
+      .doc(`${DATE}_${SOLVABILITY_ALERT}`)
+      .get();
+    expect(alert.exists).toBe(true);
+    expect(alert.get('kind')).toBe(SOLVABILITY_ALERT);
+    expect(alert.get('date')).toBe(DATE);
+    expect(alert.get('rerollCap')).toBe(5);
+    // Every roll's median, so the operator can see how far off the day was.
+    expect(alert.get('medians')).toHaveLength(6);
+    expect(alert.get('publishedMedian')).toBe(Math.max(...(alert.get('medians') as number[])));
+    expect(typeof alert.get('raisedAt')).toBe('string');
   });
 
-  it.skip('an unauthenticated client cannot read dailyBoards/{date}', () => {
-    expect.fail('emulator unavailable');
-  });
-
-  it.skip('no client may write dailyBoards/{date}', () => {
-    // create, update and delete all denied — §8.2 boards come only from the
-    // scheduled function via the Admin SDK.
-    expect.fail('emulator unavailable');
-  });
-
-  it.skip('a client reads only its own users/{uid} and writes none of it', () => {
-    // §4.4/§8.6: streak (and, from Stage 2, wallet) are server-authoritative.
-    expect.fail('emulator unavailable');
-  });
-
-  it.skip('every unlisted collection is denied for read and write', () => {
-    expect.fail('emulator unavailable');
-  });
-});
-
-// One thing in publish.ts is pure and does not need the emulator, so it is
-// tested for real rather than skipped: the schedule fires at 00:00 UTC and the
-// document key must be that UTC day, never a local one (§8.1, §8.6).
-describe('§8.2 UTC date keying (no emulator needed)', () => {
-  it('keys the board by UTC day, including either side of the boundary', () => {
-    expect(utcDate('2026-08-09T00:00:00.000Z')).toBe('2026-08-09');
-    expect(utcDate('2026-08-09T23:59:59.999Z')).toBe('2026-08-09');
-    // A scheduler that fires a hair early must still key the day it names.
-    expect(utcDate('2026-08-10T00:00:00.000Z')).toBe('2026-08-10');
-    // An offset instant is normalised to UTC, never to the runner's zone.
-    expect(utcDate('2026-08-09T05:30:00.000+05:30')).toBe('2026-08-09');
-    expect(utcDate('2026-08-10T04:00:00.000+05:30')).toBe('2026-08-09');
+  it('raises no alert when the gate passes', async () => {
+    await publishDailyBoard(DATE, SALT, `${DATE}T00:00:00.000Z`);
+    const alerts = await getFirestore().collection(OPS_ALERTS_COLLECTION).get();
+    expect(alerts.empty).toBe(true);
   });
 });

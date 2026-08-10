@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "default": "blockmanor-dev",
+    "dev": "blockmanor-dev",
+    "prod": "REPLACE_ME_BLOCKMANOR_PROD"
+  }
+}

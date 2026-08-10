@@ -7,6 +7,11 @@
  * `engineConfig` is the frozen snapshot mandated by PRD v1.7: once this function
  * returns, NOTHING downstream may consult Remote Config, or a LiveOps push
  * mid-day could turn an honest submission into a `daily_cheat_rejected`.
+ *
+ * The document's TYPES and the `dailyGameConfig` builder live in
+ * `@blockmanor/shared` (§4.2), not here: `apps/mobile` cannot import
+ * `backend/functions`, and §8.3's client must build its `GameConfig` from the
+ * very same code §8.5 re-simulates with. This file owns generation only.
  */
 
 import { playout } from '@blockmanor/content';
@@ -19,8 +24,18 @@ import {
   type GameConfig,
   type PieceId,
 } from '@blockmanor/engine';
+import {
+  ENGINE_VERSION,
+  dailyActivatesAt,
+  dailyGameConfig,
+  dailyPlaySeed,
+  type DailyBoardDoc,
+  type DailyConfigSource,
+  type DailyPrefillCell,
+  type DailySolvability,
+} from '@blockmanor/shared';
 import { PREFILL_TEMPLATES, TEMPLATE_ORIENTATIONS, orient } from './patterns';
-import { attemptSeed, prefillSeed, sealSequence, sequenceSeed, type SealedSequence } from './seal';
+import { attemptSeed, prefillSeed, sealSequence, sequenceSeed } from './seal';
 
 /** Bump when a change here would produce a different board from the same seed. */
 export const DAILY_GENERATOR_VERSION = 1;
@@ -29,55 +44,8 @@ export const DAILY_GENERATOR_VERSION = 1;
 export const SOLVABILITY_TRIALS = 200;
 export const SOLVABILITY_MIN_MOVES = 15;
 
-/** §8.2 re-roll suffix. The PRD specifies exactly one re-roll. */
-export const REROLL_REVISION = '-r1';
-
-/** A prefilled cell. Always a plain block: §8.2 says "obstacle-free". */
-export interface DailyPrefillCell {
-  r: number;
-  c: number;
-  color: number;
-}
-
-/**
- * The frozen `engineConfig` snapshot (PRD §8.2 / v1.7). Every engine-relevant
- * value for the day, captured once at generation:
- *  - `tuning` — the §6.6 scoring constants AND the §6.4 mercy values. Mercy is
- *    OFF on the Daily Board (§6.4, §8.1), and the values are recorded anyway
- *    because §8.2 requires the snapshot to be COMPLETE: §8.5 rebuilds a whole
- *    `GameConfig` from this object and must never fall back to live RC for a
- *    missing field.
- *  - `pieceSequence` — sealed (§8.2); `openSequence` is the only way in.
- *  - `pieceCount` — in the clear so §8.5 can enforce its `moves.length >
- *    daily_piece_count` rule without decrypting anything.
- *  - `prefill` — colours included, because `FinalResult.boardHash` covers cell
- *    colours and §8.5 compares results exactly.
- */
-export interface DailyEngineConfig {
-  tuning: EngineTuning;
-  prefill: DailyPrefillCell[];
-  pieceCount: number;
-  pieceSequence: SealedSequence;
-}
-
-export interface DailySolvability {
-  trials: number;
-  medianMoves: number;
-  minMoves: number;
-  passed: boolean;
-}
-
-/** The `dailyBoards/{date}` document (§8.2). */
-export interface DailyBoardDoc {
-  date: string;
-  generatorVersion: number;
-  /** `''` for the first roll, `'-r1'` after the §8.2 solvability re-roll. */
-  revision: string;
-  engineConfig: DailyEngineConfig;
-  solvability: DailySolvability;
-  /** ISO-8601, injected by the caller — this module has no clock. */
-  generatedAt: string;
-}
+/** §8.2 re-roll suffix: attempt `n` (1-based) uses `seed + "-rN"`. */
+export const rerollRevision = (n: number): string => (n === 0 ? '' : `-r${n}`);
 
 export interface DailyGenerationInput {
   date: string;
@@ -87,6 +55,10 @@ export interface DailyGenerationInput {
   tuning: EngineTuning;
   /** Frozen `daily_piece_count` (§13 `[RC, 60]`). */
   pieceCount: number;
+  /** `daily_reroll_cap` (§13 `[RC, 5]`) — re-rolls AFTER the first roll. */
+  rerollCap: number;
+  /** Per-key provenance of the six frozen numbers, published for ops. */
+  configSource: DailyConfigSource;
   generatedAt: string;
 }
 
@@ -94,56 +66,8 @@ export interface DailyGenerationResult {
   doc: DailyBoardDoc;
   /** Plaintext, for logging counts and for tests. Never written to Firestore. */
   sequence: PieceId[];
-  /** Includes the roll that was rejected, if any — the ops signal for the gate. */
+  /** Every roll in order, rejected ones included — the ops signal for the gate. */
   attempts: DailySolvability[];
-}
-
-/**
- * The seed handed to `createGame`/`simulate` for a daily run. Public on purpose:
- * client and server must agree on it, and it is not the secret §8.2 seed. With a
- * fixed `pieceSequence` and an obstacle-free prefill the engine consumes no
- * randomness at all, so this only has to be STABLE, not unpredictable.
- */
-export const dailyPlaySeed = (date: string): string => `daily:${date}`;
-
-/**
- * Rebuild the engine config for a day from the frozen snapshot — the seam §8.3
- * and §8.5 both call. Note what is NOT here: any read of Remote Config.
- *
- * The prefill rides in on `level.prefill` because that is the engine's only
- * prefill channel (§4.3 `GameConfig` has no top-level prefill field). `goals` is
- * empty, so the §6.7 win branch is unreachable and the run can only end in
- * `'lost'` or `'completed'` — exactly §8.2's "the Daily Board has no win state".
- */
-export function dailyGameConfig(
-  engineConfig: Pick<DailyEngineConfig, 'tuning' | 'prefill'>,
-  sequence: readonly PieceId[],
-  date: string,
-): GameConfig {
-  return {
-    mode: 'daily',
-    tuning: engineConfig.tuning,
-    pieceSequence: sequence,
-    level: {
-      id: 0,
-      chapter: 0,
-      seedSalt: dailyPlaySeed(date),
-      prefill: engineConfig.prefill.map(({ r, c, color }) => ({
-        r,
-        c,
-        type: 'filled' as const,
-        color,
-      })),
-      goals: [],
-      pieceWeightOverrides: {},
-      // §6.4/§8.1: mercy off. Redundant with `mode: 'daily'` and with the fixed
-      // sequence, and set anyway so no single flag flip can switch it back on.
-      mercy: false,
-      stars: { s2: 0, s3: 0 },
-      ivySpreadInterval: 3,
-      ivyMaxTiles: 16,
-    },
-  };
 }
 
 /** §8.2(a): 6–14 obstacle-free filled cells from a curated template. */
@@ -194,19 +118,25 @@ export function solvabilityMedian(
 }
 
 /**
- * Generate and seal one day's board (§8.2), re-rolling once with `seed + "-r1"`
- * if the solvability gate fails.
+ * Generate and seal one day's board (§8.2, PRD v1.12).
  *
- * If the re-roll ALSO fails we publish it and mark `passed: false` rather than
- * publishing nothing: §8.1's ritual is "one board every day, for everyone", and
- * a missing document breaks every client for 24h, while a hard board merely
- * plays badly. `publish.ts` logs that case at error level for the operator.
- * (PRD §8.2 does not say what to do after a failed re-roll — flagged as a gap.)
+ * Re-rolls with `seed + "-rN"` while the solvability gate fails, up to
+ * `rerollCap` re-rolls. The first passing roll wins. If EVERY roll fails we
+ * publish the best-scoring one (highest bot median) with `passed: false` rather
+ * than publishing nothing: §8.1's ritual is "one board every day, for everyone",
+ * and a missing document breaks every client for 24h, while a hard board merely
+ * plays badly. `publish.ts` raises the ops alert for that case.
  */
 export function generateDailyBoard(input: DailyGenerationInput): DailyGenerationResult {
-  const attempts: DailySolvability[] = [];
+  if (!Number.isInteger(input.rerollCap) || input.rerollCap < 0) {
+    throw new Error(`PRD §8.2: daily_reroll_cap must be a non-negative integer`);
+  }
 
-  for (const revision of ['', REROLL_REVISION]) {
+  const attempts: DailySolvability[] = [];
+  const rolls: DailyGenerationResult[] = [];
+
+  for (let n = 0; n <= input.rerollCap; n++) {
+    const revision = rerollRevision(n);
     const attempt = attemptSeed(input.seed, revision);
     const prefill = drawPrefill(prefillSeed(attempt));
     const sequence = drawSequence(sequenceSeed(attempt), input.pieceCount);
@@ -221,27 +151,51 @@ export function generateDailyBoard(input: DailyGenerationInput): DailyGeneration
     };
     attempts.push(solvability);
 
-    if (solvability.passed || revision === REROLL_REVISION) {
-      return {
-        doc: {
-          date: input.date,
-          generatorVersion: DAILY_GENERATOR_VERSION,
-          revision,
-          engineConfig: {
-            tuning: input.tuning,
-            prefill,
-            pieceCount: input.pieceCount,
-            pieceSequence: sealSequence(attempt, sequence),
-          },
-          solvability,
-          generatedAt: input.generatedAt,
+    const rolled: DailyGenerationResult = {
+      doc: {
+        date: input.date,
+        generatorVersion: DAILY_GENERATOR_VERSION,
+        revision,
+        engineVersion: ENGINE_VERSION,
+        engineConfig: {
+          tuning: input.tuning,
+          prefill,
+          pieceCount: input.pieceCount,
+          pieceSequence: sealSequence(attempt, sequence),
         },
-        sequence,
-        attempts,
-      };
-    }
+        configSource: input.configSource,
+        solvability,
+        generatedAt: input.generatedAt,
+        activatesAt: dailyActivatesAt(input.date),
+      },
+      sequence,
+      attempts,
+    };
+
+    if (solvability.passed) return rolled;
+    rolls.push(rolled);
   }
 
-  // Unreachable: the loop returns on its final iteration.
-  throw new Error('PRD §8.2: generation loop fell through');
+  // Every roll failed the gate (§8.2 v1.12): ship the least-bad one.
+  const best = rolls[bestAttemptIndex(rolls.map((r) => r.doc.solvability.medianMoves))];
+  if (!best) throw new Error('PRD §8.2: generation loop produced no board');
+  return best;
+}
+
+/**
+ * §8.2 (v1.12): which failed roll gets published — the highest greedy-bot
+ * median. Ties keep the EARLIEST roll, so a day where every roll scores the same
+ * publishes the plain un-suffixed board rather than `-r5` for no reason, and the
+ * choice stays a pure function of the day.
+ */
+export function bestAttemptIndex(medians: readonly number[]): number {
+  let best = -1;
+  let bestMedian = Number.NEGATIVE_INFINITY;
+  medians.forEach((median, i) => {
+    if (median > bestMedian) {
+      bestMedian = median;
+      best = i;
+    }
+  });
+  return best;
 }
