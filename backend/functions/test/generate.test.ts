@@ -4,7 +4,8 @@
  * Everything here runs in-process with no Firebase emulator: §8.2's substance
  * (seed derivation, prefill, sequence, the frozen snapshot, the solvability
  * gate, and the §8.5 determinism contract) is pure. The emulator-dependent
- * parts live in `publish.test.ts` and are skipped.
+ * parts live in `publish.emulator.test.ts` and run against the Firestore
+ * emulator; nothing in the §8.2 suite is skipped.
  */
 
 import {
@@ -428,8 +429,17 @@ describe('§8.2 frozen engineConfig snapshot (PRD v1.7)', () => {
     // generation; nothing else may.
     const { readFileSync, readdirSync } = await import('node:fs');
     const dir = new URL('../src/daily/', import.meta.url).pathname;
-    for (const file of readdirSync(dir).filter((f) => f !== 'publish.ts')) {
-      const source = readFileSync(`${dir}${file}`, 'utf8');
+    const files = readdirSync(dir)
+      .filter((f) => f !== 'publish.ts')
+      .map((f) => `${dir}${f}`);
+    // …including the client-side half of the daily path. `dailyBoard.ts` builds
+    // the `GameConfig` both §8.3 and §8.5 play/re-simulate from, and its header
+    // claims RC "is not imported here and must never be" — this is what makes
+    // that a rule rather than a comment.
+    files.push(new URL('../../../packages/shared/src/dailyBoard.ts', import.meta.url).pathname);
+
+    for (const file of files) {
+      const source = readFileSync(file, 'utf8');
       expect(source, `${file} must not read Remote Config`).not.toMatch(
         /^\s*import .*remote-config/m,
       );

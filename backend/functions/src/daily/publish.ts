@@ -87,16 +87,32 @@ export interface FrozenRemoteConfig {
   source: DailyConfigSource;
 }
 
+/**
+ * One Remote Config read: the parsed number, plus whether the TEMPLATE actually
+ * defined the key.
+ *
+ * `remote` is not decoration. The admin SDK resolves a key the template does not
+ * define to the `defaultConfig` we hand it — the §13 registry — and says so only
+ * on `Value.getSource()`; `getNumber()` discards that tag. Without it every key
+ * reads back as an in-bounds number and gets published as `configSource: 'live'`
+ * on a project whose Remote Config console is empty, which is the exact
+ * inversion of the signal §8.2 publishes `configSource` for.
+ */
+interface RcRead {
+  value: number;
+  remote: boolean;
+}
+
 /** Reads one key, or falls back to its §13 registry default. Never throws. */
 function frozenNumber(
   key: DailyRcKey,
-  read: (key: DailyRcKey) => number,
+  read: (key: DailyRcKey) => RcRead,
 ): { value: number; source: 'live' | 'default' } {
   const fallback = REMOTE_CONFIG_DEFAULTS[key];
   const bounds = FROZEN_BOUNDS[key];
-  let value: number;
+  let got: RcRead;
   try {
-    value = read(key);
+    got = read(key);
   } catch (error) {
     logger.warn('daily_generation: Remote Config key unreadable, freezing §13 default', {
       key,
@@ -106,6 +122,11 @@ function frozenNumber(
     return { value: fallback, source: 'default' };
   }
 
+  // Nothing live to freeze: the value on offer IS the registry default (or, for
+  // a `'static'` key, an SDK-invented 0). Not an error — just not `'live'`.
+  if (!got.remote) return { value: fallback, source: 'default' };
+
+  const { value } = got;
   const ok =
     typeof value === 'number' &&
     Number.isFinite(value) &&
@@ -141,13 +162,18 @@ function frozenNumber(
  * needs, and no board at all would break the ritual for 24h (§8.1).
  */
 export async function readFrozenRemoteConfig(): Promise<FrozenRemoteConfig> {
-  let read: (key: DailyRcKey) => number;
+  let read: (key: DailyRcKey) => RcRead;
   try {
     const template = await getRemoteConfig().getServerTemplate({
       defaultConfig: { ...REMOTE_CONFIG_DEFAULTS },
     });
     const config = template.evaluate();
-    read = (key) => config.getNumber(key);
+    // `getValue`, not `getNumber`: only the `Value` wrapper carries the source,
+    // and `'remote'` is the one source that means the console really set this.
+    read = (key) => {
+      const value = config.getValue(key);
+      return { value: value.asNumber(), remote: value.getSource() === 'remote' };
+    };
   } catch (error) {
     logger.warn('daily_generation: Remote Config unreadable, freezing §13 defaults', { error });
     read = () => {

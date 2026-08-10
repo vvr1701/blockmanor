@@ -23,7 +23,18 @@ const mocks = vi.hoisted(() => ({ getNumber: vi.fn<(key: string) => number>() })
 
 vi.mock('firebase-admin/remote-config', () => ({
   getRemoteConfig: () => ({
-    getServerTemplate: async () => ({ evaluate: () => ({ getNumber: mocks.getNumber }) }),
+    getServerTemplate: async () => ({
+      evaluate: () => ({
+        // `publish.ts` reads through `getValue`, not `getNumber`, because only
+        // the `Value` wrapper says whether the template really defined the key.
+        // Here every key stands for one an operator has set: source `'remote'`.
+        // The `'default'` case is `publish.test.ts`'s job.
+        getValue: (key: string) => ({
+          asNumber: () => mocks.getNumber(key),
+          getSource: () => 'remote',
+        }),
+      }),
+    }),
   }),
 }));
 

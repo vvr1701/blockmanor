@@ -13,10 +13,16 @@
  */
 
 import { REMOTE_CONFIG_DEFAULTS } from '@blockmanor/shared';
+import { type ValueSource } from 'firebase-admin/remote-config';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+/**
+ * The mock returns `Value` wrappers, not bare numbers, because the source tag is
+ * the thing under test: the admin SDK hands back a `'default'`-tagged value for
+ * any key the template does not define, and `getNumber()` would hide that.
+ */
 const mocks = vi.hoisted(() => ({
-  getNumber: vi.fn<(key: string) => number>(),
+  getValue: vi.fn<(key: string) => { asNumber: () => number; getSource: () => string }>(),
   getServerTemplate: vi.fn(),
   templateError: null as Error | null,
   warn: vi.fn(),
@@ -29,7 +35,15 @@ vi.mock('firebase-admin/remote-config', () => ({
     getServerTemplate: async (...args: unknown[]) => {
       mocks.getServerTemplate(...args);
       if (mocks.templateError) throw mocks.templateError;
-      return { evaluate: () => ({ getNumber: mocks.getNumber }) };
+      return {
+        evaluate: () => ({
+          getValue: mocks.getValue,
+          // Exactly how `ServerConfigImpl` defines it — the source tag is
+          // dropped here, which is why reading through it reported `'live'`
+          // for keys that were never in the console.
+          getNumber: (key: string) => mocks.getValue(key).asNumber(),
+        }),
+      };
     },
   }),
 }));
@@ -54,12 +68,20 @@ const callable = regenerateDailyBoard as unknown as {
 };
 const admin = { uid: 'ops', token: { admin: true } };
 
-/** Live Remote Config returns exactly the §13 defaults unless a test says otherwise. */
-function liveValues(over: Record<string, number> = {}): void {
-  mocks.getNumber.mockImplementation((key) => {
-    if (key in over) return over[key]!;
+/**
+ * Live Remote Config returns exactly the §13 defaults unless a test says
+ * otherwise. `source` overrides the SDK's provenance tag per key: `'default'` is
+ * a key the console has never set (so the SDK serves back the `defaultConfig` we
+ * passed it), `'static'` a key absent from `defaultConfig` too.
+ */
+function liveValues(
+  over: Record<string, number> = {},
+  source: Record<string, ValueSource> = {},
+): void {
+  mocks.getValue.mockImplementation((key) => {
     const fallback = REMOTE_CONFIG_DEFAULTS[key as keyof typeof REMOTE_CONFIG_DEFAULTS];
-    return typeof fallback === 'number' ? fallback : 0;
+    const value = key in over ? over[key]! : typeof fallback === 'number' ? fallback : 0;
+    return { asNumber: () => value, getSource: () => source[key] ?? 'remote' };
   });
 }
 
@@ -111,6 +133,40 @@ describe('§8.2 frozen Remote Config validation', () => {
       perfect_clear_bonus: 'live',
       daily_piece_count: 'live',
     });
+    expect(mocks.error).not.toHaveBeenCalled();
+  });
+
+  it('marks a key the Remote Config template never defined as default, not live', async () => {
+    // The production case on day one: not one of the eight daily keys exists in
+    // the console yet, so the SDK serves the `defaultConfig` we handed it — the
+    // §13 registry — tagged `'default'`, and `getNumber()` throws that tag away.
+    // Reporting those as `'live'` inverts the meaning of `configSource`.
+    liveValues(
+      {},
+      {
+        // Never set in the console: falls through to `defaultConfig`.
+        score_clear_base: 'default',
+        daily_piece_count: 'default',
+        // Absent from `defaultConfig` too — the SDK invents an empty value.
+        mercy_threshold: 'static',
+      },
+    );
+    const frozen = await readFrozenRemoteConfig();
+
+    expect(frozen.source).toStrictEqual({
+      mercy_threshold: 'default',
+      mercy_small_prob: 'live',
+      score_clear_base: 'default',
+      combo_step: 'live',
+      perfect_clear_bonus: 'live',
+      daily_piece_count: 'default',
+    });
+    // …and the values frozen for those keys are the registry's, as claimed.
+    expect(frozen.tuning.score_clear_base).toBe(REMOTE_CONFIG_DEFAULTS.score_clear_base);
+    expect(frozen.tuning.mercy_threshold).toBe(REMOTE_CONFIG_DEFAULTS.mercy_threshold);
+    expect(frozen.pieceCount).toBe(REMOTE_CONFIG_DEFAULTS.daily_piece_count);
+    // An unset key is normal, not corruption: it must not raise the loud alarm
+    // reserved for an operator typo.
     expect(mocks.error).not.toHaveBeenCalled();
   });
 

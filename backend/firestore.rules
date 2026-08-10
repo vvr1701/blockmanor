@@ -12,7 +12,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
 
     // §8.2: the generated board. Written only by the 23:45 UTC scheduled
-    // function, which publishes day D's board on D-1 (PRD v1.13).
+    // function, which publishes day D's board on D-1 (PRD v1.12).
     //
     // The read gate is `activatesAt`, and it is a real security control, not a
     // client convention: pre-generating tomorrow means tomorrow's document
