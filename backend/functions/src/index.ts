@@ -1,8 +1,25 @@
 /**
  * Cloud Functions entrypoint (PRD §4.2).
  *
- * Empty by design: Stage 0 provisions the Firebase project and this workspace only.
- * The first functions arrive with the Daily Board — generation (§8.2) and
- * submission/anti-cheat (§8.5), which import packages/engine for re-simulation.
+ * Deployed functions:
+ *  - `generateDailyBoardScheduled` — §8.2 Daily Board generation, 23:45 UTC,
+ *    for the following UTC day.
+ *  - `regenerateDailyBoard` — §8.2 admin-only manual re-trigger (self-heal).
+ *
+ * Still to come: §8.3's play-start callable (hands the client the sequence key)
+ * and §8.5's submission/anti-cheat callable, which re-simulates from the frozen
+ * `engineConfig` snapshot this function publishes.
  */
-export {};
+
+export { generateDailyBoardScheduled, regenerateDailyBoard } from './daily/publish';
+
+// The SECRET half of the §8.2 seam: seed derivation and sequence sealing. These
+// stay server-side forever (§16 — the salt lives only in Functions config), and
+// §8.3's play-start callable and §8.5's submission callable import them here.
+export { attemptSeed, dailySeed, openSequence, sequenceKey } from './daily/seal';
+export { DAILY_BOARD_SALT } from './daily/publish';
+
+// The NON-SECRET half — document types, the `dailyGameConfig` builder and the
+// fetch-boundary zod schema — is in `@blockmanor/shared` (§4.2), because
+// `apps/mobile` must import the very same builder §8.5 re-simulates with.
+// Imported from there, not re-exported from here, so there is one import path.

@@ -1,0 +1,54 @@
+rules_version = '2';
+
+// Firestore security rules — PRD §4.4 ("Server is authoritative for: daily
+// results, leaderboards, streak count, coin balance"), §8.2, §8.5.
+//
+// Shape of the whole ruleset: DENY by default, and never grant a client write.
+// Every server-authoritative collection — dailyBoards, submissions, streak,
+// wallet, leaderboards — mutates only through Cloud Functions, which use the
+// Admin SDK and bypass these rules entirely. There is therefore nothing to
+// "allow" for writes at any stage; a later stage adds callables, not rules.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // §8.2: the generated board. Written only by the 23:45 UTC scheduled
+    // function, which publishes day D's board on D-1 (PRD v1.12).
+    //
+    // The read gate is `activatesAt`, and it is a real security control, not a
+    // client convention: pre-generating tomorrow means tomorrow's document
+    // EXISTS today, and its prefill and solvability median are in the clear.
+    // Without this comparison any signed-in player could read tomorrow's board a
+    // day early. `request.time` is server time, so a skewed device clock (§8.8)
+    // cannot move the boundary.
+    //
+    // Fails closed by construction: a document without `activatesAt` — an older
+    // generator, or a corrupt write — makes this expression error, which denies.
+    // The piece sequence stays encrypted regardless; the key only ever comes
+    // from the §8.3 play-start callable.
+    match /dailyBoards/{date} {
+      allow read: if request.auth != null
+                  && request.time.toMillis() >= resource.data.activatesAt;
+      allow write: if false;
+    }
+
+    // §4.4 / §12.6: a player reads their own document (progress, streak, and
+    // from Stage 2 the wallet) and writes none of it. §8.6 streak and §9.1
+    // wallet are server-authoritative across a skewed device clock, which only
+    // holds if the client cannot touch them.
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+
+      match /{document=**} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if false;
+      }
+    }
+
+    // Everything else, including anything a future stage adds before its rules
+    // are written: closed.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

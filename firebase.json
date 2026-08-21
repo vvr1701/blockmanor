@@ -1,0 +1,24 @@
+{
+  "firestore": {
+    "rules": "backend/firestore.rules",
+    "indexes": "backend/firestore.indexes.json"
+  },
+  "functions": [
+    {
+      "//": "Deploys the esbuild BUNDLE, not the source. backend/functions has workspace:* deps and a .ts main; neither survives Firebase's `npm install` + require(main). `predeploy` regenerates dist/ (bundle + a package.json with registry deps only) before every deploy — predeploy hooks run before the source directory is read.",
+      "source": "backend/functions/dist",
+      "codebase": "default",
+      "runtime": "nodejs22",
+      "ignore": ["node_modules", ".git"],
+      "predeploy": [
+        "pnpm --filter @blockmanor/functions typecheck",
+        "pnpm --filter @blockmanor/functions build"
+      ]
+    }
+  ],
+  "emulators": {
+    "firestore": { "port": 8080 },
+    "ui": { "enabled": false },
+    "singleProjectMode": true
+  }
+}

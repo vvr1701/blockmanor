@@ -32,6 +32,7 @@ export const REMOTE_CONFIG_DEFAULTS = {
 
   // --- Daily board (§8) ---
   daily_piece_count: 60,
+  daily_reroll_cap: 5,
   daily_streak_min_moves: 3,
   daily_push_hour: 8,
   streak_repair_price: 89,
