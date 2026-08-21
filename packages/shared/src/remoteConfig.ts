@@ -86,6 +86,12 @@ export const REMOTE_CONFIG_DEFAULTS = {
   streak_freeze_max: 2,
   iap_pending_timeout_s: 10,
 
+  // --- Analytics (§14) ---
+  /** Cap on the on-device event dispatch queue (apps/mobile analytics
+   * service). Over-cap events are dropped oldest-first; `dropped_count` is
+   * kept alongside so funnel denominators are never silently wrong. */
+  analytics_queue_cap: 500,
+
   // --- App lifecycle (§12.5, §12.10, §12.11) ---
   min_supported_version: '0.1.0',
   latest_version: '0.1.0',
