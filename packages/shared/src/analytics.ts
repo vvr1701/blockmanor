@@ -67,15 +67,48 @@ type WithinLength<S extends string, N extends number, Acc extends unknown[] = []
 
 /** Firebase's reserved event/param name prefixes (§14 rule). */
 type HasReservedPrefix<S extends string> = S extends
-  | `firebase_${string}`
-  | `google_${string}`
-  | `ga_${string}`
+  `firebase_${string}` | `google_${string}` | `ga_${string}`
   ? true
   : false;
 
-/** `S` if it satisfies both the length cap and the reserved-prefix ban, `never` otherwise. */
+/**
+ * Firebase-reserved EXACT event/param names — automatically collected by the
+ * SDK, so a hand-fired event under one of these names is silently dropped or
+ * renamed rather than reaching BigQuery under the name the code used. §14
+ * v1.15 amendment (MAJOR-4): `first_open` and `session_start` are the two
+ * PRD-named offenders; the rest is the remainder of Firebase's documented
+ * automatically-collected event set, added at the same time since the check
+ * is free once the mechanism exists. Prefixes are handled separately by
+ * `HasReservedPrefix` above — this is exact-name only.
+ */
+type ReservedName =
+  | 'first_open'
+  | 'session_start'
+  | 'first_visit'
+  | 'app_clear_data'
+  | 'app_exception'
+  | 'app_remove'
+  | 'app_update'
+  | 'error'
+  | 'os_update'
+  | 'screen_view'
+  | 'user_engagement'
+  | 'in_app_purchase'
+  | 'notification_dismiss'
+  | 'notification_foreground'
+  | 'notification_open'
+  | 'notification_receive';
+
+/** `S` if it satisfies the length cap, the reserved-prefix ban, AND the
+ * reserved-exact-name ban, `never` otherwise. */
 type ValidName<S extends string, MaxLen extends number> =
-  WithinLength<S, MaxLen> extends true ? (HasReservedPrefix<S> extends true ? never : S) : never;
+  WithinLength<S, MaxLen> extends true
+    ? HasReservedPrefix<S> extends true
+      ? never
+      : S extends ReservedName
+        ? never
+        : S
+    : never;
 
 /** Firebase event names: ≤40 chars, no reserved prefix. */
 export type ValidEventName<S extends string> = ValidName<S, 40>;
@@ -102,23 +135,25 @@ type UnionToIntersection<U> = (U extends unknown ? (k: U) => void : never) exten
 ) => void
   ? I
   : never;
-type LastOfUnion<U> = UnionToIntersection<U extends unknown ? () => U : never> extends () => infer R
-  ? R
-  : never;
+type LastOfUnion<U> =
+  UnionToIntersection<U extends unknown ? () => U : never> extends () => infer R ? R : never;
 type UnionToTuple<U, Tup extends unknown[] = []> = [U] extends [never]
   ? Tup
   : UnionToTuple<Exclude<U, LastOfUnion<U>>, [LastOfUnion<U>, ...Tup]>;
 
 /** True iff tuple `Arr` has no more than `N` elements (same peel-and-count
  * shape as `WithinLength`, just over array elements instead of characters). */
-type TupleAtMost<Arr extends readonly unknown[], N extends number, Acc extends unknown[] = []> =
-  Arr extends readonly []
-    ? true
-    : Acc['length'] extends N
-      ? false
-      : Arr extends readonly [unknown, ...infer Rest]
-        ? TupleAtMost<Rest, N, [...Acc, unknown]>
-        : false;
+type TupleAtMost<
+  Arr extends readonly unknown[],
+  N extends number,
+  Acc extends unknown[] = [],
+> = Arr extends readonly []
+  ? true
+  : Acc['length'] extends N
+    ? false
+    : Arr extends readonly [unknown, ...infer Rest]
+      ? TupleAtMost<Rest, N, [...Acc, unknown]>
+      : false;
 
 export type ParamCountOk<P> = TupleAtMost<UnionToTuple<keyof P>, 25>;
 
