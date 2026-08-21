@@ -31,7 +31,9 @@ import {
   simulate,
   type EngineTuning,
   type GameConfig,
+  type GameEvent,
   type GameState,
+  type GameStatus,
   type Move,
   type PieceId,
 } from '@blockmanor/engine';
@@ -189,7 +191,7 @@ export function dailyGameConfig(
  * looking like an engine change: the prefix moves too, so the reason is legible
  * in a log line instead of guessed at from a digest that jumped.
  */
-const PROBE_SCHEME = 'daily-sim-v1';
+const PROBE_SCHEME = 'daily-sim-v2';
 
 /**
  * Probe inputs. Deliberately literals, and deliberately NOT read from the §13
@@ -215,14 +217,26 @@ const PROBE_PREFILL: DailyPrefillCell[] = [
 ];
 
 /**
- * Two sequences so both §8.2 terminal statuses are exercised: a short one that
- * runs dry with the board alive (`'completed'`, the `SEQUENCE_EXHAUSTED` path)
- * and a long one that packs the board to death (`'lost'`). Drawn from
- * `PIECE_IDS`, so the §6.2 piece table is part of the probe input too.
+ * Three probe boards, each pinning a scoring path the others cannot reach. What
+ * they cover is asserted directly in `packages/shared/test/dailyBoard.test.ts`,
+ * so a probe edit that narrows coverage fails the suite instead of quietly
+ * surviving the re-pin the digest test asks for.
+ *  1. A short sequence that runs dry with the board alive — `'completed'`, the
+ *     `SEQUENCE_EXHAUSTED` path.
+ *  2. A long one that packs the board to death — `'lost'`, and the only probe
+ *     that clears lines, including a `comboDisplay >= 2` combo (§6.6).
+ *  3. Eight dots onto an EMPTY board, which fills row 0 and empties the board —
+ *     the only way to reach §6.6's `PERFECT_CLEAR`. Without it, mutating
+ *     `perfect_clear_bonus`'s handling leaves the digest byte-identical, and
+ *     `perfect_clear_bonus` is frozen into `engineConfig` precisely because it
+ *     is score-affecting on the daily path.
+ * Sequences 1 and 2 are drawn from `PIECE_IDS`, so the §6.2 piece table is part
+ * of the probe input too.
  */
-const PROBE_SEQUENCES: readonly (readonly PieceId[])[] = [
-  PIECE_IDS.slice(0, 6),
-  [...PIECE_IDS, ...PIECE_IDS, ...PIECE_IDS],
+const PROBE_SEQUENCES: readonly { prefill: DailyPrefillCell[]; sequence: readonly PieceId[] }[] = [
+  { prefill: PROBE_PREFILL, sequence: PIECE_IDS.slice(0, 6) },
+  { prefill: PROBE_PREFILL, sequence: [...PIECE_IDS, ...PIECE_IDS, ...PIECE_IDS] },
+  { prefill: [], sequence: Array.from({ length: BOARD_SIZE }, () => 'P01' as PieceId) },
 ];
 
 /** First legal anchor of the first playable tray slot — a fixed, boring policy. */
@@ -241,16 +255,21 @@ function firstLegalMove(state: GameState): Move | undefined {
  * and the `simulate()` result over the collected log — the exact call §8.5
  * makes.
  */
-function probeTrace(sequence: readonly PieceId[]): string {
+function probeTrace(probe: (typeof PROBE_SEQUENCES)[number]): {
+  status: GameStatus;
+  events: GameEvent[];
+  trace: string;
+} {
   const config = dailyGameConfig(
-    { tuning: PROBE_TUNING, prefill: PROBE_PREFILL },
-    sequence,
+    { tuning: PROBE_TUNING, prefill: probe.prefill },
+    probe.sequence,
     PROBE_DATE,
   );
   const seed = dailyPlaySeed(PROBE_DATE);
   let state = createGame(config, seed);
   const moves: Move[] = [];
   const steps: unknown[] = [];
+  const events: GameEvent[] = [];
   while (state.status === 'playing') {
     const move = firstLegalMove(state);
     // Unreachable while `playing` (§6.7 ends the run when no move exists), and
@@ -261,9 +280,20 @@ function probeTrace(sequence: readonly PieceId[]): string {
     state = step.state;
     moves.push(move);
     steps.push([move, step.events]);
+    events.push(...step.events);
   }
-  return JSON.stringify([config, seed, steps, simulate(config, seed, moves)]);
+  return {
+    status: state.status,
+    events,
+    trace: JSON.stringify([config, seed, steps, simulate(config, seed, moves)]),
+  };
 }
+
+/**
+ * The probe runs behind `engineVersion()`. Exported for its coverage test only:
+ * nothing on the daily path should call this — call `engineVersion()`.
+ */
+export const probeRuns = (): ReturnType<typeof probeTrace>[] => PROBE_SEQUENCES.map(probeTrace);
 
 let cached: string | undefined;
 
@@ -274,7 +304,7 @@ let cached: string | undefined;
  * engine under them".
  *
  * It is a digest of what the surface *does*, not of the text it is written in:
- * two fixed daily boards are played out move by move and the whole trace
+ * three fixed daily boards are played out move by move and the whole trace
  * (config, moves, events, `simulate()` result) is hashed. So it moves for any
  * change to `packages/engine` behaviour on the daily path — including how
  * `simulate()` consumes `GameConfig.pieceSequence`, which no golden replay and
@@ -293,7 +323,7 @@ let cached: string | undefined;
  * the Cloud Function from the esbuild bundle, where `packages/engine`'s source
  * files do not exist.
  *
- * Memoised: the walk costs ~70 placements, generation calls this once a day,
+ * Memoised: the walk costs ~80 placements, generation calls this once a day,
  * and `apps/mobile` never calls it at all.
  *
  * ponytail: 32-bit digest (fnv1a, matching the §5 corpus hash's format). Ample
@@ -301,7 +331,11 @@ let cached: string | undefined;
  * identify a build out of a large population.
  */
 export function engineVersion(): string {
-  cached ??= `${PROBE_SCHEME}+${fnv1a(PROBE_SEQUENCES.map(probeTrace).join('\n'))
+  cached ??= `${PROBE_SCHEME}+${fnv1a(
+    probeRuns()
+      .map((r) => r.trace)
+      .join('\n'),
+  )
     .toString(16)
     .padStart(8, '0')}`;
   return cached;

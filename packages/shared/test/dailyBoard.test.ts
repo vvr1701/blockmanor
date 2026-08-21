@@ -14,6 +14,7 @@ import {
   dailyPlaySeed,
   engineVersion,
   parseDailyBoardDoc,
+  probeRuns,
   type DailyBoardDoc,
 } from '../src/dailyBoard';
 import { REMOTE_CONFIG_DEFAULTS } from '../src/remoteConfig';
@@ -168,11 +169,31 @@ describe('§8.2 engineVersion (PRD v1.14)', () => {
     //
     // It is also the cross-runtime check: CI's Node is not the author's, and a
     // pure engine + literal probe inputs must agree on both.
-    expect(engineVersion()).toBe('daily-sim-v1+990bd596');
+    expect(engineVersion()).toBe('daily-sim-v2+b5a6053e');
   });
 
   it('is stable and cheap to ask for twice', () => {
     expect(engineVersion()).toBe(engineVersion());
-    expect(engineVersion()).toMatch(/^daily-sim-v1\+[0-9a-f]{8}$/);
+    expect(engineVersion()).toMatch(/^daily-sim-v2\+[0-9a-f]{8}$/);
+  });
+
+  it('probes what it claims to: both terminal statuses, a combo, a perfect clear', () => {
+    // The digest above pins the probes' OUTPUT; this pins their COVERAGE. Without
+    // it, shortening a probe (so it no longer dies, no longer clears, no longer
+    // empties the board) narrows what the fingerprint can ever detect, and the
+    // suite stays green after the re-pin the test above asks for. A scoring path
+    // no probe reaches is a path `engineVersion` cannot report a change on —
+    // which is the false negative §8.5 uses this field to avoid.
+    const runs = probeRuns();
+    const events = runs.flatMap((r) => r.events);
+
+    // §8.2's two terminal statuses; `'won'` is unreachable (no goals).
+    expect(new Set(runs.map((r) => r.status))).toEqual(new Set(['completed', 'lost']));
+    // §6.6 combo: needs two CONSECUTIVE clearing placements, not one multi-line
+    // clear — `combo_step` is frozen into `engineConfig`, so it must be probed.
+    expect(events.some((e) => e.type === 'LINES_CLEARED' && e.comboDisplay >= 2)).toBe(true);
+    // §6.6 perfect clear: reachable only from `fillCount === 0`, i.e. only from
+    // the empty-prefill probe. `perfect_clear_bonus` is frozen too.
+    expect(events.some((e) => e.type === 'PERFECT_CLEAR')).toBe(true);
   });
 });

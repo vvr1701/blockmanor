@@ -28,23 +28,33 @@ Anything that changes what `simulate()` returns for a fixed
 - any change to the version of `packages/engine` the Functions bundle pins
 - any change to `packages/shared/src/dailyBoard.ts` `dailyGameConfig()`
 
-Do not guess — **ask the field itself**. `engineVersion()`
-(`packages/shared/src/dailyBoard.ts`) plays fixed probe boards and hashes the
-whole trace, so it moves for exactly the changes above and for nothing else. Its
-pinned value lives in `packages/shared/test/dailyBoard.test.ts`; if that test
-goes red, the change is engine-behaviour-affecting and this deploy window
-applies. If it stays green, the change cannot alter a re-simulation and deploys
-any time.
+`engineVersion()` (`packages/shared/src/dailyBoard.ts`) is the instrument: it
+plays fixed probe boards and hashes the whole trace, and its pinned value lives
+in `packages/shared/test/dailyBoard.test.ts`. **Read it in one direction only:**
 
-What it deliberately does NOT move for: comments, renames, formatting, and pure
-refactors — a version that jumped on every deploy would be noise, and §8.5's
-verdict needs signal.
+- **Red** — the pinned value moved. The change IS engine-behaviour-affecting and
+  this deploy window applies. No judgement call.
+- **Green** — **not proof of safety.** A fingerprint covers only what its probes
+  reach; a scoring path no probe exercises can change under a green test. (This
+  is not hypothetical: before the perfect-clear probe existed, changing the
+  perfect-clear bonus left the digest byte-identical.) So for **any** change
+  under `packages/engine/`, use the window regardless — unless you can show the
+  changed code is unreachable on the daily path (e.g. obstacle logic: §8.2
+  prefill is obstacle-free, so no daily board can contain one).
+
+Green is genuinely informative in the other direction: comments, renames,
+formatting and pure refactors do not move it, and a value that jumped on every
+deploy would be noise while §8.5's verdict needs signal. It is a *detector*, not
+an oracle — that is also why the bullet above says "any change under
+`packages/engine/`" rather than "whatever reddens the test".
 
 The §5 determinism corpus hash (`pnpm --filter @blockmanor/engine test`) is a
-*different* instrument and is not a substitute here: its fuzz corpus sets no
-`GameConfig.pieceSequence`, and the Daily Board plays entirely from a fixed
-sequence, so a change to how `simulate()` consumes that sequence leaves the
-corpus hash untouched. Keep both pinned.
+*different* instrument and is not a substitute here. It exercises engine
+behaviour on **generated** piece streams and never calls `dailyGameConfig()`;
+`engineVersion` pins the published board's **fixed-sequence** surface — the
+`GameConfig` §8.5 rebuilds, played from the sequence the player played — plus
+the builder itself. Neither subsumes the other. Keep both pinned, and treat
+either going red as "the window applies".
 
 A `packages/content` change that the daily path imports (the greedy bot) is
 **not** engine-behaviour-affecting: the bot only measures solvability at
