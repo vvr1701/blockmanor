@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest';
 import { BOARD_SIZE } from '../src/board';
 import { validateLevel } from '../src/levels';
 import type { Move } from '../src/placement';
+import { drawPiece } from '../src/pieces';
 import { createRng, fnv1a, nextInt } from '../src/rng';
 import { simulate, type FinalResult, type GameConfig, type GameMode } from '../src/simulate';
 import { config, randomPlaythrough, TUNING } from './helpers';
@@ -30,7 +31,10 @@ const golden = JSON.parse(readFileSync(GOLDEN_PATH, 'utf8')) as GoldenCase[];
 const MODES: readonly GameMode[] = ['level', 'endless', 'daily'];
 const OBSTACLES = ['crate', 'crate2', 'chain', 'ivy', 'heirloom'] as const;
 
-/** Deterministic per-game config: mode, obstacle prefill, goals and star thresholds from `i`. */
+/**
+ * Deterministic per-game config: mode, obstacle prefill, goals, star thresholds —
+ * and, for `daily`, a fixed piece sequence — all derived from `i`.
+ */
 function fuzzConfig(i: number): GameConfig {
   const mode = MODES[i % MODES.length] ?? 'endless';
   if (mode === 'endless') return config('endless');
@@ -54,7 +58,20 @@ function fuzzConfig(i: number): GameConfig {
       ? [{ type: goalType, count: 1 + nextInt(rng, 4) }]
       : [];
 
+  // §4.3/§8.2: a daily run plays a FIXED `pieceSequence`. That flips `refillTray`
+  // onto a branch which never reaches `drawOne` — no weighted draw, no mercy
+  // (§6.4), no redraw guarantee (§6.3) — and ends the run `'completed'` on
+  // exhaustion, checked BEFORE board death. Without a sequence here the corpus
+  // would not cover the path §8.5 re-simulates, so a change to fixed-sequence
+  // consumption could ship with the hash unmoved. Lengths are short-to-`daily_piece_count`
+  // [RC, 60] so the corpus holds both outcomes: exhaustion and death-first.
+  const pieceSequence =
+    mode === 'daily'
+      ? Array.from({ length: 4 + nextInt(rng, 57) }, () => drawPiece(rng))
+      : undefined;
+
   return config(mode, {
+    ...(pieceSequence ? { pieceSequence } : {}),
     level: validateLevel({
       id: i,
       chapter: 1,
@@ -98,19 +115,28 @@ describe('determinism fuzz (Stage-0 DoD, PRD §5 + §6.8)', () => {
     }
 
     const moves = runA.reduce((sum, g) => sum + g.moves.length, 0);
-    const won = runA.filter((g) => g.result.status === 'won').length;
+    const count = (status: FinalResult['status']): number =>
+      runA.filter((g) => g.result.status === status).length;
+    const won = count('won');
+    // §8.2 sequence exhaustion. Pinned alongside the hash so the fixed-sequence
+    // branch cannot silently drop out of the corpus: a `completed` count of 0
+    // fails here even if the hash were somehow re-pinned.
+    const completed = count('completed');
     const corpusHash = fnv1a(serialize(runA)).toString(16);
-    console.log(`[fuzz] games=1000 moves=${moves} won=${won} corpusHash=${corpusHash}`);
+    console.log(
+      `[fuzz] games=1000 moves=${moves} won=${won} completed=${completed} corpusHash=${corpusHash}`,
+    );
 
     // Pinned, not merely logged. The two runs above are same-process, so they
     // cannot catch a cross-runtime regression — but §5's Stage-0 DoD and §8.5
     // (device vs Cloud Function) are exactly about cross-runtime reproduction.
     // This constant is what makes a different Node, OS or engine build fail.
     // Regenerate ONLY under a PRD amendment, like the golden fixtures.
-    expect({ corpusHash, moves, won }).toEqual({
-      corpusHash: '392ad7a4',
-      moves: 20659,
+    expect({ corpusHash, moves, won, completed }).toEqual({
+      corpusHash: '538e3dea',
+      moves: 19559,
       won: 38,
+      completed: 100,
     });
   });
 

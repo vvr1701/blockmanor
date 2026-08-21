@@ -49,7 +49,7 @@ MMKV meta state + RC snapshot resolve).
 
 Stage 0 delivered:
 - `packages/engine` complete per PRD §6 — 100 tests, 99.5% lines, 1,000-game
-  determinism fuzz with a PINNED corpus hash (`392ad7a4`), 6 byte-locked golden
+  determinism fuzz with a PINNED corpus hash (`538e3dea`), 6 byte-locked golden
   replays. PRD amended to v1.7 en route (§6.6 combo timing, §7.8 ivy rule,
   §4.3 `pieceSequence`, §8.2 frozen `engineConfig` snapshot).
 - `packages/content` Stage-0 tooling complete per §5 — level generator, greedy-bot
