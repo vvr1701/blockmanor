@@ -35,20 +35,13 @@ import {
 } from '../../game/boardTokens';
 import { DevRenderTimeStats } from '../../game/DevRenderTimeStats';
 import { DragLayer } from '../../game/DragLayer';
-import { deriveGoalBar, type GoalBarEntry } from '../../game/goalBar';
+import { GOAL_LABEL_KEY, deriveGoalBar, type GoalBarEntry } from '../../game/goalBar';
 import { HUD_FADE_IN_MS } from '../../game/juice';
 import { JuiceLayer } from '../../game/JuiceLayer';
 import { spriteForObstacle } from '../../game/obstacleSprites';
 import { TrayCanvas } from '../../game/TrayCanvas';
 import { colors, fontSize, radius, spacing } from '../../components/tokens';
 import { t } from '../../i18n';
-
-const GOAL_LABEL_KEY = {
-  crate: 'gameplay.goal.crate',
-  chain: 'gameplay.goal.chain',
-  ivy: 'gameplay.goal.ivy',
-  heirloom: 'gameplay.goal.heirloom',
-} as const;
 
 /**
  * Tiny non-Skia color swatch for the HUD goal bar — the board itself is where

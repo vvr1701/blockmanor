@@ -13,6 +13,7 @@ export {
   type LevelJson,
 } from './schema';
 export { FTUE_LEVELS } from './ftueLevels';
+export { LEVELS, MAX_LEVEL_ID, getLevel } from './levels';
 export { chooseMove, playout, MAX_BOT_MOVES, type BotRun } from './bot';
 export {
   generateLevel,

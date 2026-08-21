@@ -10,6 +10,16 @@
 import type { GameState } from '@blockmanor/engine';
 import { spriteForObstacle, type MotifShape } from './obstacleSprites';
 
+/** i18n key per §7.8 goal type — shared by every screen that lists goal
+ * progress (`GameplayScreen`'s HUD goal bar, `FailScreen`'s §7.5 "Crates
+ * 9/12" line), so the type->label mapping lives in exactly one place. */
+export const GOAL_LABEL_KEY = {
+  crate: 'gameplay.goal.crate',
+  chain: 'gameplay.goal.chain',
+  ivy: 'gameplay.goal.ivy',
+  heirloom: 'gameplay.goal.heirloom',
+} as const;
+
 export interface GoalBarEntry {
   type: GameState['goals'][number]['type'];
   remaining: number;
