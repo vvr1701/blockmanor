@@ -25,7 +25,7 @@ import {
   type PieceId,
 } from '@blockmanor/engine';
 import {
-  ENGINE_VERSION,
+  engineVersion,
   dailyActivatesAt,
   dailyGameConfig,
   dailyPlaySeed,
@@ -156,7 +156,7 @@ export function generateDailyBoard(input: DailyGenerationInput): DailyGeneration
         date: input.date,
         generatorVersion: DAILY_GENERATOR_VERSION,
         revision,
-        engineVersion: ENGINE_VERSION,
+        engineVersion: engineVersion(),
         engineConfig: {
           tuning: input.tuning,
           prefill,

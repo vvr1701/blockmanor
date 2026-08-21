@@ -48,7 +48,8 @@ export const attemptSeed = (seed: string, revision: string): string => `${seed}$
 /**
  * Two INDEPENDENT sub-seeds per attempt, both PRF outputs of the attempt seed.
  *
- * This is load-bearing, not decoration. The engine's `createRng` folds a string
+ * NORMATIVE, per §8.2 (PRD v1.14) — not an implementation choice this file is
+ * free to simplify. The engine's `createRng` folds a string
  * into 32 bits of mulberry32 state via FNV-1a, and FNV-1a with a fixed suffix is
  * invertible on that state. Deriving both streams as `attemptSeed + "|prefill"`
  * and `attemptSeed + "|sequence"` would therefore let anyone brute-force the

@@ -5,16 +5,14 @@
  */
 
 import { BOARD_SIZE, createGame, type PieceId } from '@blockmanor/engine';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   DAILY_BOARDS_COLLECTION,
-  ENGINE_VERSION,
   FROZEN_CONFIG_KEYS,
   dailyActivatesAt,
   dailyGameConfig,
   dailyPlaySeed,
+  engineVersion,
   parseDailyBoardDoc,
   type DailyBoardDoc,
 } from '../src/dailyBoard';
@@ -33,7 +31,7 @@ const doc = (): DailyBoardDoc => ({
   date: '2026-08-09',
   generatorVersion: 1,
   revision: '',
-  engineVersion: '0.1.0+392ad7a4',
+  engineVersion: engineVersion(),
   engineConfig: {
     tuning: { ...TUNING },
     prefill: [
@@ -153,26 +151,28 @@ describe('§8.2 publication boundary (PRD v1.12)', () => {
   });
 });
 
-describe('§8.2 engineVersion (PRD v1.12)', () => {
-  // ENGINE_VERSION is a literal because `packages/engine` is PURE and untouched
-  // and does not export its own version or its corpus hash. These two tests are
-  // what stops the literal from drifting away from what it claims to describe.
-  const read = (rel: string): string =>
-    readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8');
-
-  it('matches the real packages/engine version on disk', () => {
-    const pkg = JSON.parse(read('../../engine/package.json')) as { version: string };
-    expect(ENGINE_VERSION.split('+')[0]).toBe(pkg.version);
+describe('§8.2 engineVersion (PRD v1.14)', () => {
+  it('is a pinned fingerprint of the re-simulation surface', () => {
+    // PINNED, exactly like the §5 determinism corpus hash, and for the opposite
+    // half of the same job: the corpus hash pins engine behaviour on GENERATED
+    // piece streams, this pins it on the FIXED `pieceSequence` the Daily Board
+    // plays from — plus `dailyGameConfig()` and every literal it hardcodes.
+    //
+    // If this fails, the re-simulation surface moved. That is not automatically
+    // a bug: re-pin it, and note that every board published from here on
+    // carries the new value, which is precisely what §8.5 needs to tell "this
+    // player cheated" from "we deployed a different engine under them". What
+    // must never happen is the value staying put while behaviour changes — the
+    // hazard that retired the old `<pkg version>+<corpus hash>` literal, whose
+    // corpus half never exercised `pieceSequence` at all.
+    //
+    // It is also the cross-runtime check: CI's Node is not the author's, and a
+    // pure engine + literal probe inputs must agree on both.
+    expect(engineVersion()).toBe('daily-sim-v1+990bd596');
   });
 
-  it('matches the pinned determinism corpus hash on disk', () => {
-    // The hash lives only in the engine's determinism test (§5 Stage-0 DoD),
-    // pinned there so a cross-runtime regression fails CI. Re-deriving it here
-    // would take the 1,000-game fuzz run; reading the pin is the whole point.
-    const pinned = /corpusHash:\s*'([0-9a-f]+)'/.exec(
-      read('../../engine/test/determinism.test.ts'),
-    );
-    expect(pinned?.[1]).toBeDefined();
-    expect(ENGINE_VERSION.split('+')[1]).toBe(pinned?.[1]);
+  it('is stable and cheap to ask for twice', () => {
+    expect(engineVersion()).toBe(engineVersion());
+    expect(engineVersion()).toMatch(/^daily-sim-v1\+[0-9a-f]{8}$/);
   });
 });

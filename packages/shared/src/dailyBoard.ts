@@ -23,28 +23,22 @@
 import {
   BLOCK_COLOR_COUNT,
   BOARD_SIZE,
+  PIECE_IDS,
+  applyPlacement,
+  createGame,
+  fnv1a,
+  getLegalPlacements,
+  simulate,
   type EngineTuning,
   type GameConfig,
+  type GameState,
+  type Move,
   type PieceId,
 } from '@blockmanor/engine';
 import { z } from 'zod';
 
 /** §8.2: the published board lives at `dailyBoards/{YYYY-MM-DD}`. */
 export const DAILY_BOARDS_COLLECTION = 'dailyBoards';
-
-/**
- * §8.2 (PRD v1.12): what re-simulation depends on, beyond the frozen constants.
- *
- * The `packages/engine` package version plus the pinned determinism corpus hash
- * (§5 Stage-0 DoD). Captured on every published board so §8.5 can tell "this
- * player cheated" from "we deployed a different engine under them".
- *
- * Written out as a literal rather than imported because `packages/engine` is
- * PURE and stays untouched, and its `package.json` is not an exported subpath.
- * `packages/shared/test/dailyBoard.test.ts` asserts both halves against their
- * real sources on disk, so this cannot drift silently.
- */
-export const ENGINE_VERSION = '0.1.0+392ad7a4';
 
 /**
  * §8.2 publication boundary. Day D's board is generated at D-1 23:45 UTC and
@@ -128,7 +122,7 @@ export interface DailyBoardDoc {
   generatorVersion: number;
   /** `''` for the first roll, `'-r1'`…`'-r5'` after a §8.2 solvability re-roll. */
   revision: string;
-  /** §8.2 / v1.12 — `ENGINE_VERSION` at generation. §8.5's mismatch signal. */
+  /** §8.2 / v1.14 — `engineVersion()` at generation. §8.5's mismatch signal. */
   engineVersion: string;
   engineConfig: DailyEngineConfig;
   configSource: DailyConfigSource;
@@ -186,6 +180,131 @@ export function dailyGameConfig(
       ivyMaxTiles: 16,
     },
   };
+}
+
+// --- engineVersion (§8.2, PRD v1.14) ---------------------------------------
+
+/**
+ * Bumped only when the PROBE below changes. It keeps a probe rewrite from
+ * looking like an engine change: the prefix moves too, so the reason is legible
+ * in a log line instead of guessed at from a digest that jumped.
+ */
+const PROBE_SCHEME = 'daily-sim-v1';
+
+/**
+ * Probe inputs. Deliberately literals, and deliberately NOT read from the §13
+ * registry defaults: a balance tweak must not read as an engine change — and
+ * this file may not touch Remote Config at all (v1.7, asserted by
+ * `backend/functions/test/generate.test.ts`).
+ */
+const PROBE_DATE = '2000-01-01';
+const PROBE_TUNING: EngineTuning = {
+  mercy_threshold: 0.6,
+  mercy_small_prob: 0.5,
+  score_clear_base: 100,
+  combo_step: 0.5,
+  perfect_clear_bonus: 300,
+};
+const PROBE_PREFILL: DailyPrefillCell[] = [
+  { r: 0, c: 0, color: 0 },
+  { r: 0, c: 1, color: 1 },
+  { r: 1, c: 0, color: 2 },
+  { r: 3, c: 4, color: 3 },
+  { r: 6, c: 7, color: 4 },
+  { r: 7, c: 2, color: 5 },
+];
+
+/**
+ * Two sequences so both §8.2 terminal statuses are exercised: a short one that
+ * runs dry with the board alive (`'completed'`, the `SEQUENCE_EXHAUSTED` path)
+ * and a long one that packs the board to death (`'lost'`). Drawn from
+ * `PIECE_IDS`, so the §6.2 piece table is part of the probe input too.
+ */
+const PROBE_SEQUENCES: readonly (readonly PieceId[])[] = [
+  PIECE_IDS.slice(0, 6),
+  [...PIECE_IDS, ...PIECE_IDS, ...PIECE_IDS],
+];
+
+/** First legal anchor of the first playable tray slot — a fixed, boring policy. */
+function firstLegalMove(state: GameState): Move | undefined {
+  for (let i = 0; i < state.tray.length; i++) {
+    const [first] = getLegalPlacements(state, i);
+    if (first) return first;
+  }
+  return undefined;
+}
+
+/**
+ * Play one probe to its terminal status and serialise everything the run
+ * touched: the rebuilt `GameConfig` (which carries every literal
+ * `dailyGameConfig` hardcodes), every chosen move, every emitted `GameEvent`,
+ * and the `simulate()` result over the collected log — the exact call §8.5
+ * makes.
+ */
+function probeTrace(sequence: readonly PieceId[]): string {
+  const config = dailyGameConfig(
+    { tuning: PROBE_TUNING, prefill: PROBE_PREFILL },
+    sequence,
+    PROBE_DATE,
+  );
+  const seed = dailyPlaySeed(PROBE_DATE);
+  let state = createGame(config, seed);
+  const moves: Move[] = [];
+  const steps: unknown[] = [];
+  while (state.status === 'playing') {
+    const move = firstLegalMove(state);
+    // Unreachable while `playing` (§6.7 ends the run when no move exists), and
+    // a guard rather than a throw so a future engine change degrades the
+    // fingerprint instead of breaking generation.
+    if (!move) break;
+    const step = applyPlacement(state, move);
+    state = step.state;
+    moves.push(move);
+    steps.push([move, step.events]);
+  }
+  return JSON.stringify([config, seed, steps, simulate(config, seed, moves)]);
+}
+
+let cached: string | undefined;
+
+/**
+ * §8.2 (PRD v1.14): a fingerprint of the **re-simulation surface** — everything
+ * §8.5 needs to reproduce a submitted daily run. Captured on every published
+ * board so §8.5 can tell "this player cheated" from "we deployed a different
+ * engine under them".
+ *
+ * It is a digest of what the surface *does*, not of the text it is written in:
+ * two fixed daily boards are played out move by move and the whole trace
+ * (config, moves, events, `simulate()` result) is hashed. So it moves for any
+ * change to `packages/engine` behaviour on the daily path — including how
+ * `simulate()` consumes `GameConfig.pieceSequence`, which no golden replay and
+ * no determinism-corpus config covers — and for any change to
+ * `dailyGameConfig()` or the literals it hardcodes (`mode`, `seedSalt`,
+ * `goals`, `mercy`, `stars`, `ivySpreadInterval`, `ivyMaxTiles`), because those
+ * ride in the serialised config. It does NOT move for a comment, a rename or a
+ * pure refactor, which is the point: a version that jumped on every deploy
+ * would be noise, and §8.5's verdict needs signal.
+ *
+ * Deterministic on any machine: the engine is pure (§0 rule 4) — no clock, no
+ * `Math.random`, all randomness seeded from a literal date — the probe inputs
+ * are literals, and JSON number formatting is exact per ECMA-262. Nothing here
+ * reads a file, a path, a timestamp or an environment variable, so there is
+ * nothing for a build to bake in differently. It is therefore computable inside
+ * the Cloud Function from the esbuild bundle, where `packages/engine`'s source
+ * files do not exist.
+ *
+ * Memoised: the walk costs ~70 placements, generation calls this once a day,
+ * and `apps/mobile` never calls it at all.
+ *
+ * ponytail: 32-bit digest (fnv1a, matching the §5 corpus hash's format). Ample
+ * for telling two builds apart; widen to a double fold if it ever has to
+ * identify a build out of a large population.
+ */
+export function engineVersion(): string {
+  cached ??= `${PROBE_SCHEME}+${fnv1a(PROBE_SEQUENCES.map(probeTrace).join('\n'))
+    .toString(16)
+    .padStart(8, '0')}`;
+  return cached;
 }
 
 // --- trust boundary (§4.2 "zod schemas ... shared app<->backend") -----------

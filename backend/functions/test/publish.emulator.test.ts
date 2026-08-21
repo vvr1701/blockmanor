@@ -12,7 +12,7 @@
 import {
   parseDailyBoardDoc,
   DAILY_BOARDS_COLLECTION,
-  ENGINE_VERSION,
+  engineVersion,
   REMOTE_CONFIG_DEFAULTS,
 } from '@blockmanor/shared';
 import { getApps, initializeApp } from 'firebase-admin/app';
@@ -87,9 +87,9 @@ describe('§8.2 publication', () => {
     const stored = parseDailyBoardDoc(snap.data());
     expect(stored.date).toBe(DATE);
     expect(stored.engineConfig.pieceCount).toBe(PIECE_COUNT);
-    // v1.12: the two fields the publication boundary and §8.5 depend on survive
+    // v1.12/v1.14: the two fields the publication boundary and §8.5 depend on survive
     // the Firestore round trip as the types the rules and the callable expect.
-    expect(stored.engineVersion).toBe(ENGINE_VERSION);
+    expect(stored.engineVersion).toBe(engineVersion());
     expect(stored.activatesAt).toBe(Date.UTC(2026, 7, 9));
     expect(typeof snap.get('activatesAt')).toBe('number');
     expect(stored.engineConfig.pieceSequence.alg).toBe('AES-256-GCM');

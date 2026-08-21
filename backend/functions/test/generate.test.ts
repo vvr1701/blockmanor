@@ -9,7 +9,7 @@
  */
 
 import {
-  ENGINE_VERSION,
+  engineVersion,
   REMOTE_CONFIG_DEFAULTS,
   dailyGameConfig,
   dailyPlaySeed,
@@ -391,8 +391,9 @@ describe('§8.2 frozen engineConfig snapshot (PRD v1.7)', () => {
     expect(doc.generatorVersion).toBe(DAILY_GENERATOR_VERSION);
     expect(doc.revision).toBe('');
     expect(doc.generatedAt).toBe('2026-08-09T00:00:00.000Z');
-    // v1.12: everything §8.5 re-simulation depends on travels WITH the board.
-    expect(doc.engineVersion).toBe(ENGINE_VERSION);
+    // v1.12/v1.14: everything §8.5 re-simulation depends on travels WITH the
+    // board — including the re-simulation-surface fingerprint itself.
+    expect(doc.engineVersion).toBe(engineVersion());
     // v1.12: sealed at D-1 23:45, live at D 00:00 UTC.
     expect(doc.activatesAt).toBe(Date.UTC(2026, 7, 9));
     expect(doc.solvability.trials).toBe(SOLVABILITY_TRIALS);
