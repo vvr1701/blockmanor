@@ -63,6 +63,25 @@ describe('AnalyticsDebugOverlay — DEV_BOARD_ENABLED true (preview APK opt-in)'
     expect(renderer.root.findAllByType(Text).some((n) => textOf(n).includes('dropped'))).toBe(true);
   });
 
+  it('MAJOR-2: shows the tracked event name and params, not just the two counters', async () => {
+    const { analyticsQueue } = await import('../../src/services/analyticsQueue');
+    analyticsQueue.track('debug_test_event', { foo: 'bar' });
+
+    const { AnalyticsDebugOverlay } = await import('../../src/components/AnalyticsDebugOverlay');
+    const renderer = render(<AnalyticsDebugOverlay />);
+    const toggle = renderer.root.findAll(
+      (n) => n.props.accessibilityLabel === 'Toggle analytics debug overlay',
+    )[0];
+
+    act(() => {
+      (toggle!.props as { onPress: () => void }).onPress();
+    });
+
+    const texts = renderer.root.findAllByType(Text).map(textOf);
+    expect(texts.some((t) => t.includes('debug_test_event'))).toBe(true);
+    expect(texts.some((t) => t.includes('foo') && t.includes('bar'))).toBe(true);
+  });
+
   it('does not poll while collapsed — only starts a timer once expanded', async () => {
     const { AnalyticsDebugOverlay } = await import('../../src/components/AnalyticsDebugOverlay');
     const renderer = render(<AnalyticsDebugOverlay />);

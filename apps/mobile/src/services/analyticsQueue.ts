@@ -1,5 +1,6 @@
 import { AppState } from 'react-native';
 import { MMKV } from 'react-native-mmkv';
+import { REMOTE_CONFIG_DEFAULTS } from '@blockmanor/shared';
 import { useConfigStore } from '../state/useConfigStore';
 import { installId, newId, sessionId } from './analyticsIdentity';
 
@@ -47,10 +48,13 @@ export function isAnalyticsConsentGranted(): boolean {
  * the queue's normal failure path (stop draining, leave events queued,
  * retry next flush) is exercised honestly — a stub that resolved would make
  * the debug overlay lie about delivery. The next transport pass replaces
- * only this function's body with a real
- * `@react-native-firebase/analytics().logEvent(event.name, event.params)`
- * call; the queue, identity, and overlay are all transport-agnostic and
- * need no change for that pass.
+ * only this function's body — NOT with a bare
+ * `@react-native-firebase/analytics().logEvent(event.name, event.params)`,
+ * which would silently drop `event.installId`, `event.sessionId`, and the
+ * idempotency `event.id` (requirements 3 and 4). Carry all three through,
+ * e.g. `logEvent(event.name, { ...event.params, installId: event.installId,
+ * sessionId: event.sessionId, id: event.id })`. The queue, identity, and
+ * overlay are all transport-agnostic and need no change for that pass.
  */
 export const defaultSender: AnalyticsSender = () =>
   Promise.reject(new Error('analytics transport not configured — no Firebase provider wired yet'));
@@ -121,7 +125,30 @@ export class AnalyticsQueue {
       ts: this.now(),
     };
     this.events.push(event);
-    const cap = Math.max(0, Math.floor(this.getCap()));
+    this.evictToCap();
+    this.persist();
+    void this.flush();
+  }
+
+  /** MINOR-2: `getCap()` is Remote Config today, and RC delivers strings —
+   * the fetch/coercion layer doesn't exist yet. A NaN/non-numeric cap must
+   * never disable eviction (`length > NaN` is always false), so fall back
+   * to the §13 registry default rather than a bare literal (CLAUDE.md rule
+   * 3). Same fallback for a numeric-but-not-finite cap (Infinity, -Infinity). */
+  private resolveCap(): number {
+    const raw = this.getCap();
+    const cap =
+      typeof raw === 'number' && Number.isFinite(raw)
+        ? raw
+        : REMOTE_CONFIG_DEFAULTS.analytics_queue_cap;
+    return Math.max(0, Math.floor(cap));
+  }
+
+  /** Drop-oldest eviction down to the current cap. Shared by `track()`
+   * (MINOR-2) and `rehydrate()` (MINOR-1: a blob persisted under a larger
+   * cap must not load whole and stay over-cap until the next `track()`). */
+  private evictToCap(): void {
+    const cap = this.resolveCap();
     while (this.events.length > cap) {
       // Never evict the event currently in flight — it's already been
       // handed to the sender, so it's "sent", not a candidate to drop.
@@ -131,8 +158,6 @@ export class AnalyticsQueue {
       this.events.splice(victimIndex, 1);
       this.pendingDroppedCount += 1;
     }
-    this.persist();
-    void this.flush();
   }
 
   /** Read-only snapshot for the debug overlay — never the live arrays. */
@@ -155,6 +180,12 @@ export class AnalyticsQueue {
         const head = this.events[0];
         if (!head) break;
         const outgoing = this.attachDroppedCount(head);
+        // MAJOR-1b: snapshot the amount THIS event actually carries, right
+        // when it's attached — not "whatever pendingDroppedCount is once the
+        // await resolves". Drops that land while this send is in flight bump
+        // pendingDroppedCount further; only the amount captured here is this
+        // event's to clear.
+        const attached = outgoing !== head ? this.pendingDroppedCount : 0;
         this.inFlightId = head.id;
         try {
           await this.sender(outgoing);
@@ -166,10 +197,18 @@ export class AnalyticsQueue {
         // Per-event removal (requirement 4): only this id, only after ITS
         // own send resolved — never a batch-wide clear.
         this.events = this.events.filter((e) => e.id !== head.id);
-        if (outgoing !== head) this.pendingDroppedCount = 0; // delivered — clear the count it carried
-        this.persist();
+        // Subtract, never zero — a drop attached to a LATER event (from
+        // in-flight overflow) must survive this delivery.
+        if (attached > 0)
+          this.pendingDroppedCount = Math.max(0, this.pendingDroppedCount - attached);
       }
     } finally {
+      // MINOR-4: one persist per drain, not one per sent event. A full
+      // JSON.stringify + blocking MMKV write per event is O(n²) work on a
+      // long drain, and the drain that matters fires from the constructor
+      // at cold start (§4.5 budget). At-least-once delivery already
+      // tolerates a crash mid-drain — the idempotency key covers a resend.
+      this.persist();
       this.flushing = false;
     }
   }
@@ -194,9 +233,25 @@ export class AnalyticsQueue {
     if (!raw) return;
     try {
       const parsed = JSON.parse(raw) as PersistedQueueV1;
-      this.events = Array.isArray(parsed.events) ? parsed.events : [];
+      const events = Array.isArray(parsed.events) ? parsed.events : [];
+      // MINOR-3: a structurally-valid-but-semantically-wrong blob (an
+      // id-less or name-less entry) must not survive rehydrate — `flush()`
+      // removes by `id`, and an `undefined` head id would match every other
+      // id-less event's `filter`, mass-deleting them on the first send.
+      this.events = events.filter(
+        (e): e is QueuedEvent =>
+          typeof e === 'object' &&
+          e !== null &&
+          typeof (e as QueuedEvent).id === 'string' &&
+          (e as QueuedEvent).id.length > 0 &&
+          typeof (e as QueuedEvent).name === 'string',
+      );
       this.pendingDroppedCount =
         typeof parsed.pendingDroppedCount === 'number' ? parsed.pendingDroppedCount : 0;
+      // MINOR-1: apply the (possibly lowered, since cold start) cap now —
+      // otherwise a blob persisted under a larger cap loads whole and stays
+      // over-cap until the next `track()`.
+      this.evictToCap();
     } catch {
       // Corrupt persisted payload — degrade to an empty queue rather than crash boot.
       this.events = [];

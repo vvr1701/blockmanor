@@ -9,6 +9,7 @@ export const Text = 'RNText';
 export const Pressable = 'RNPressable';
 export const SafeAreaView = 'RNSafeAreaView';
 export const TextInput = 'RNTextInput';
+export const ScrollView = 'RNScrollView';
 
 export const StyleSheet = {
   create<T extends Record<string, unknown>>(styles: T): T {

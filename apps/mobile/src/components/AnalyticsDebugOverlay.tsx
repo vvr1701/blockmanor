@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { analyticsQueue } from '../services/analyticsQueue';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { analyticsQueue, type QueuedEvent } from '../services/analyticsQueue';
 import { DEV_BOARD_ENABLED } from '../game/devFlag';
 import { colors, fontSize, radius, spacing } from './tokens';
 
@@ -15,12 +15,25 @@ import { colors, fontSize, radius, spacing } from './tokens';
  * Audit MINOR fix: poll only while expanded — collapsed, it does nothing on
  * a timer, so it doesn't perturb the §4.5 perf measurement `DEV_BOARD_ENABLED`
  * also gates.
+ *
+ * Audit MAJOR-2 fix: the salvage build's `console.log('[analytics] ' + name,
+ * params)` was dropped by the rebuild and never replaced, leaving no surface
+ * anywhere (dev build or preview APK) showing which event fired with which
+ * params — a regression against CLAUDE.md's Definition of Done ("Analytics
+ * events verified in debug view"). `getSnapshot().events` already carries
+ * this; render the last few entries here instead of only the two counts.
  */
 const POLL_MS = 500; // 2Hz, only while `open`
+const MAX_EVENTS_SHOWN = 8;
 
 interface Snapshot {
   queued: number;
   pendingDroppedCount: number;
+  events: QueuedEvent[];
+}
+
+function eventLabel(event: QueuedEvent): string {
+  return `${event.name} ${JSON.stringify(event.params)}`;
 }
 
 export function AnalyticsDebugOverlay(): React.JSX.Element | null {
@@ -34,6 +47,9 @@ export function AnalyticsDebugOverlay(): React.JSX.Element | null {
   }, [open]);
 
   if (!DEV_BOARD_ENABLED) return null;
+
+  // Most recently tracked first — `events` is FIFO (oldest head first).
+  const recent = snapshot.events.slice(-MAX_EVENTS_SHOWN).reverse();
 
   return (
     <View style={styles.root} pointerEvents="box-none">
@@ -52,6 +68,17 @@ export function AnalyticsDebugOverlay(): React.JSX.Element | null {
         <View style={styles.panel}>
           <Text style={styles.row}>queued: {snapshot.queued}</Text>
           <Text style={styles.row}>dropped (pending): {snapshot.pendingDroppedCount}</Text>
+          <ScrollView style={styles.eventList}>
+            {recent.length === 0 ? (
+              <Text style={styles.row}>no events yet</Text>
+            ) : (
+              recent.map((event) => (
+                <Text key={event.id} style={styles.row} numberOfLines={1}>
+                  {eventLabel(event)}
+                </Text>
+              ))
+            )}
+          </ScrollView>
         </View>
       ) : null}
     </View>
@@ -83,10 +110,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.night,
     borderRadius: radius.card,
     minWidth: 160,
+    maxWidth: 280,
   },
   row: {
     color: colors.muted,
     fontSize: fontSize.xs,
     fontVariant: ['tabular-nums'],
+  },
+  eventList: {
+    marginTop: spacing.xs,
+    maxHeight: 160,
   },
 });
