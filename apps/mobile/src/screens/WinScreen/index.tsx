@@ -16,10 +16,11 @@
  * the engine (§12.4 — levels are fully offline-capable; nothing here ever
  * calls the network).
  */
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { GoldButton } from '../../components/GoldButton';
 import { colors, fontSize, radius, spacing } from '../../components/tokens';
+import { playCue } from '../../game/sfx';
 import { t } from '../../i18n';
 
 const TOTAL_STARS = 3;
@@ -34,6 +35,14 @@ export interface WinScreenProps {
 }
 
 export function WinScreen({ score, stars, onNext }: WinScreenProps): React.JSX.Element {
+  // §15.1 "star_slam (win stars, ×3)" — §7.5 audit mn-4. Fires once on mount
+  // alongside this screen's own star glyphs, distinct from `win_fanfare`
+  // (already wired, `JuiceLayer.tsx` — the board-side celebration held open
+  // by §7.5 audit M-2 while this screen mounts).
+  useEffect(() => {
+    playCue('star_slam');
+  }, []);
+
   return (
     <View style={styles.root}>
       <Text style={styles.title}>{t('win.title')}</Text>

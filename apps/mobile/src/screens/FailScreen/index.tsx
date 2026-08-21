@@ -21,9 +21,14 @@ import { StyleSheet, Text, View } from 'react-native';
 import { GhostButton } from '../../components/GhostButton';
 import { GoldButton } from '../../components/GoldButton';
 import { colors, fontSize, radius, spacing } from '../../components/tokens';
-import { GOAL_LABEL_KEY, type GoalBarEntry } from '../../game/goalBar';
+import { GOAL_LABEL_KEY, goalProgressPct, type GoalBarEntry } from '../../game/goalBar';
 import { t } from '../../i18n';
 import { CONTINUE_SLOT_RESERVED_HEIGHT } from './failTokens';
+
+/** §7.5 audit mn-3: "So close!" read as mockery at 0% goal progress (§1 P6
+ * "respect the player") — the PRD names no threshold, so this is a judgment
+ * call: only claim "close" once progress is genuinely close. */
+const SO_CLOSE_MIN_PROGRESS_PCT = 50;
 
 export interface FailScreenProps {
   levelId: number;
@@ -49,6 +54,7 @@ export function FailScreen({
   onRetry,
   onLevelMap,
 }: FailScreenProps): React.JSX.Element {
+  const soClose = goals.length > 0 && goalProgressPct(goals) >= SO_CLOSE_MIN_PROGRESS_PCT;
   return (
     <View style={styles.root}>
       <View style={styles.card}>
@@ -60,7 +66,7 @@ export function FailScreen({
             {goals.map((goal, i) => (
               <GoalLine key={`${goal.type}-${i}`} goal={goal} />
             ))}
-            <Text style={styles.soClose}>{t('fail.soClose')}</Text>
+            {soClose ? <Text style={styles.soClose}>{t('fail.soClose')}</Text> : null}
           </View>
         ) : null}
 
@@ -69,7 +75,9 @@ export function FailScreen({
         <View style={{ height: CONTINUE_SLOT_RESERVED_HEIGHT }} />
 
         <GoldButton label={t('fail.retry')} onPress={onRetry} size="lg" style={styles.retry} />
-        <GhostButton label={t('fail.levelMap')} onPress={onLevelMap} />
+        {/* §7.5 audit M-3: this ghost sits on the cream card, not the night
+            background — `onLight` is the variant with real contrast here. */}
+        <GhostButton label={t('fail.levelMap')} onPress={onLevelMap} variant="onLight" />
       </View>
     </View>
   );

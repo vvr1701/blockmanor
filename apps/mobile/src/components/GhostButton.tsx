@@ -1,18 +1,46 @@
 /**
  * `GhostButton` — PRD §15 "GhostButton". The secondary/low-emphasis action
  * (outline, no fill) — e.g. §7.5 FailScreen's "Level map" exit, §9.4's
- * eventual "Give up". Border/label colors are `colors.cream` at reduced
- * opacity (matches the Production Spec's ghost swatch: `border:2px solid
- * rgba(243,234,215,.28)`, `color:rgba(243,234,215,.7)` — `#F3EAD7` IS
- * `colors.cream`, so this is the token at two opacities, not a new hex).
+ * eventual "Give up".
+ *
+ * Two variants, both existing §15 tokens at reduced opacity, never a new hex
+ * (§7.5 audit M-3 — the single `onDark`-only palette this shipped with reads
+ * `colors.cream` on a `colors.cream` card, a 1.00:1-contrast invisible
+ * button):
+ * - `onDark` (default): `colors.cream` at two opacities — the Production
+ *   Spec's ghost swatch (`border:2px solid rgba(243,234,215,.28)`,
+ *   `color:rgba(243,234,215,.7)`; `#F3EAD7` IS `colors.cream`) — for a
+ *   ghost button sitting on the night board background.
+ * - `onLight`: `colors.night` at two opacities (`#131830` → `rgba(19,24,48,…)`)
+ *   — dark ink on a light card, the same "on-cream" reading the mockup's own
+ *   exit link uses, expressed with this app's existing night token rather
+ *   than the mockup's literal (untokenized) ink hex.
  */
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
+import { playCue } from '../game/sfx';
 import { fontSize, radius, spacing } from './tokens';
+
+export type GhostButtonVariant = 'onDark' | 'onLight';
+
+const VARIANT_COLORS: Record<GhostButtonVariant, { border: string; label: string }> = {
+  onDark: {
+    border: 'rgba(243,234,215,0.28)', // colors.cream @ 28%
+    label: 'rgba(243,234,215,0.7)', // colors.cream @ 70%
+  },
+  onLight: {
+    border: 'rgba(19,24,48,0.28)', // colors.night @ 28%
+    label: 'rgba(19,24,48,0.55)', // colors.night @ 55%
+  },
+};
 
 export interface GhostButtonProps {
   label: string;
   onPress: () => void;
+  /** Which background this button sits on — picks the token pair with real
+   * contrast against it (§7.5 audit M-3). Defaults to `onDark`: the
+   * Production Spec's ghost swatch is designed against the night board. */
+  variant?: GhostButtonVariant;
   accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
 }
@@ -22,18 +50,31 @@ const MIN_TOUCH_TARGET = 44;
 export function GhostButton({
   label,
   onPress,
+  variant = 'onDark',
   accessibilityLabel,
   style,
 }: GhostButtonProps): React.JSX.Element {
+  const c = VARIANT_COLORS[variant];
+  // §15.1 "btn_tap (all buttons, subtle)" — the ONE seam every button-press
+  // cue routes through (§7.5 audit mn-4).
+  const handlePress = useCallback(() => {
+    playCue('btn_tap');
+    onPress();
+  }, [onPress]);
   return (
     <Pressable
-      onPress={onPress}
+      onPress={handlePress}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       hitSlop={8}
-      style={({ pressed }) => [styles.base, pressed ? styles.pressed : null, style]}
+      style={({ pressed }) => [
+        styles.base,
+        { borderColor: c.border },
+        pressed ? styles.pressed : null,
+        style,
+      ]}
     >
-      <Text style={styles.label}>{label}</Text>
+      <Text style={[styles.label, { color: c.label }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -47,8 +88,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     borderRadius: radius.card - 2,
     borderWidth: 2,
-    borderColor: 'rgba(243,234,215,0.28)', // colors.cream @ 28%
   },
   pressed: { opacity: 0.6 },
-  label: { color: 'rgba(243,234,215,0.7)', fontSize: fontSize.sm, fontWeight: '700' }, // colors.cream @ 70%
+  label: { fontSize: fontSize.sm, fontWeight: '700' },
 });

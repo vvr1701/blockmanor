@@ -7,6 +7,7 @@
 import React from 'react';
 import TestRenderer, { act, type ReactTestRenderer } from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
+import { colors } from '../../src/components/tokens';
 import type { GoalBarEntry } from '../../src/game/goalBar';
 import { FailScreen } from '../../src/screens/FailScreen';
 import { CONTINUE_SLOT_RESERVED_HEIGHT } from '../../src/screens/FailScreen/failTokens';
@@ -84,5 +85,52 @@ describe('FailScreen (PRD §7.5)', () => {
       .map((n) => n.props.children)
       .join(' ');
     expect(texts).not.toContain('So close!');
+  });
+
+  it('gates "So close!" on real progress — not shown at 0% (§7.5 audit mn-3)', () => {
+    const noProgress: GoalBarEntry = {
+      type: 'crate',
+      remaining: 12,
+      total: 12,
+      icon: 'crossPlank',
+    };
+    const renderer = render(
+      <FailScreen levelId={24} goals={[noProgress]} onRetry={vi.fn()} onLevelMap={vi.fn()} />,
+    );
+    const texts = renderer.root
+      .findAllByType('RNText' as never)
+      .map((n) => n.props.children)
+      .join(' ');
+    expect(texts).toContain('Crates 0/12');
+    expect(texts).not.toContain('So close!');
+  });
+
+  it('the "Level map" ghost has REAL contrast against the cream card, not cream-on-cream (§7.5 audit M-3)', () => {
+    const renderer = render(
+      <FailScreen levelId={24} goals={[CRATE_GOAL]} onRetry={vi.fn()} onLevelMap={vi.fn()} />,
+    );
+    const levelMap = renderer.root.findAll(
+      (n) => n.props.accessibilityLabel === 'Level map' && n.props.accessibilityRole === 'button',
+    )[0]!;
+
+    // `Pressable.style` is a render-prop (`({pressed}) => [...]`) — resolve
+    // it the same way RN itself would for the un-pressed state.
+    const resolvedStyle = (
+      levelMap.props.style as (state: { pressed: boolean }) => Array<Record<string, unknown> | null>
+    )({ pressed: false });
+    const borderColor = resolvedStyle.find((s) => s?.borderColor)?.borderColor;
+    expect(borderColor).toBeDefined();
+    // The bug: `GhostButton`'s only palette was `colors.cream` at reduced
+    // opacity — invisible on this screen's `colors.cream` card. On THIS
+    // card the resolved color must not be a cream tint.
+    expect(borderColor).not.toContain('243,234,215');
+    expect(borderColor).not.toBe(colors.cream);
+
+    const label = levelMap.findByType('RNText' as never);
+    const labelStyle = label.props.style as Array<Record<string, unknown>>;
+    const labelColor = labelStyle.find((s) => s?.color)?.color as string;
+    expect(labelColor).toBeDefined();
+    expect(labelColor).not.toContain('243,234,215');
+    expect(labelColor).not.toBe(colors.cream);
   });
 });

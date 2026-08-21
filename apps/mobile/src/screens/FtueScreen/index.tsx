@@ -10,7 +10,12 @@
  */
 
 import { createGame, type EngineTuning, type GameEvent, type GameState } from '@blockmanor/engine';
-import { FTUE_LEVELS, parseLevel, type LevelJson } from '@blockmanor/content';
+import {
+  FIRST_POST_FTUE_LEVEL,
+  FTUE_LEVELS,
+  parseLevel,
+  type LevelJson,
+} from '@blockmanor/content';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import type { FtueStep } from '@blockmanor/shared';
@@ -83,8 +88,10 @@ export function FtueScreen(): React.JSX.Element {
       setFtueComplete(true);
       // §7.1 L1-L5 are already-played levels (v1.11) — the next level Home's
       // §7.11 "PLAY — Level N" CTA (and §7.5's progression loop) should offer
-      // is the first one past FTUE, not L1 again.
-      setCurrentLevel(LEVEL_STEPS.length + 1);
+      // is the first one past FTUE, not L1 again. Same constant
+      // `useMetaStore`'s persisted-save migration clamps stale saves to
+      // (§7.5 audit B-1) — one number, not two independently-maintained ones.
+      setCurrentLevel(FIRST_POST_FTUE_LEVEL);
       track('ftue_complete', { guest });
     },
     [setProfile, setFtueComplete, setCurrentLevel],

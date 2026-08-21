@@ -40,3 +40,14 @@ export function deriveGoalBar(state: Pick<GameState, 'goals' | 'config'>): GoalB
     icon: spriteForObstacle(goal.type).motif,
   }));
 }
+
+/** Overall goal completion, 0-100 — one place for the calc both
+ * `LevelSession` (the §14 `level_fail.goal_progress_pct` param) and
+ * `FailScreen` (the §7.5 "so close" gate, audit mn-3) need, instead of two
+ * copies drifting apart. 0 for a goal-less config (nothing to be "close" to). */
+export function goalProgressPct(goals: readonly GoalBarEntry[]): number {
+  const total = goals.reduce((sum, g) => sum + g.total, 0);
+  if (total === 0) return 0;
+  const done = goals.reduce((sum, g) => sum + (g.total - g.remaining), 0);
+  return Math.round((100 * done) / total);
+}

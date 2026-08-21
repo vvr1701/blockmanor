@@ -212,9 +212,25 @@ export const WIN_STAR_SLAM_MS = 180;
 export const WIN_CONFETTI_COUNT = 16;
 export const WIN_CONFETTI_MS = 900;
 
+/**
+ * §7.5 audit M-2: how long `LevelSession` holds `GameplayScreen` (and its
+ * `JuiceLayer`) mounted after a win before swapping in `WinScreen` — long
+ * enough for the star slam sequence AND the confetti fall to actually play
+ * out, derived from the tokens above rather than a second hardcoded number.
+ */
+export const WIN_HOLD_MS = Math.max(
+  (WIN_STAR_COUNT - 1) * WIN_STAR_STAGGER_MS + WIN_STAR_SLAM_MS,
+  WIN_CONFETTI_MS,
+);
+
 // --- fail (§7.4: "desaturate board 400ms | notificationError") -------------
 
 export const FAIL_DESATURATE_MS = 400;
+
+/** §7.5 audit M-2: how long `LevelSession` holds `GameplayScreen` mounted
+ * after a fail before swapping in `FailScreen` — exactly the desaturate
+ * tween's own duration. */
+export const FAIL_HOLD_MS = FAIL_DESATURATE_MS;
 
 // --- FTUE (§7.1 v1.11: "L5: free play, HUD fades in") -----------------------
 

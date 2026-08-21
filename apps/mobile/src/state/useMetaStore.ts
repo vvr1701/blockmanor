@@ -1,3 +1,4 @@
+import { FIRST_POST_FTUE_LEVEL } from '@blockmanor/content';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { mmkvStorage } from './persist';
@@ -25,6 +26,26 @@ interface MetaState {
   setProfile: (name: string | null, avatarId: number | null) => void;
 }
 
+/**
+ * §7.5 audit B-1: every device on the pre-fix §7.1 build persisted
+ * `{ftueComplete: true, currentLevel: 1}` — L1-L3 ship `goals: []`, and
+ * `LevelSession` didn't handle the engine's `'completed'` status before this
+ * fix, so those levels could never produce a terminal outcome it understood.
+ * That's a permanent trap on every relaunch (§12.9 dead end). `FtueScreen`'s
+ * own fix (setting `currentLevel` to `FIRST_POST_FTUE_LEVEL` on completion)
+ * only reaches NEW installs; this clamps any already-through-FTUE save caught
+ * inside the FTUE range up to the same landing spot. A standalone, exported
+ * function (not an inline `persist` lambda) so it has its own test coverage
+ * independent of spinning up real MMKV rehydration timing.
+ */
+export function migrateMetaState(persisted: unknown, version: number): unknown {
+  const state = persisted as MetaState | null | undefined;
+  if (version < 1 && state?.ftueComplete && state.currentLevel < FIRST_POST_FTUE_LEVEL) {
+    return { ...state, currentLevel: FIRST_POST_FTUE_LEVEL };
+  }
+  return state;
+}
+
 export const useMetaStore = create<MetaState>()(
   persist(
     (set) => ({
@@ -40,6 +61,11 @@ export const useMetaStore = create<MetaState>()(
       setFtueComplete: (ftueComplete) => set({ ftueComplete }),
       setProfile: (playerName, avatarId) => set({ playerName, avatarId }),
     }),
-    { name: 'meta', storage: createJSONStorage(() => mmkvStorage) },
+    {
+      name: 'meta',
+      storage: createJSONStorage(() => mmkvStorage),
+      version: 1,
+      migrate: migrateMetaState,
+    },
   ),
 );

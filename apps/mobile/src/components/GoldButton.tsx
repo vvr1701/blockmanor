@@ -11,8 +11,9 @@
  * border already established by `HomeScreen`'s placeholder CTA — both real
  * §15 tokens, no new hex.
  */
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
+import { playCue } from '../game/sfx';
 import { colors, fontSize, radius, spacing } from './tokens';
 
 export type GoldButtonSize = 'lg' | 'md' | 'sm';
@@ -70,9 +71,15 @@ export function GoldButton({
   style,
 }: GoldButtonProps): React.JSX.Element {
   const s = SIZE[size];
+  // §15.1 "btn_gold (primary CTAs, warmer)" — the ONE seam every primary-CTA
+  // press cue routes through (§7.5 audit mn-4).
+  const handlePress = useCallback(() => {
+    playCue('btn_gold');
+    onPress();
+  }, [onPress]);
   return (
     <Pressable
-      onPress={onPress}
+      onPress={handlePress}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
