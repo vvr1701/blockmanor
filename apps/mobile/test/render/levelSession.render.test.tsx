@@ -34,6 +34,7 @@ import { FAIL_HOLD_MS, WIN_HOLD_MS } from '../../src/game/juice';
 import { GameplayScreen } from '../../src/screens/GameplayScreen';
 import { WinScreen } from '../../src/screens/WinScreen';
 import { FailScreen } from '../../src/screens/FailScreen';
+import { mmkvStorage } from '../../src/state/persist';
 import { useMetaStore } from '../../src/state/useMetaStore';
 
 vi.mock('../../src/services/analytics', () => ({ track: vi.fn() }));
@@ -178,7 +179,7 @@ vi.mock('@blockmanor/content', async (importOriginal) => {
 });
 
 import { MAX_LEVEL_ID } from '@blockmanor/content';
-import { LevelSession } from '../../src/game/LevelSession';
+import { LevelSession, levelRunSeed } from '../../src/game/LevelSession';
 import { track } from '../../src/services/analytics';
 
 const trackMock = vi.mocked(track);
@@ -220,7 +221,9 @@ function advance(ms: number): void {
 beforeEach(() => {
   vi.useFakeTimers();
   trackMock.mockClear();
-  useMetaStore.setState({ currentLevel: 10 });
+  // `attempts` is persisted per level id (§0 v1.17) — reset it too, or one
+  // test's retries become the next test's starting attempt number.
+  useMetaStore.setState({ currentLevel: 10, attempts: {} });
 });
 
 afterEach(() => {
@@ -362,6 +365,80 @@ describe('LevelSession (PRD §7.5 progression loop)', () => {
     activeRenderers.pop();
 
     expect(() => advance(WIN_HOLD_MS)).not.toThrow();
+  });
+
+  /**
+   * §0 v1.17 ruling A. `attempt` used to be `useState(1)` inside
+   * `LevelSession` — session-local, so every app relaunch re-emitted
+   * `level_start{attempt:1}` for a level the player had already failed
+   * repeatedly. §7.9 states L15's target as "win rate 35-45% FIRST attempt"
+   * and §3 gates on per-level quit rate; both use that param as their
+   * denominator, so the counter has to outlive the process.
+   *
+   * This test kills the process the only way a unit test can: unmount, wipe
+   * the in-memory store back to its defaults, and rehydrate `useMetaStore`
+   * from MMKV through zustand's own `persist.rehydrate()` — the same path a
+   * cold start takes. Mutation-checked: reverting `LevelSession` to
+   * `useState(1)` makes the post-rehydrate assertion fail (it emits
+   * `attempt: 1` again).
+   */
+  it('the attempt counter SURVIVES a store rehydrate — attempt is persisted per level, not session-local (§0 v1.17)', async () => {
+    useMetaStore.setState({ currentLevel: 11, attempts: {} });
+
+    // Session 1: run 1 (mount) -> fail -> Retry -> run 2.
+    const first = render(<LevelSession onExit={vi.fn()} />);
+    expect(trackMock).toHaveBeenCalledWith('level_start', { id: 11, attempt: 1 });
+    place(first, 0, 0, 0);
+    advance(FAIL_HOLD_MS);
+    act(() => {
+      (first.root.findByType(FailScreen).props as { onRetry: () => void }).onRetry();
+    });
+    expect(trackMock).toHaveBeenCalledWith('level_start', { id: 11, attempt: 2 });
+
+    // The counter reached MMKV, not just React state.
+    const onDisk = mmkvStorage.getItem('meta') as string;
+    expect(JSON.parse(onDisk)).toMatchObject({ state: { attempts: { '11': 2 } } });
+
+    // --- app killed: in-memory state is gone, MMKV is not ---
+    act(() => {
+      first.unmount();
+    });
+    activeRenderers.pop();
+    useMetaStore.setState({ attempts: {} });
+    // `setState` above also wrote the wiped state through to storage; put the
+    // disk image back, because a killed process does not erase MMKV.
+    mmkvStorage.setItem('meta', onDisk);
+    trackMock.mockClear();
+
+    // --- cold start: zustand's real rehydrate, off the real storage adapter ---
+    await useMetaStore.persist.rehydrate();
+    expect(useMetaStore.getState().attempts).toEqual({ '11': 2 });
+
+    render(<LevelSession onExit={vi.fn()} />);
+
+    // Run 3 of L11 — NOT a second `attempt: 1`.
+    expect(trackMock).toHaveBeenCalledWith('level_start', { id: 11, attempt: 3 });
+    expect(trackMock).not.toHaveBeenCalledWith('level_start', { id: 11, attempt: 1 });
+  });
+
+  // §0 v1.17 ruling B: already the built behaviour, made normative. The guard
+  // is that `attempt` stays IN the run seed — drop it and every Retry replays
+  // the identical losing draw, which is the wall §1 P2 forbids.
+  it('each attempt runs on its own engine seed — Retry deals a fresh tray, not a replay (§0 v1.17)', () => {
+    expect(levelRunSeed(11, 2)).not.toBe(levelRunSeed(11, 1));
+    expect(levelRunSeed(12, 1)).not.toBe(levelRunSeed(11, 1));
+  });
+
+  it('advancing to a level already attempted resumes ITS counter instead of faking a first attempt (§0 v1.17)', () => {
+    useMetaStore.setState({ currentLevel: 10, attempts: { '11': 4 } });
+    const renderer = render(<LevelSession onExit={vi.fn()} />);
+    place(renderer, 0, 0, 0);
+    advance(WIN_HOLD_MS);
+    act(() => {
+      (renderer.root.findByType(WinScreen).props as { onNext: () => void }).onNext();
+    });
+
+    expect(trackMock).toHaveBeenCalledWith('level_start', { id: 11, attempt: 5 });
   });
 
   it('winning AT MAX_LEVEL_ID exits instead of persisting an unreachable currentLevel — §7.5 audit M-1', () => {

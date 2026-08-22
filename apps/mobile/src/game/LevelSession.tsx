@@ -32,9 +32,10 @@ import { track } from '../services/analytics';
 import { useMetaStore } from '../state/useMetaStore';
 
 /** `attempt` tags the engine seed too (not just analytics) — a Stage-1 free
- * Retry (§7.5) should deal a fresh tray, not silently replay the exact same
- * loss (the level's own `seedSalt` still pins ITS identity within the seed
- * string below — `attempt` is the part that varies the run). */
+ * Retry (§7.5, normative as of §0 v1.17) deals a FRESH tray rather than
+ * silently replaying the exact same loss: the level's own `seedSalt` still
+ * pins ITS identity within the seed string below, `attempt` is the part that
+ * varies the run. §1 P2 — never punish without an exit. */
 function buildLevelGameState(json: LevelJson, tuning: EngineTuning, attempt: number): GameState {
   return createGame(
     {
@@ -43,8 +44,22 @@ function buildLevelGameState(json: LevelJson, tuning: EngineTuning, attempt: num
       level: parseLevel(json),
       ...(json.pieceSequence ? { pieceSequence: json.pieceSequence } : {}),
     },
-    `level-${json.id}-a${attempt}`,
+    levelRunSeed(json.id, attempt),
   );
+}
+
+/** The engine run seed for one attempt at one level. `attempt` is deliberately
+ * part of it (§0 v1.17 ruling B) — drop it and Retry replays the identical
+ * losing draw. The level's identity is pinned separately: `createGame` mixes
+ * `level.seedSalt` (§7.7) into the RNG seed. */
+export function levelRunSeed(levelId: number, attempt: number): string {
+  return `level-${levelId}-a${attempt}`;
+}
+
+/** The attempt number the NEXT run of `levelId` gets (§0 v1.17): one past
+ * whatever survived in MMKV, or 1 for a level never started on this install. */
+function nextAttempt(levelId: number): number {
+  return (useMetaStore.getState().attempts[String(levelId)] ?? 0) + 1;
 }
 
 type Phase = 'playing' | 'won' | 'lost';
@@ -64,7 +79,19 @@ export function LevelSession({ onExit }: LevelSessionProps): React.JSX.Element |
   const setCurrentLevel = useMetaStore((s) => s.setCurrentLevel);
   const tuning = useEngineTuning();
 
-  const [attempt, setAttempt] = useState(1);
+  // §0 v1.17: the attempt counter is PERSISTED per level id, not session
+  // state — `level_start{attempt}` is the denominator §7.9's "first attempt"
+  // win-rate target and §3's per-level quit rate are read from, so a counter
+  // that resets on relaunch emits a false second `attempt: 1`.
+  //
+  // `attempts` itself is read non-reactively (`nextAttempt` -> `getState()`),
+  // only the stable action is subscribed: this component owns the counter for
+  // the level it is playing, so subscribing to the value would re-render it
+  // solely in response to its own writes — and would turn the
+  // write-at-run-start below into a render loop. The write happens in the
+  // run-start effect, never during render.
+  const persistAttempt = useMetaStore((s) => s.setAttempt);
+  const [attempt, setAttempt] = useState(() => nextAttempt(currentLevel));
   const [phase, setPhase] = useState<Phase>('playing');
   const [result, setResult] = useState<TerminalResult | null>(null);
 
@@ -98,8 +125,15 @@ export function LevelSession({ onExit }: LevelSessionProps): React.JSX.Element |
     setPhase('playing');
     setResult(null);
     clearPhaseTimer();
-    if (json) track('level_start', { id: json.id, attempt });
-  }, [json, attempt, clearPhaseTimer]);
+    if (json) {
+      // Advanced at run START, not on fail and not on the Retry tap: an
+      // ABANDONED run is exactly the shape of a quit (§3's per-level quit
+      // rate) and must count, and the first run after a relaunch is a new
+      // run. §0 v1.17.
+      persistAttempt(json.id, attempt);
+      track('level_start', { id: json.id, attempt });
+    }
+  }, [json, attempt, clearPhaseTimer, persistAttempt]);
 
   // Past the shipped range (or a corrupt save) — nothing honest to play;
   // exit rather than render a dead end (§12.9).
@@ -189,7 +223,9 @@ export function LevelSession({ onExit }: LevelSessionProps): React.JSX.Element |
       return;
     }
     setCurrentLevel(currentLevel + 1);
-    setAttempt(1);
+    // Not `1`: a level reached a second time (§7.10 replay, a corrected save)
+    // resumes its own persisted count rather than faking a first attempt.
+    setAttempt(nextAttempt(currentLevel + 1));
   }, [currentLevel, setCurrentLevel, onExit]);
 
   const handleRetry = useCallback(() => {

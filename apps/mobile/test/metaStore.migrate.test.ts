@@ -44,6 +44,20 @@ describe('migrateMetaState (PRD §7.5 audit B-1)', () => {
     expect(migrated.currentLevel).toBe(1);
   });
 
+  it('v1 -> v2 (§0 v1.17): a save predating the per-level `attempts` counter gets an empty one, not `undefined`', () => {
+    const migrated = migrateMetaState({ ...BASE, currentLevel: 12 }, 1) as typeof BASE & {
+      attempts: Record<string, number>;
+    };
+    expect(migrated.attempts).toEqual({});
+  });
+
+  it('v1 -> v2 leaves an existing `attempts` map alone', () => {
+    const migrated = migrateMetaState({ ...BASE, currentLevel: 12, attempts: { '15': 4 } }, 2) as {
+      attempts: Record<string, number>;
+    };
+    expect(migrated.attempts).toEqual({ '15': 4 });
+  });
+
   it('tolerates a missing/undefined persisted state (fresh install, nothing to migrate)', () => {
     expect(migrateMetaState(undefined, 0)).toBeUndefined();
   });
