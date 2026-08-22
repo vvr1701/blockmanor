@@ -86,5 +86,17 @@
   "frames.rose_arch": "Rose Arch",
   "frames.brass_fountain": "Brass Fountain",
   "frames.koi_ring": "Koi Ring",
-  "frames.courtyard_crest": "Courtyard Crest"
+  "frames.courtyard_crest": "Courtyard Crest",
+  "home.endless.title": "Endless",
+  "home.endless.subtitle": "No goals — just the board",
+  "home.endless.bestLabel": "Your best",
+  "home.endless.emptyBest": "Set your first record",
+  "home.endless.cta": "Play Endless",
+  "home.endless.locked.subtitle": "Unlocks at Level {{unlockLevel}} — you're on {{level}}",
+  "home.endless.locked.a11y": "Endless mode, locked",
+  "endless.result.scoreLabel": "Score",
+  "endless.result.newBest": "New personal best!",
+  "endless.result.best": "Best: {{best}}",
+  "endless.result.playAgain": "Play again",
+  "endless.result.home": "Home"
 }

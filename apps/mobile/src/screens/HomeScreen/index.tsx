@@ -7,6 +7,7 @@ import { isFirebaseConfigured } from '../../services/firebase';
 import { useConfigStore } from '../../state/useConfigStore';
 import { useMetaStore } from '../../state/useMetaStore';
 import { DailyBoardTile } from './DailyBoardTile';
+import { EndlessCard, ENDLESS_UNLOCK_LEVEL } from './EndlessCard';
 
 /**
  * HomeScreen — PRD §7.11 / §16.1.
@@ -18,14 +19,31 @@ import { DailyBoardTile } from './DailyBoardTile';
  * §7.5/§7.11: `onPlay` is the "PLAY — Level N" primary CTA wiring the
  * §7.5 progression loop needs to be reachable at all — `App.tsx` maps it to
  * mounting `LevelSession` for `currentLevel`.
+ *
+ * §7.6: adds ONLY the small "Endless" entry card §7.11(e) calls for, wired
+ * minimally into this placeholder layout. §7.11 owns the real hub composition
+ * (manor background, HUD bar, event carousel, bottom nav) and will re-place
+ * both of these inside that layout in its own pass — nothing here should be
+ * read as that build.
  */
 export interface HomeScreenProps {
   onPlay: () => void;
+  /** Wired only when `flag_endless` is on AND the player has passed
+   * `ENDLESS_UNLOCK_LEVEL` (`EndlessCard` renders no press target
+   * otherwise) — see `App.tsx` for the no-router seam this calls into. */
+  onPlayEndless?: () => void;
 }
 
-export function HomeScreen({ onPlay }: HomeScreenProps): React.JSX.Element {
+export function HomeScreen({ onPlay, onPlayEndless }: HomeScreenProps): React.JSX.Element {
   const currentLevel = useMetaStore((s) => s.currentLevel);
+  const endlessBest = useMetaStore((s) => s.endlessBest);
   const dailyBoardFlag = useConfigStore((s) => s.value('flag_daily_board'));
+  // §7.6: "Unlocked after Level 10." `currentLevel` is the NEXT level to
+  // play (see `home.play` CTA / the FTUE returning-user check above), so
+  // "after Level 10" is complete-and-moved-on, i.e. strictly greater than
+  // 10 — still locked while `currentLevel === 10` (mid-attempt on it).
+  const endlessFlag = useConfigStore((s) => s.value('flag_endless'));
+  const endlessUnlocked = currentLevel > ENDLESS_UNLOCK_LEVEL;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -44,6 +62,17 @@ export function HomeScreen({ onPlay }: HomeScreenProps): React.JSX.Element {
         {/* §7.1.3 / §7.11(c): the tile's pulsing presence only — daily-board
             behavior (countdown, LIVE state, percentile) is §7.11/§8 scope. */}
         {dailyBoardFlag ? <DailyBoardTile /> : null}
+
+        {/* §7.6 / §7.11(e): small Endless entry card, flag-gated. Hidden
+            entirely (not a locked variant) when `flag_endless` is off. */}
+        {endlessFlag ? (
+          <EndlessCard
+            unlocked={endlessUnlocked}
+            currentLevel={currentLevel}
+            best={endlessBest}
+            onPress={() => onPlayEndless?.()}
+          />
+        ) : null}
 
         <View style={styles.status}>
           <Text style={styles.statusText}>

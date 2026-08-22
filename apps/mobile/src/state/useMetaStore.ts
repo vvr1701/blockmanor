@@ -51,6 +51,9 @@ interface MetaState {
    * (§9.1) and this store must not grow a Stage-2 shape early.
    */
   ownedFrames: readonly string[];
+  /** §7.6 "personal best tracked" — the Endless mode high score. 0 means
+   * "no record yet" (§12.9 empty-state trigger), never negative. */
+  endlessBest: number;
   setCurrentLevel: (level: number) => void;
   setStreak: (streak: number) => void;
   setBadge: (badge: keyof MetaState['badges'], on: boolean) => void;
@@ -62,6 +65,9 @@ interface MetaState {
   setLevelStars: (levelId: number, stars: number) => void;
   /** §7.10: marks `chestLevel`'s chest collected and grants `frameId`. */
   claimChest: (chestLevel: number, frameId: string) => void;
+  /** Monotonic: only ever raises `endlessBest`, never lowers it — enforced
+   * here (single source of truth) rather than trusted to every call site. */
+  setEndlessBest: (score: number) => void;
 }
 
 /**
@@ -101,6 +107,12 @@ export function migrateMetaState(persisted: unknown, version: number): unknown {
     if (!next.chestsClaimed) next = { ...next, chestsClaimed: {} };
     if (!next.ownedFrames) next = { ...next, ownedFrames: [] };
   }
+  // v3 -> v4 (§7.6): the Endless personal best. Same shape as the steps
+  // above — a lone guard on its own key, so a save at any earlier version
+  // composes every migration in one pass.
+  if (version < 4 && typeof next.endlessBest !== 'number') {
+    next = { ...next, endlessBest: 0 };
+  }
   return next;
 }
 
@@ -117,6 +129,7 @@ export const useMetaStore = create<MetaState>()(
       stars: {},
       chestsClaimed: {},
       ownedFrames: [],
+      endlessBest: 0,
       setCurrentLevel: (currentLevel) => set({ currentLevel }),
       setStreak: (streak) => set({ streak }),
       setBadge: (badge, on) => set((state) => ({ badges: { ...state.badges, [badge]: on } })),
@@ -149,11 +162,13 @@ export const useMetaStore = create<MetaState>()(
             ownedFrames: owned.includes(frameId) ? owned : [...owned, frameId],
           };
         }),
+      setEndlessBest: (score) =>
+        set((state) => ({ endlessBest: Math.max(state.endlessBest, score) })),
     }),
     {
       name: 'meta',
       storage: createJSONStorage(() => mmkvStorage),
-      version: 3,
+      version: 4,
       migrate: migrateMetaState,
     },
   ),
