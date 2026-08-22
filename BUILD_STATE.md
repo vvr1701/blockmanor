@@ -19,7 +19,7 @@ Reference: `BUILD_GUIDE.md` §1 rhythm, §5 review discipline, §6 failure modes
 | 1 | Analytics infra (guard, queue, overlay, 7 additions) | 14 | **MERGED** PR #11 `229d387` — 3 audit rounds |
 | 1b | Engine fuzz: cover the fixed-sequence path | 5 | **MERGED** PR #10 `8a02272` — corpus `392ad7a4` -> `538e3dea` |
 | 2 | Win/Fail + level progression loop | 7.5 | **PR #12 fix-complete** `111e54d` — audited, fixed, re-verified. Awaiting merge call |
-| 3 | Endless / Level map / Home real hub | 7.6, 7.10, 7.11 | §7.6 audit FAIL, fix running; 7.10/7.11 queued |
+| 3 | Endless / Level map / Home real hub | 7.6, 7.10, 7.11 | §7.6 fix-complete `9b1809d`, awaiting merge; §7.10 starting |
 | 4 | System screens — all eight | 12 | pending |
 | 5 | Daily Board client stack, on the emulator | 8.3-8.7 | pending |
 | 6 | Full drift audit + BLOCKER/MAJOR fixes + APK | S1.13 | pending |
@@ -387,6 +387,56 @@ three entry paths, and `attempt` reaching §14. What failed was the guard.
   not introduced here.
 
 **PR #12 is fix-complete and awaiting the operator's merge call.**
+
+### S2b — §7.6 fix pass (`feat/7.6-endless`)
+Fixed in `9b1809d`, pushed. Mobile went 76 -> 175 tests; 15/15 tasks. Every fix
+mutation-tested by the implementer; two re-verified independently in the main session.
+
+- **BLOCKER closed.** `GameplayScreen` gained one optional `header?: (state) => ReactNode`
+  render prop — a render prop, not a node, because the header needs the live score that
+  lives in `GameplayScreen`'s state; a node would force `EndlessScreen` to mirror it off
+  `onEvent` and add a second render pass per placement (§4.5). `EndlessHud`'s 44x44 close
+  button calls the existing `onExit`; Android back is consumed and routed Home. No PauseSheet.
+  Scope note: `FtueScreen` also lacks a `BackHandler`, deliberately NOT widened into this
+  diff — FTUE has no destination behind it, so "back exits the app" is Android-correct there.
+  `EndlessScreen` was the only screen with a real destination and no route to it.
+- **MAJOR 2 closed.** `EndlessHud` (panel 10.2: ENDLESS chip, centred hero score, best chip
+  flipping to "passed!", best-line marker, all suppressed when there is no best yet per §12.9)
+  and `EndlessResultSheet` (10.3a/b: "Board full", progress-to-best bar, "3,240 short", the
+  "+1,440 over your old best" delta, cream parchment replacing `night2`).
+- **MAJOR 3 closed.** New `apps/mobile/test/contrast.ts` walks the real react-test-renderer
+  tree, composites every translucent `backgroundColor` it passes through, and returns the
+  effective ratio for every `RNText`. No colour is an input except the opaque backdrop the
+  component doesn't render. All three audit mutations now red (2 / 1 / 3 tests). **Re-verified
+  independently:** the card-background mutation that previously SURVIVED now reds 3 tests.
+- MINORs 4-8 and NIT 9 closed. One extra a11y fix the implementer would not ship without:
+  the result overlay carried `accessible` alongside `accessibilityViewIsModal`, collapsing
+  the sheet into one node and making "Play again"/"Home" unreachable to a screen reader —
+  the same dead end as the BLOCKER, for TalkBack users.
+
+**Two §15 divergences taken deliberately, both documented in the file headers** — flag if
+either is wrong:
+1. The mockup's 52/60px hero score renders at `fontSize.xxl` (34). §15 enumerates the scale
+   as 12/14/16/20/26/34; adding a 52 token is itself a §15 divergence needing a §0 row.
+2. The mockup's teal delta (#2F9184) is dropped for `colors.night` — the nearest §15 token
+   (block teal #2A9D8F) computes to **2.78:1 on cream** and fails the text floor.
+
+Also not built, flagged rather than dropped silently: 10.3a's "Lines"/"Best combo" tiles
+(no per-run line or peak-combo aggregate on `GameState` — only the live `combo`) and
+"Share the score" (§11 scope).
+
+**PR is fix-complete and awaiting the operator's merge call.**
+
+## ESCALATED — `RemoteConfigSnapshot` cannot hold a fetched value (§13, shared)
+
+`packages/shared/src/remoteConfig.ts:98-103` derives `RemoteConfigSnapshot` from an
+`as const` defaults object, so every value's type is its **default literal**:
+`applySnapshot({ mercy_threshold: 0.91 })` does not typecheck. A fetched RC value can
+never be assigned. Found during the §7.6 fix pass, correctly left out of that diff as a
+§13/shared bug rather than a §7.6 one. **It bites the moment the real RC fetch lands** —
+fix before §8.3, or the first live fetch is a compile error. Suggested: widen the snapshot
+type to the primitive of each default (`number`/`boolean`/`string`) while keeping
+`REMOTE_CONFIG_DEFAULTS` itself `as const` for the registry-completeness checks.
 
 ## HARD STOP — 3 §7.6 PRD gaps need operator rulings (2026-08-22)
 
