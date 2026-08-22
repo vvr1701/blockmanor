@@ -357,3 +357,59 @@ describe('AnalyticsQueue', () => {
     expect(isAnalyticsConsentGranted()).toBe(true);
   });
 });
+
+describe('REG-1 — a persist() failure must not wedge the queue', () => {
+  it('keeps dispatching after the drain-time persist throws', async () => {
+    const sent: string[] = [];
+    let release!: () => void;
+    const gate = new Promise<void>((r) => {
+      release = r;
+    });
+
+    const queue = new AnalyticsQueue({
+      sender: (e: QueuedEvent) => {
+        sent.push(e.name);
+        return e.name === 'a' ? gate : Promise.resolve();
+      },
+      getCap: () => 500,
+      mmkvId: freshMmkvId(),
+    });
+
+    // track() persists synchronously before any send, so a naive injection
+    // fires there and never reaches the drain. Break only the persist that
+    // runs in flush()'s `finally`, which is the one REG-1 is about: pre-fix
+    // it threw before `flushing = false`, sticking the in-flight guard true
+    // and silently killing every later send for the life of the process.
+    const proto = Object.getPrototypeOf(new MMKV({ id: 'unused' })) as {
+      set: (k: string, v: string) => void;
+    };
+    const realSet = proto.set;
+
+    queue.track('a', {});
+    await Promise.resolve();
+    expect(sent).toEqual(['a']);
+
+    let thrown = false;
+    proto.set = () => {
+      thrown = true;
+      proto.set = realSet;
+      throw new Error('mmkv write failed');
+    };
+
+    release();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    proto.set = realSet;
+    expect(thrown).toBe(true);
+
+    // The guard must have been released despite that throw, and the throw
+    // itself must not have escaped into app code.
+    queue.track('c', {});
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(sent).toContain('c');
+  });
+});

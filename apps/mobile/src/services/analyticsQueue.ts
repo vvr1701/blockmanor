@@ -208,8 +208,21 @@ export class AnalyticsQueue {
       // long drain, and the drain that matters fires from the constructor
       // at cold start (§4.5 budget). At-least-once delivery already
       // tolerates a crash mid-drain — the idempotency key covers a resend.
-      this.persist();
+      // REG-1: reset the in-flight guard BEFORE persisting. If persist()
+      // throws (disk full, encryption error), a reset that came after it
+      // would never run, leaving `flushing` stuck true and killing every
+      // subsequent send for the life of the process. Safe to reorder:
+      // persist() only reads state that is already final here.
       this.flushing = false;
+      // REG-1 (second half): a persistence failure must never escape into app
+      // code. Analytics is best-effort — the queue stays correct in memory and
+      // the next persist retries. Throwing here would surface an MMKV disk
+      // error as an unhandled rejection in whatever happened to call track().
+      try {
+        this.persist();
+      } catch {
+        // deliberately swallowed; see above
+      }
     }
   }
 
@@ -246,8 +259,9 @@ export class AnalyticsQueue {
           (e as QueuedEvent).id.length > 0 &&
           typeof (e as QueuedEvent).name === 'string',
       );
-      this.pendingDroppedCount =
-        typeof parsed.pendingDroppedCount === 'number' ? parsed.pendingDroppedCount : 0;
+      this.pendingDroppedCount = Number.isFinite(parsed.pendingDroppedCount)
+        ? parsed.pendingDroppedCount
+        : 0;
       // MINOR-1: apply the (possibly lowered, since cold start) cap now —
       // otherwise a blob persisted under a larger cap loads whole and stays
       // over-cap until the next `track()`.
