@@ -18,8 +18,8 @@ Reference: `BUILD_GUIDE.md` §1 rhythm, §5 review discipline, §6 failure modes
 | 0 | Daily Board generation | 8.2 | **MERGED** PR #8 `0ee4fc9` — 4 audit rounds |
 | 1 | Analytics infra (guard, queue, overlay, 7 additions) | 14 | **MERGED** PR #11 `229d387` — 3 audit rounds |
 | 1b | Engine fuzz: cover the fixed-sequence path | 5 | **MERGED** PR #10 `8a02272` — corpus `392ad7a4` -> `538e3dea` |
-| 2 | Win/Fail + level progression loop | 7.5 | **PR #12** — rulings applied (PRD v1.17, `1efa954`); delta re-audit running |
-| 3 | Endless / Level map / Home real hub | 7.6, 7.10, 7.11 | §7.6 built `60f0760`, audit running; 7.10/7.11 queued |
+| 2 | Win/Fail + level progression loop | 7.5 | **PR #12 fix-complete** `111e54d` — audited, fixed, re-verified. Awaiting merge call |
+| 3 | Endless / Level map / Home real hub | 7.6, 7.10, 7.11 | §7.6 audit FAIL, fix running; 7.10/7.11 queued |
 | 4 | System screens — all eight | 12 | pending |
 | 5 | Daily Board client stack, on the emulator | 8.3-8.7 | pending |
 | 6 | Full drift audit + BLOCKER/MAJOR fixes + APK | S1.13 | pending |
@@ -351,6 +351,42 @@ Verified clean: §16.1 naming, §14 `endless_end{score,best}` (dropping `best` f
 `tsc`), `flag_endless` gating, the engine contract (all three ways to break `goals: []`
 / mercy-on are CAUGHT), §0 stage discipline, §4.5. Engine untouched, corpus `538e3dea`,
 99.54% lines.
+
+### S3 — §7.5 ruling delta audit + fix (`feat/7.5-win-fail`)
+Delta audited **FAIL** — 1 MAJOR, 2 MINOR, 5 NIT, no BLOCKER. Fixed in `111e54d`
+(rebased onto `d24d083`). Head is `111e54d`, pushed. Mobile 172 tests, 15/15 tasks.
+
+The *behaviour* of both v1.17 rulings was independently proven correct: migration
+composition (real v0/v1/v2/unversioned payloads through zustand's own `persist.rehydrate()`
+— a v0 user keeps the FTUE clamp), the non-reactive read, "advances at run start" on all
+three entry paths, and `attempt` reaching §14. What failed was the guard.
+
+- **MAJOR-1: the guard for v1.17 (ii) was a tautology.** `expect(levelRunSeed(11,2))
+  .not.toBe(levelRunSeed(11,1))` asserts template-string interpolation, never calls
+  `buildLevelGameState`, and cannot see whether `attempt` still reaches `createGame`.
+  Compounding it, all four fixtures in that file pin a `pieceSequence`, so the run seed
+  provably could not reach the tray in any existing test. The auditor applied the exact
+  regression the amendment names — `levelRunSeed(json.id, attempt)` -> `(json.id, 1)` —
+  and all 168 tests stayed green. `1efa954`'s message claimed a guard that did not exist.
+  Now a real `RESEED` fixture (no `pieceSequence`) mounts at attempts 1/2/3 and compares
+  `initialState.tray`. **Independently re-verified in the main session**, not taken on
+  report: under the mutation exactly one test reds, the new one.
+- MINOR-1: `packages/shared/src/analytics.ts:34` still said `attempt` counts restarts
+  "this session" — contradicting the §14 line v1.17 had just amended, in the canonical
+  typed-params file a future author reads first.
+- MINOR-2: the migration *composition* was untested — the new tests pass `version: 1`
+  and `2`, where the v0 clamp branch is never taken. Reverting step 1 to an early
+  `return` kept all 168 green. Not a live bug (zustand's shallow merge backfills the
+  missing key); it becomes one the first time a step transforms an existing key.
+- NIT-2/3 taken together: `attempts: null` from a truncated MMKV blob crashed
+  `LevelSession` on mount (a §12.9 dead end) and a non-numeric value leaked `"x1"` into a
+  `number` §14 param. One guarded read in `nextAttempt` closes both.
+- NIT-4 (a comment citing a §7.10 replay rule §7.10 does not contain) and NIT-5 (the two
+  attempt-advance paths reading from different sources) also taken. NIT-1 skipped:
+  unversioned payloads bypass zustand's `migrate` entirely — pre-existing, unreachable,
+  not introduced here.
+
+**PR #12 is fix-complete and awaiting the operator's merge call.**
 
 ## HARD STOP — 3 §7.6 PRD gaps need operator rulings (2026-08-22)
 
