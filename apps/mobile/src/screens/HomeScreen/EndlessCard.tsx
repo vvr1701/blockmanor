@@ -6,18 +6,25 @@
  *
  * Mockup: `docs/design/spec/Block Manor Production Spec.dc.html`, panel
  * "10.1 Endless entry" (unlocked card composition + locked-state variant).
- * That panel also shows a 5-run score-history bar chart and copy about
- * boosters/Manor Pass XP that belong to a later stage (boosters/Manor Pass
- * are Stage 2/4, CLAUDE.md hard rule 1) — this card keeps only what §7.6
- * actually specs for Stage 1: title, personal best (or the §12.9 empty-state
- * copy), and the single "Play Endless" action; the locked variant's lock
- * icon + progress copy carries over since the unlock gate is Stage-1 scope.
+ * Two things in that panel are deliberately NOT built here, for two DIFFERENT
+ * reasons — don't collapse them:
+ *   - The Manor Pass XP copy is a later STAGE (Manor Pass is Stage 4,
+ *     CLAUDE.md hard rule 1): buildable data, wrong stage.
+ *   - The 5-run score-history bar chart is not a stage problem at all: §4.4's
+ *     persisted meta state holds a single scalar `endlessBest`, and §7.6 specs
+ *     only "personal best tracked". There is NO run-history model to render,
+ *     at any stage, until the PRD grows one — so this is a §0 amendment away,
+ *     not a later PR away.
+ * Everything else in the panel is here: title, personal best (or the §12.9
+ * empty-state copy), the single "Play Endless" action, and the locked
+ * variant's lock icon + unlock-progress copy.
  */
 
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, fontFamily, fontSize, radius, spacing } from '../../components/tokens';
 import { t } from '../../i18n';
+import { formatScore } from '../../i18n/format';
 
 /** §15 a11y: every interactive element ≥44dp regardless of visual size. */
 const MIN_TOUCH = 44;
@@ -49,21 +56,30 @@ export function EndlessCard({
   onPress,
 }: EndlessCardProps): React.JSX.Element {
   if (!unlocked) {
-    const pct = Math.max(0, Math.min(1, currentLevel / ENDLESS_UNLOCK_LEVEL));
+    // Progress toward the gate, which opens at `currentLevel > 10` (see
+    // `HomeScreen`) — i.e. the LEVELS CLEARED, not the level number. Dividing
+    // the raw pointer would paint a full bar next to a padlock on level 10.
+    const pct = Math.max(0, Math.min(1, (currentLevel - 1) / ENDLESS_UNLOCK_LEVEL));
+    const status = t('home.endless.locked.subtitle', {
+      unlockLevel: ENDLESS_UNLOCK_LEVEL,
+      level: currentLevel,
+    });
     return (
-      <View style={styles.card} accessible accessibilityLabel={t('home.endless.locked.a11y')}>
+      // The subtitle carries the whole payload of this state (how far off the
+      // unlock is); `accessible` collapses the subtree into ONE node, so the
+      // label has to carry it too or a screen reader hears only "locked".
+      <View
+        style={styles.card}
+        accessible
+        accessibilityLabel={t('home.endless.locked.a11y', { status })}
+      >
         <View style={styles.row}>
           <View style={styles.lockBadge}>
             <Text style={styles.lockGlyph}>{'🔒'}</Text>
           </View>
           <View style={styles.textCol}>
             <Text style={[styles.title, styles.titleLocked]}>{t('home.endless.title')}</Text>
-            <Text style={styles.subtitleLocked}>
-              {t('home.endless.locked.subtitle', {
-                unlockLevel: ENDLESS_UNLOCK_LEVEL,
-                level: currentLevel,
-              })}
-            </Text>
+            <Text style={styles.subtitleLocked}>{status}</Text>
           </View>
         </View>
         <View style={styles.progressTrack}>
@@ -73,12 +89,19 @@ export function EndlessCard({
     );
   }
 
+  // §7.6: the personal best is the one thing this mode tracks — the label has
+  // to announce it, not just the action (the card is one press target, so the
+  // best-score row is otherwise invisible to a screen reader).
+  const bestText =
+    best > 0
+      ? t('home.endless.bestA11y', { best: formatScore(best) })
+      : t('home.endless.emptyBest');
   return (
     <Pressable
       style={styles.card}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={t('home.endless.cta')}
+      accessibilityLabel={t('home.endless.cta.a11y', { best: bestText })}
     >
       <View style={styles.row}>
         <View style={styles.badge}>
@@ -91,7 +114,9 @@ export function EndlessCard({
       </View>
       <View style={styles.bestRow}>
         <Text style={styles.bestLabel}>{t('home.endless.bestLabel')}</Text>
-        <Text style={styles.bestValue}>{best > 0 ? best : t('home.endless.emptyBest')}</Text>
+        <Text style={styles.bestValue}>
+          {best > 0 ? formatScore(best) : t('home.endless.emptyBest')}
+        </Text>
       </View>
       <View style={styles.cta}>
         <Text style={styles.ctaText}>{t('home.endless.cta')}</Text>

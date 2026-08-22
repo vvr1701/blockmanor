@@ -8,6 +8,11 @@
  * the tray redraw guarantee §6.3 are both live, matching "mercy RNG on").
  * Nothing here re-implements or overrides an engine rule.
  *
+ * Mockups (`docs/design/spec/Block Manor Production Spec.dc.html`): panel
+ * 10.2 is the in-run composition (`EndlessHud`, passed to `GameplayScreen`'s
+ * `header` slot in place of the standard HUD row), panels 10.3a/10.3b are the
+ * game-over sheet (`EndlessResultSheet`).
+ *
  * Coordinator overlap (flagged per this PR's brief): this screen owns its
  * own tiny "watch `GameplayScreen.onEvent`, react to the terminal status"
  * loop, the same shape `FtueScreen`'s step machine already uses. `FtueScreen`
@@ -21,17 +26,14 @@
  */
 
 import { createGame, type GameConfig, type GameEvent, type GameState } from '@blockmanor/engine';
-import React, { useCallback, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, fontFamily, fontSize, radius, spacing } from '../../components/tokens';
-import { t } from '../../i18n';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { BackHandler, StyleSheet, View } from 'react-native';
 import { track } from '../../services/analytics';
 import { useEngineTuning } from '../../state/useEngineTuning';
 import { useMetaStore } from '../../state/useMetaStore';
 import { GameplayScreen } from '../GameplayScreen';
-
-/** §15 a11y: every interactive element ≥44dp regardless of visual size. */
-const MIN_TOUCH = 44;
+import { EndlessHud } from './EndlessHud';
+import { EndlessResultSheet } from './EndlessResultSheet';
 
 /** Client-only seed — Endless has no server re-simulation (§13 scope note),
  * so unlike a level/daily seed this never needs to be reproducible. Fresh
@@ -45,10 +47,9 @@ function newRunSeed(): string {
 
 interface EndlessResult {
   score: number;
-  /** Personal best AFTER this run — matches `endless_end`'s `best` param and
-   * what `useMetaStore.endlessBest` now holds. */
-  best: number;
-  isNewBest: boolean;
+  /** Personal best BEFORE this run — what 10.3a's delta and 10.3b's
+   * progress-toward-best are both measured against. */
+  prevBest: number;
 }
 
 export interface EndlessScreenProps {
@@ -60,9 +61,16 @@ export interface EndlessScreenProps {
 
 export function EndlessScreen({ onExit }: EndlessScreenProps): React.JSX.Element {
   const tuning = useEngineTuning();
-  const [seed, setSeed] = useState(newRunSeed);
+  // One run = one seed + the personal best as it stood when that run STARTED.
+  // The best is snapshotted, not subscribed: `handleEvent` raises the stored
+  // best the moment the run ends, and the HUD must keep showing the bar the
+  // player was actually chasing. Re-snapshotted by `playAgain`.
+  const [run, setRun] = useState(() => ({
+    seed: newRunSeed(),
+    best: useMetaStore.getState().endlessBest,
+  }));
   const config: GameConfig = useMemo(() => ({ mode: 'endless', tuning }), [tuning]);
-  const initialState = useMemo(() => createGame(config, seed), [config, seed]);
+  const initialState = useMemo(() => createGame(config, run.seed), [config, run.seed]);
 
   const [result, setResult] = useState<EndlessResult | null>(null);
   // `onEvent` can in principle fire again for the same terminal state (a
@@ -78,46 +86,50 @@ export function EndlessScreen({ onExit }: EndlessScreenProps): React.JSX.Element
     const best = Math.max(prevBest, state.score);
     useMetaStore.getState().setEndlessBest(state.score);
     track('endless_end', { score: state.score, best });
-    setResult({ score: state.score, best, isNewBest: state.score > prevBest });
+    setResult({ score: state.score, prevBest });
   }, []);
 
   const playAgain = useCallback(() => {
     endedRef.current = false;
     setResult(null);
-    setSeed(newRunSeed());
+    setRun({ seed: newRunSeed(), best: useMetaStore.getState().endlessBest });
   }, []);
+
+  // §12.9 "invitations, never dead ends": Android's hardware back must leave
+  // the mode, not the app. Without this the default handler pops an empty
+  // navigation stack and Android kills the process mid-run — the same trap
+  // the in-run close button (`EndlessHud`) covers for the on-screen path.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      onExit();
+      return true;
+    });
+    return () => sub.remove();
+  }, [onExit]);
+
+  // Rendered by `GameplayScreen` inside its own render pass (see its `header`
+  // prop) — that is what keeps the live score off this component's state and
+  // out of §4.5's one-render-per-placement budget.
+  const renderHud = useCallback(
+    (state: GameState) => <EndlessHud score={state.score} best={run.best} onExit={onExit} />,
+    [run.best, onExit],
+  );
 
   return (
     <View style={styles.fill}>
-      <GameplayScreen key={seed} initialState={initialState} onEvent={handleEvent} />
+      <GameplayScreen
+        key={run.seed}
+        initialState={initialState}
+        header={renderHud}
+        onEvent={handleEvent}
+      />
       {result ? (
-        <View style={styles.overlay} accessible accessibilityViewIsModal>
-          <View style={styles.card}>
-            <Text style={styles.scoreLabel}>{t('endless.result.scoreLabel')}</Text>
-            <Text style={styles.score}>{result.score}</Text>
-            <Text style={styles.bestLine}>
-              {result.isNewBest
-                ? t('endless.result.newBest')
-                : t('endless.result.best', { best: result.best })}
-            </Text>
-            <Pressable
-              style={styles.cta}
-              onPress={playAgain}
-              accessibilityRole="button"
-              accessibilityLabel={t('endless.result.playAgain')}
-            >
-              <Text style={styles.ctaText}>{t('endless.result.playAgain')}</Text>
-            </Pressable>
-            <Pressable
-              style={styles.ghost}
-              onPress={onExit}
-              accessibilityRole="button"
-              accessibilityLabel={t('endless.result.home')}
-            >
-              <Text style={styles.ghostText}>{t('endless.result.home')}</Text>
-            </Pressable>
-          </View>
-        </View>
+        <EndlessResultSheet
+          score={result.score}
+          prevBest={result.prevBest}
+          onPlayAgain={playAgain}
+          onHome={onExit}
+        />
       ) : null}
     </View>
   );
@@ -125,71 +137,4 @@ export function EndlessScreen({ onExit }: EndlessScreenProps): React.JSX.Element
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(8,11,24,0.72)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.lg,
-  },
-  card: {
-    width: '100%',
-    maxWidth: 360,
-    borderRadius: radius.sheet,
-    padding: spacing.lg,
-    backgroundColor: colors.night2,
-    borderWidth: 1,
-    borderColor: 'rgba(233,196,106,0.35)',
-    alignItems: 'center',
-  },
-  scoreLabel: {
-    fontSize: fontSize.xs,
-    fontWeight: '800',
-    letterSpacing: 1,
-    color: colors.muted,
-    textTransform: 'uppercase',
-  },
-  score: {
-    marginTop: spacing.xs,
-    fontFamily: fontFamily.body,
-    fontWeight: '900',
-    fontSize: fontSize.xxl,
-    color: colors.cream,
-    fontVariant: ['tabular-nums'],
-  },
-  bestLine: {
-    marginTop: spacing.sm,
-    fontSize: fontSize.sm,
-    fontWeight: '800',
-    color: colors.gold,
-    fontVariant: ['tabular-nums'],
-  },
-  cta: {
-    marginTop: spacing.lg,
-    width: '100%',
-    minHeight: MIN_TOUCH,
-    borderRadius: radius.card,
-    backgroundColor: colors.gold,
-    borderBottomWidth: 3,
-    borderBottomColor: colors.goldDeep,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ctaText: { color: colors.night, fontSize: fontSize.md, fontWeight: '800' },
-  ghost: {
-    marginTop: spacing.sm,
-    minHeight: MIN_TOUCH,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ghostText: {
-    color: colors.muted,
-    fontSize: fontSize.sm,
-    fontWeight: '700',
-    textDecorationLine: 'underline',
-  },
 });
