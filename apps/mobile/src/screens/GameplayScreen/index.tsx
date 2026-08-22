@@ -42,6 +42,7 @@ import { spriteForObstacle } from '../../game/obstacleSprites';
 import { TrayCanvas } from '../../game/TrayCanvas';
 import { colors, fontSize, radius, spacing } from '../../components/tokens';
 import { t } from '../../i18n';
+import { formatScore } from '../../i18n/format';
 
 const GOAL_LABEL_KEY = {
   crate: 'gameplay.goal.crate',
@@ -97,6 +98,20 @@ export interface GameplayScreenProps {
   /** §7.1 L5: the HUD fades in rather than snapping visible on mount. Only
    * meaningful when `hudVisible` is true; ignored otherwise. */
   hudFadeIn?: boolean;
+  /**
+   * §7.6 (mockup panel 10.2): replaces the standard HUD row with the caller's
+   * own header — Endless has no level title and no pause chip, it has a mode
+   * chip, a centred hero score and a personal-best marker.
+   *
+   * A RENDER PROP, not a node, on purpose: the header needs the live
+   * `state.score`, which lives in THIS screen's state. Taking a node would
+   * force the caller to mirror the score into its own state off `onEvent`,
+   * which adds a second render pass per placement (§4.5 budgets one). Called
+   * inside this screen's existing render, it costs nothing extra.
+   * `hudVisible`/`hudFadeIn` do not apply to it — a caller that supplies a
+   * header owns its own visibility.
+   */
+  header?: (state: GameState) => React.ReactNode;
   /** §7.1: lets a caller (the FTUE step machine) observe every placement's
    * events/resulting state without this screen knowing anything about FTUE —
    * same `applyPlacement` return value `JuiceLayer` already consumes, just
@@ -130,6 +145,7 @@ export function GameplayScreen({
   initialState,
   hudVisible = true,
   hudFadeIn = false,
+  header,
   onEvent,
 }: GameplayScreenProps): React.JSX.Element {
   const [state, setState] = useState(initialState);
@@ -269,20 +285,24 @@ export function GameplayScreen({
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="light" />
-      <Animated.View style={hudAnimatedStyle} pointerEvents={hudVisible ? 'auto' : 'none'}>
-        <View style={styles.hudRow}>
-          <View style={styles.pauseButton}>
-            <View style={styles.pauseBar} />
-            <View style={styles.pauseBar} />
+      {header ? (
+        header(state)
+      ) : (
+        <Animated.View style={hudAnimatedStyle} pointerEvents={hudVisible ? 'auto' : 'none'}>
+          <View style={styles.hudRow}>
+            <View style={styles.pauseButton}>
+              <View style={styles.pauseBar} />
+              <View style={styles.pauseBar} />
+            </View>
+            <Text style={styles.levelTitle}>
+              {levelId !== undefined ? t('gameplay.level', { id: levelId }) : ''}
+            </Text>
+            <View style={styles.scoreChip}>
+              <Text style={styles.scoreText}>{formatScore(state.score)}</Text>
+            </View>
           </View>
-          <Text style={styles.levelTitle}>
-            {levelId !== undefined ? t('gameplay.level', { id: levelId }) : ''}
-          </Text>
-          <View style={styles.scoreChip}>
-            <Text style={styles.scoreText}>{state.score}</Text>
-          </View>
-        </View>
-      </Animated.View>
+        </Animated.View>
+      )}
 
       {/* §7.1 v1.11: the goal bar stays visible even when `hudVisible` hides
           the pause/score row above — L4 is the first FTUE level with a goal
