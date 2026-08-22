@@ -19,7 +19,7 @@ Reference: `BUILD_GUIDE.md` §1 rhythm, §5 review discipline, §6 failure modes
 | 1 | Analytics infra (guard, queue, overlay, 7 additions) | 14 | **MERGED** PR #11 `229d387` — 3 audit rounds |
 | 1b | Engine fuzz: cover the fixed-sequence path | 5 | **MERGED** PR #10 `8a02272` — corpus `392ad7a4` -> `538e3dea` |
 | 2 | Win/Fail + level progression loop | 7.5 | **PR #12 fix-complete** `111e54d` — audited, fixed, re-verified. Awaiting merge call |
-| 3 | Endless / Level map / Home real hub | 7.6, 7.10, 7.11 | §7.6 fix-complete `9b1809d`, awaiting merge; §7.10 starting |
+| 3 | Endless / Level map / Home real hub | 7.6, 7.10, 7.11 | §7.6 + §7.10 fix/audit stage; §7.11 next |
 | 4 | System screens — all eight | 12 | pending |
 | 5 | Daily Board client stack, on the emulator | 8.3-8.7 | pending |
 | 6 | Full drift audit + BLOCKER/MAJOR fixes + APK | S1.13 | pending |
@@ -437,6 +437,49 @@ never be assigned. Found during the §7.6 fix pass, correctly left out of that d
 fix before §8.3, or the first live fetch is a compile error. Suggested: widen the snapshot
 type to the primitive of each default (`number`/`boolean`/`string`) while keeping
 `REMOTE_CONFIG_DEFAULTS` itself `as const` for the registry-completeness checks.
+
+### S4 — §7.10 Level map (`feat/7.10-level-map`)
+Built `1521627`, pushed. **Stacked on `feat/7.5-win-fail`**, not on main — it needs the
+persisted progression. Mobile 172 -> 240 tests. Audit running.
+
+21 mutations applied, 21 caught. Two of them caught real defects mid-development: all 60
+medallions were `Animated.View` (hooks cannot be conditional — split into `Medallion` /
+`CurrentMedallion`), and the shared `t()` used `String.replace(string, ...)`, which
+substitutes only the FIRST occurrence, so an a11y label using `{{level}}` twice shipped a
+literal `{{level}}`. Fixed in `t()` itself, not at the call site.
+
+Data the section needed and now persists: per-level `stars` (§7.5 computed them and let
+them die with the session, so medallions had nothing to render), `chestsClaimed`, and
+`ownedFrames`. Persist `version: 2 -> 3` following §7.5's sequential-step structure.
+
+§14: fires **nothing** — the taxonomy has no map/medallion/chest event, and a test asserts
+`track` is never called through the whole open-chest flow. §13: no RC keys read or added;
+§7.10 marks nothing `[RC]`.
+
+**CROSS-BRANCH FINDING — `test/contrast.ts` has a blind spot on `feat/7.6-endless`.**
+`flattenStyle` did not resolve React Native's `({pressed}) => style` function styles, so the
+walker cannot see `GoldButton`/`GhostButton` fills and scores every primary CTA label at a
+fake **1.00:1**. §7.10 added the resolution; §7.6's suite passes WITHOUT it while containing
+GoldButtons, which means §7.6 is either not reaching a function-styled element or silently
+mis-scoring one. Being resolved in the §7.10 audit. Take §7.10's version of the file at merge.
+
+Entry point: the only specced route to the map is §7.5's FailScreen "Level map" ghost, which
+now goes there (`LevelSession` gained an optional `onLevelMap`, falling back to `onExit`).
+§7.11's mockup panel 2.1 has a map entry — that is §7.11's composition to add.
+
+**Open question the implementer refused to guess** (would be §7.10 acceptance criterion 10):
+is a completed medallion tappable to replay, and if so what happens to `attempt` (§0 v1.17)
+and to the persisted star best? Built non-tappable.
+
+Mockup divergences taken, all documented in file headers: chapter card scrolls rather than
+pinning (§7.10 has two chapters on one map; a pinned card goes stale); "23 of 40 levels" ->
+30 (PRD wins, totals read from content); footer coin chip not built (Stage 2); landmark art
+not built (Stage 3, no §15 asset output exists); medallions not tappable (see above); chest
+sheet shows one loot card not three (the other two are Stage 2/§9.3) and no particle burst
+(§15's `Confetti` primitive does not exist, and adding a design-system component inside a
+feature PR is the wrong PR); two colour deviations to clear WCAG — path dots and the chapter
+card border at gold 55% (the mockup's 42% and 30% compute to 2.57:1 and 1.86:1), and locked
+medallions gained a `muted` outline.
 
 ## HARD STOP — 3 §7.6 PRD gaps need operator rulings (2026-08-22)
 
