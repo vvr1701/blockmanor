@@ -245,7 +245,7 @@ beforeEach(() => {
   trackMock.mockClear();
   // `attempts` is persisted per level id (§0 v1.17) — reset it too, or one
   // test's retries become the next test's starting attempt number.
-  useMetaStore.setState({ currentLevel: 10, attempts: {} });
+  useMetaStore.setState({ currentLevel: 10, attempts: {}, stars: {} });
 });
 
 afterEach(() => {
@@ -540,5 +540,56 @@ describe('LevelSession (PRD §7.5 progression loop)', () => {
     // advances past what `getLevel` can resolve.
     expect(onExit).toHaveBeenCalledTimes(1);
     expect(useMetaStore.getState().currentLevel).toBe(MAX_LEVEL_ID);
+  });
+
+  /**
+   * §7.10: the level map's medallions render "1-3 stars", and before this the
+   * star count `WinScreen` displays died with the session — `useMetaStore`
+   * persisted `currentLevel` and `attempts` but nothing per-level. These two
+   * assert the WRITE, on both terminal-win paths (`LEVEL_WON`, and the
+   * goal-less `'completed'` exhaustion path that has no `LEVEL_WON` event).
+   * Drop either `persistStars` call and exactly one of them reds.
+   */
+  it('§7.10: a win PERSISTS the star count the level map renders', () => {
+    const renderer = render(<LevelSession onExit={vi.fn()} />);
+    place(renderer, 0, 0, 0);
+    advance(WIN_HOLD_MS);
+
+    expect(renderer.root.findByType(WinScreen).props.stars).toBe(2);
+    // The same number the screen showed, now outliving the session.
+    expect(useMetaStore.getState().stars['10']).toBe(2);
+  });
+
+  it('§7.10: the `pieceSequence`-exhaustion win path persists stars too', () => {
+    useMetaStore.setState({ currentLevel: 12 });
+    const renderer = render(<LevelSession onExit={vi.fn()} />);
+    place(renderer, 0, 3, 3);
+    advance(WIN_HOLD_MS);
+
+    expect(renderer.root.findByType(WinScreen).props.stars).toBe(1);
+    expect(useMetaStore.getState().stars['12']).toBe(1);
+  });
+
+  it('§7.10: §7.5s "Level map" ghost routes to `onLevelMap` when the mount point supplies one, and still falls back to `onExit`', () => {
+    useMetaStore.setState({ currentLevel: 11 });
+    const onExit = vi.fn();
+    const onLevelMap = vi.fn();
+    const renderer = render(<LevelSession onExit={onExit} onLevelMap={onLevelMap} />);
+    place(renderer, 0, 0, 0);
+    advance(FAIL_HOLD_MS);
+
+    act(() => {
+      (renderer.root.findByType(FailScreen).props as { onLevelMap: () => void }).onLevelMap();
+    });
+    expect(onLevelMap).toHaveBeenCalledTimes(1);
+    expect(onExit).not.toHaveBeenCalled();
+
+    const bare = render(<LevelSession onExit={onExit} />);
+    place(bare, 0, 0, 0);
+    advance(FAIL_HOLD_MS);
+    act(() => {
+      (bare.root.findByType(FailScreen).props as { onLevelMap: () => void }).onLevelMap();
+    });
+    expect(onExit).toHaveBeenCalledTimes(1);
   });
 });

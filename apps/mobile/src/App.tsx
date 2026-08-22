@@ -10,6 +10,7 @@ import { LevelSession } from './game/LevelSession';
 import { FtueScreen } from './screens/FtueScreen';
 import { GameplayScreen } from './screens/GameplayScreen';
 import { HomeScreen } from './screens/HomeScreen';
+import { LevelMapScreen } from './screens/LevelMapScreen';
 import { useMetaStore } from './state/useMetaStore';
 
 /**
@@ -32,6 +33,11 @@ export default function App(): React.JSX.Element {
   // (real level, from `useMetaStore.currentLevel`); its own exit paths ("Level
   // map" ghost, ran past the last shipped level) come back to Home.
   const [playing, setPlaying] = useState(false);
+  // §7.10: the level map is reached from §7.5's FailScreen "Level map" ghost,
+  // the one route the PRD specs to it today. Home's own entry point to the
+  // map is §7.11's composition to add (its mockup panel 2.1 has one), not
+  // this section's to invent.
+  const [mapOpen, setMapOpen] = useState(false);
   const demoState = useMemo(() => (DEV_BOARD_ENABLED ? createDemoGameState() : null), []);
 
   // §7.1 v1.11 skip logic: "returning users (existing cloud/local save)
@@ -53,7 +59,21 @@ export default function App(): React.JSX.Element {
         ) : showFtue ? (
           <FtueScreen />
         ) : playing ? (
-          <LevelSession onExit={() => setPlaying(false)} />
+          <LevelSession
+            onExit={() => setPlaying(false)}
+            onLevelMap={() => {
+              setPlaying(false);
+              setMapOpen(true);
+            }}
+          />
+        ) : mapOpen ? (
+          <LevelMapScreen
+            onPlay={() => {
+              setMapOpen(false);
+              setPlaying(true);
+            }}
+            onExit={() => setMapOpen(false)}
+          />
         ) : (
           <>
             <HomeScreen onPlay={() => setPlaying(true)} />

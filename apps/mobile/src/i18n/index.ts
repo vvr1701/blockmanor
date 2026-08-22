@@ -10,8 +10,12 @@ type StringKey = keyof typeof en;
 export function t(key: StringKey, params?: Record<string, string | number>): string {
   const template: string = en[key];
   if (!params) return template;
+  // Global replace, not `String.replace(string, …)` — that substitutes only
+  // the FIRST occurrence, so a key using the same placeholder twice (e.g.
+  // §7.10's "Level {{level}} chest, locked — clear level {{level}} to open
+  // it") silently shipped a literal `{{level}}` to the player.
   return Object.entries(params).reduce(
-    (out, [name, value]) => out.replace(`{{${name}}}`, String(value)),
+    (out, [name, value]) => out.split(`{{${name}}}`).join(String(value)),
     template,
   );
 }
