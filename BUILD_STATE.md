@@ -18,33 +18,43 @@ Reference: `BUILD_GUIDE.md` §1 rhythm, §5 review discipline, §6 failure modes
 | 0 | Daily Board generation | 8.2 | **MERGED** PR #8 `0ee4fc9` — 4 audit rounds |
 | 1 | Analytics infra (guard, queue, overlay, 7 additions) | 14 | **MERGED** PR #11 `229d387` — 3 audit rounds |
 | 1b | Engine fuzz: cover the fixed-sequence path | 5 | **MERGED** PR #10 `8a02272` — corpus `392ad7a4` -> `538e3dea` |
-| 2 | Win/Fail + level progression loop | 7.5 | **PR #12 DRAFT** — audited PASS, blocked ONLY on 2 operator PRD rulings |
-| 3 | Endless / Level map / Home real hub | 7.6, 7.10, 7.11 | §7.6 starting |
+| 2 | Win/Fail + level progression loop | 7.5 | **PR #12** — rulings applied (PRD v1.17, `1efa954`); delta re-audit running |
+| 3 | Endless / Level map / Home real hub | 7.6, 7.10, 7.11 | §7.6 built `60f0760`, audit running; 7.10/7.11 queued |
 | 4 | System screens — all eight | 12 | pending |
 | 5 | Daily Board client stack, on the emulator | 8.3-8.7 | pending |
 | 6 | Full drift audit + BLOCKER/MAJOR fixes + APK | S1.13 | pending |
 
-`main` is at **PRD v1.16**, corpus hash **`538e3dea`**, CI runs 5 jobs (typecheck, lint,
+`main` is at **PRD v1.16** (v1.17 on the §7.5 branch), corpus hash **`538e3dea`**, CI runs 5 jobs (typecheck, lint,
 test, balance, emulator). Screens built: FtueScreen, GameplayScreen, HomeScreen
 (placeholder), WinScreen + FailScreen (in PR #12). 12 of 17 §16.1 screens remain.
 
-## BLOCKING — 2 operator PRD rulings gate PR #12 (§7.5)
+## RESOLVED — the 2 §7.5 rulings (2026-08-22)
 
-Both are player-facing behavioural rules, so §0.1 requires the amendment BEFORE code.
-The implementer left both behaviours untouched pending the ruling (verified: no PRD
-diff on the fix commits).
+Operator ruled both as recommended. Landed on `feat/7.5-win-fail` as **PRD v1.17**
+(`eee11b5` docs, `1efa954` code), one changelog row covering both halves.
 
-**A. `attempt` lifetime.** `LevelSession.tsx` uses `useState(1)` — session-local, resets
-every app launch. §7.9 targets "L15 win rate 35-45% **first attempt**" and §3 gates on
-per-level quit rate; both need `attempt: 1` to mean a genuine first attempt at that
-level. As built, failing L15 four times then backgrounding the app emits a second
-`attempt: 1`. RECOMMENDATION: persist per level id in `useMetaStore`.
+**A. `attempt` is per-level persisted state.** Now `attempts: Record<string, number>`
+in `useMetaStore`, persist `version: 1 -> 2`, `migrateMetaState` restructured from
+early-return to sequential steps so v0->v1 (the FTUE clamp) and v1->v2 compose.
+`LevelSession` reads it non-reactively via `getState()` in a `useState` initializer;
+the write sits in the run-start effect, so the counter advances **once per run
+started** — an abandoned run counts (that is the shape of a §3 quit), a level
+replayed later resumes its own count, Retry does not double-count.
+Consequence for the operator: existing installs re-attempt from 1 once, since the
+data was never persisted. First-attempt win rates are trustworthy only from builds
+carrying this change forward.
 
-**B. Retry seeding.** Retry deals a fresh tray (seed tagged with `attempt`) rather than
-replaying the identical seed. The auditor verified this disturbs neither §7.9 (the
-harness seeds independently as `L${id}-s${i}` and sweeps 500 seeds) nor §7.1 (scripted
-levels ignore the run seed for draws), and agrees on the merits per §1 P2 "never punish
-without an exit". RECOMMENDATION: keep fresh-tray, amend §7.5 to say so.
+**B. Retry deals a fresh tray** — kept as built and made normative. Verified end to
+end: `handleRetry` bumps `attempt` -> the `initialState` memo rebuilds with seed
+`level-${id}-a${attempt}` -> `GameplayScreen`'s `key` forces a remount -> `createGame`
+seeds as `` `${seed}|${config.level.seedSalt}` `` (`packages/engine/src/simulate.ts:268`).
+`seedSalt` pins level identity, `attempt` varies the run. `levelRunSeed()` extracted and
+now guarded — dropping `attempt` from that template previously passed the whole suite.
+
+Mutation evidence: reverting the initializer reds 1 test; a full revert to session-local
+reds 2; dropping `attempt` from the seed reds 1. The rehydrate test drives a real
+placement -> fail -> Retry, wipes RAM, restores the MMKV image and calls zustand's own
+`persist.rehydrate()` — it does not fake persistence.
 
 ## Firebase — done 2026-08-22, and what is left
 
@@ -362,15 +372,20 @@ finding is closed.
    DAILY_BOARD_SALT --project blockmanor-dev`, 32+ bytes of entropy. Gates seed
    derivation AND the AES key; rotating it changes every future board. Without
    it the scheduled function cannot run at all.
-2. **`google-services.json`** for `com.vvr1701.blockmanor` — blocks the
-   `@react-native-firebase` transport pass (operator-approved), which in turn
-   blocks §14 delivery, Crashlytics (Stage-1 DoD crash-free gate), and §8.7 push.
-3. **Remote Config keys** in the `blockmanor-dev` console — the six frozen §13
-   keys plus `daily_reroll_cap` and `analytics_queue_cap`. **CORRECTION
-   (2026-08-10):** an earlier version of this line claimed absent keys are
-   marked `"default"` in `configSource`. That was false — the re-audit proved
-   `getNumber()` discards the SDK's `'default'` tag, so absent keys published as
-   `"live"`. Being fixed; until it lands, `configSource` cannot be trusted.
+2. ~~**`google-services.json`**~~ — DONE 2026-08-22, downloaded and verified.
+   The `@react-native-firebase` transport pass it was blocking is now unblocked
+   and still unbuilt: §14 events do not leave the device yet. Also still gates
+   Crashlytics (Stage-1 DoD crash-free gate) and §8.7 push.
+3. ~~**Remote Config keys**~~ — DONE 2026-08-22, all 60 §13 keys deployed and
+   verified live. (Historical correction kept because it explains the code: an
+   earlier note claimed absent keys are marked `"default"` in `configSource`.
+   False — `getNumber()` discards the SDK's `'default'` tag, so absent keys
+   published as `"live"`. Fixed in §8.2 via `getValue()` + `getSource()`.)
+
+3b. **Firestore region** — the DB is in `nam5` (US), not `asia-south1`. Empty, so
+   the fix is still clean. Operator answered "recreate in asia-south1" through the
+   question tool; awaiting a plain-text confirmation before running an
+   irreversible delete. See the Firebase section above for the two commands.
 4. **`.firebaserc` `prod` alias** — currently `REPLACE_ME_BLOCKMANOR_PROD`.
    Not needed until a prod project exists.
 5. **iOS boot still unverified** — carried from Stage 0; needs an Apple
