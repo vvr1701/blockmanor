@@ -58,6 +58,24 @@ describe('migrateMetaState (PRD §7.5 audit B-1)', () => {
     expect(migrated.attempts).toEqual({ '15': 4 });
   });
 
+  /**
+   * The two steps COMPOSE: a v0 save is older than both, so it must get the
+   * FTUE clamp AND the `attempts` add in one pass. The steps were written as
+   * an early `return` per step before §0 v1.17 — restore that and this reds
+   * (`attempts` comes back `undefined`), because the v0 branch would exit
+   * before the v1 -> v2 step ran. Not a live bug today only because zustand's
+   * shallow merge backfills a missing key from initial state; it becomes one
+   * the first time a later step TRANSFORMS an existing key instead of adding
+   * a missing one.
+   */
+  it('a v0 save runs through BOTH steps — the FTUE clamp and the v1 -> v2 `attempts` add (§0 v1.17)', () => {
+    const migrated = migrateMetaState({ ...BASE, currentLevel: 1 }, 0) as typeof BASE & {
+      attempts: Record<string, number>;
+    };
+    expect(migrated.currentLevel).toBe(FIRST_POST_FTUE_LEVEL);
+    expect(migrated.attempts).toEqual({});
+  });
+
   it('tolerates a missing/undefined persisted state (fresh install, nothing to migrate)', () => {
     expect(migrateMetaState(undefined, 0)).toBeUndefined();
   });

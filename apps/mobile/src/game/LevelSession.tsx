@@ -57,9 +57,18 @@ export function levelRunSeed(levelId: number, attempt: number): string {
 }
 
 /** The attempt number the NEXT run of `levelId` gets (§0 v1.17): one past
- * whatever survived in MMKV, or 1 for a level never started on this install. */
+ * whatever survived in MMKV, or 1 for a level never started on this install.
+ *
+ * Both guards below exist for a truncated or hand-edited MMKV blob only —
+ * zustand runs `migrate` for OLDER versions, never at the current one, so a
+ * corrupt `attempts` on a v2 blob reaches this read exactly as written:
+ * `null` would throw on mount (a §12.9 dead end), and a string would
+ * concatenate (`'x' + 1 === 'x1'`), leaking a non-number into the typed
+ * `level_start.attempt` §14 param. This is the single read of `attempts` in
+ * the app, so guarding here covers every caller. */
 function nextAttempt(levelId: number): number {
-  return (useMetaStore.getState().attempts[String(levelId)] ?? 0) + 1;
+  const prev = (useMetaStore.getState().attempts ?? {})[String(levelId)];
+  return (typeof prev === 'number' && Number.isFinite(prev) ? prev : 0) + 1;
 }
 
 type Phase = 'playing' | 'won' | 'lost';
@@ -223,14 +232,20 @@ export function LevelSession({ onExit }: LevelSessionProps): React.JSX.Element |
       return;
     }
     setCurrentLevel(currentLevel + 1);
-    // Not `1`: a level reached a second time (§7.10 replay, a corrected save)
-    // resumes its own persisted count rather than faking a first attempt.
+    // Not `1`: a level reached a second time (today only via a corrected or
+    // rolled-back save — §7.10's map specs medallions, chests and
+    // scroll-to-current, no replay affordance) resumes its own persisted
+    // count rather than faking a first attempt. §0 v1.17 (i).
     setAttempt(nextAttempt(currentLevel + 1));
   }, [currentLevel, setCurrentLevel, onExit]);
 
   const handleRetry = useCallback(() => {
-    setAttempt((a) => a + 1);
-  }, []);
+    // The same persisted read `handleNext` uses, not `a + 1` off session
+    // state: those agree today only because the run-start effect always
+    // writes before a Retry can be tapped — an invariant a reader would have
+    // to reconstruct. One source of truth for "what attempt is next" instead.
+    setAttempt(nextAttempt(currentLevel));
+  }, [currentLevel]);
 
   if (!json || !initialState) return null;
 

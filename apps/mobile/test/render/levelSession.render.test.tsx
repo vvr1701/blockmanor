@@ -26,6 +26,7 @@
  */
 import type * as ContentModule from '@blockmanor/content';
 import type { LevelJson } from '@blockmanor/content';
+import type { GameState } from '@blockmanor/engine';
 import React from 'react';
 import TestRenderer, { act, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -43,7 +44,7 @@ vi.mock('../../src/services/analytics', () => ({ track: vi.fn() }));
 // this file (including `const` declarations) — `vi.hoisted` is the
 // documented escape hatch so the fixtures below can still be built with a
 // normal helper function instead of one giant inline literal.
-const { WIN_LEVEL, FAIL_LEVEL, COMPLETED_LEVEL, CEILING_LEVEL_BASE } = vi.hoisted(() => {
+const { WIN_LEVEL, FAIL_LEVEL, COMPLETED_LEVEL, CEILING_LEVEL_BASE, RESEED } = vi.hoisted(() => {
   // `findFullLines` (packages/engine `clearing.ts`) full-scans the WHOLE
   // board on every placement, not just the lines the new piece touched — so
   // these fixtures must never let an UNRELATED row/column sit fully occupied
@@ -160,7 +161,27 @@ const { WIN_LEVEL, FAIL_LEVEL, COMPLETED_LEVEL, CEILING_LEVEL_BASE } = vi.hoiste
     pieceSequence: ['P01'],
   };
 
-  return { WIN_LEVEL, FAIL_LEVEL, COMPLETED_LEVEL, CEILING_LEVEL_BASE };
+  /**
+   * §0 v1.17 (ii)'s fixture: the ONLY one here with no `pieceSequence`, so
+   * the tray is actually drawn from the seeded PRNG (§6.2) and therefore
+   * actually observes the run seed. Every other fixture pins its draw, which
+   * is exactly why they cannot guard this rule. Empty board, no goals — it is
+   * never played, only mounted and read.
+   */
+  const RESEED = {
+    id: 13,
+    chapter: 1,
+    seedSalt: 'test-reseed',
+    prefill: [],
+    goals: [],
+    pieceWeightOverrides: {},
+    mercy: true,
+    stars: { s2: 200, s3: 700 },
+    ivySpreadInterval: 3,
+    ivyMaxTiles: 16,
+  };
+
+  return { WIN_LEVEL, FAIL_LEVEL, COMPLETED_LEVEL, CEILING_LEVEL_BASE, RESEED };
 });
 
 vi.mock('@blockmanor/content', async (importOriginal) => {
@@ -173,6 +194,7 @@ vi.mock('@blockmanor/content', async (importOriginal) => {
     10: WIN_LEVEL as LevelJson,
     11: FAIL_LEVEL as LevelJson,
     12: COMPLETED_LEVEL as LevelJson,
+    13: RESEED as LevelJson,
     [actual.MAX_LEVEL_ID]: ceilingLevel as LevelJson,
   };
   return { ...actual, getLevel: (id: number) => byId[id] };
@@ -421,10 +443,46 @@ describe('LevelSession (PRD §7.5 progression loop)', () => {
     expect(trackMock).not.toHaveBeenCalledWith('level_start', { id: 11, attempt: 1 });
   });
 
-  // §0 v1.17 ruling B: already the built behaviour, made normative. The guard
-  // is that `attempt` stays IN the run seed — drop it and every Retry replays
-  // the identical losing draw, which is the wall §1 P2 forbids.
-  it('each attempt runs on its own engine seed — Retry deals a fresh tray, not a replay (§0 v1.17)', () => {
+  /**
+   * §0 v1.17 ruling B: already the built behaviour, made normative. The rule
+   * is that `attempt` stays IN the run seed — drop it and every Retry replays
+   * the identical losing draw, the wall §1 P2 forbids.
+   *
+   * Asserting `levelRunSeed(11, 2) !== levelRunSeed(11, 1)` would only prove
+   * that template interpolation works; the seed has to be observed where the
+   * player feels it, on the TRAY the engine actually deals. So this mounts
+   * `RESEED` (the one fixture with no `pieceSequence` — a pinned
+   * sequence ignores the run seed entirely, §4.3) three times at persisted
+   * attempts 1/2/3 and compares the dealt trays. Mutation-checked: pinning
+   * the seed at the call site (`levelRunSeed(json.id, 1)`) reds this.
+   */
+  it('each attempt DEALS A DIFFERENT TRAY — Retry re-seeds the run, it does not replay the loss (§0 v1.17)', () => {
+    function trayAtAttempt(attempt: number): string {
+      // One prior run recorded => this mount is run `attempt` (§0 v1.17's
+      // "advances at run start").
+      useMetaStore.setState({ currentLevel: 13, attempts: { '13': attempt - 1 } });
+      trackMock.mockClear();
+      const renderer = render(<LevelSession onExit={vi.fn()} />);
+      const { initialState } = renderer.root.findByType(GameplayScreen).props as {
+        initialState: GameState;
+      };
+      const tray = initialState.tray.map((slot) => slot.pieceId).join(',');
+      // The mount really was at this attempt number — otherwise a comparison
+      // of three identical mounts could pass by accident.
+      expect(trackMock).toHaveBeenCalledWith('level_start', { id: 13, attempt });
+      act(() => {
+        renderer.unmount();
+      });
+      activeRenderers.pop();
+      return tray;
+    }
+
+    const trays = [1, 2, 3].map(trayAtAttempt);
+    expect(trays.every((t) => t.length > 0)).toBe(true);
+    expect(new Set(trays).size).toBe(3);
+  });
+
+  it('the run seed keeps the LEVEL pinned and only the attempt varying (§0 v1.17 — seedSalt is the level identity)', () => {
     expect(levelRunSeed(11, 2)).not.toBe(levelRunSeed(11, 1));
     expect(levelRunSeed(12, 1)).not.toBe(levelRunSeed(11, 1));
   });
@@ -440,6 +498,31 @@ describe('LevelSession (PRD §7.5 progression loop)', () => {
 
     expect(trackMock).toHaveBeenCalledWith('level_start', { id: 11, attempt: 5 });
   });
+
+  /**
+   * `migrate` only ever runs for an OLDER version, so a corrupt v2 blob (a
+   * truncated write, a hand-edited MMKV file) reaches `nextAttempt` exactly
+   * as stored. `null` used to throw on mount — a §12.9 dead end with no way
+   * back — and a string used to concatenate into `level_start.attempt`,
+   * putting `'x1'` into a typed `number` §14 param.
+   */
+  it.each([
+    ['null (truncated blob)', null],
+    ['a non-numeric entry (hand-edited blob)', { '11': 'x' }],
+  ])(
+    'a corrupt persisted `attempts` — %s — still starts at attempt 1, no crash (§12.9)',
+    (_l, attempts) => {
+      useMetaStore.setState({
+        currentLevel: 11,
+        attempts: attempts as unknown as Record<string, number>,
+      });
+
+      const renderer = render(<LevelSession onExit={vi.fn()} />);
+
+      expect(renderer.root.findAllByType(GameplayScreen).length).toBe(1);
+      expect(trackMock).toHaveBeenCalledWith('level_start', { id: 11, attempt: 1 });
+    },
+  );
 
   it('winning AT MAX_LEVEL_ID exits instead of persisting an unreachable currentLevel — §7.5 audit M-1', () => {
     useMetaStore.setState({ currentLevel: MAX_LEVEL_ID });
