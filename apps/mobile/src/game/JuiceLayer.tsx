@@ -64,7 +64,9 @@ import {
   NEAR_DEATH_STATIC_OPACITY,
   PERFECT_CLEAR_SHIMMER_MS,
   WIN_CONFETTI_COUNT,
+  WIN_CONFETTI_LANE_COUNT,
   WIN_CONFETTI_MS,
+  WIN_CONFETTI_STAGGER_MS_PER_LANE,
   WIN_STAR_COUNT,
   WIN_STAR_SLAM_MS,
   WIN_STAR_STAGGER_MS,
@@ -304,7 +306,10 @@ function WinStar({
 function ConfettiPiece({ index, width }: { index: number; width: number }): React.JSX.Element {
   const progress = useSharedValue(0);
   useEffect(() => {
-    progress.value = withDelay((index % 6) * 40, withTiming(1, { duration: WIN_CONFETTI_MS }));
+    progress.value = withDelay(
+      (index % WIN_CONFETTI_LANE_COUNT) * WIN_CONFETTI_STAGGER_MS_PER_LANE,
+      withTiming(1, { duration: WIN_CONFETTI_MS }),
+    );
   }, []);
   const laneWidth = width / WIN_CONFETTI_COUNT;
   const left = laneWidth * index + laneWidth / 2;
@@ -392,9 +397,15 @@ export function JuiceLayer({
     (e): e is Extract<GameEvent, { type: 'LINES_CLEARED' }> => e.type === 'LINES_CLEARED',
   );
   const perfect = events.some((e) => e.type === 'PERFECT_CLEAR');
-  const won = events.find(
-    (e): e is Extract<GameEvent, { type: 'LEVEL_WON' }> => e.type === 'LEVEL_WON',
-  );
+  // §8.2/§4.3 (§7.5 re-audit item 4): `SEQUENCE_EXHAUSTED` (a fixed
+  // `pieceSequence` running dry with the board alive — §7.1's scripted L1-L5,
+  // a stale save, or a future Daily Board run) is a terminal win-shaped
+  // outcome exactly like `LEVEL_WON` — `LevelSession` already arms the same
+  // `WIN_HOLD_MS` hold for it. Without this, that hold played out as silent
+  // dead air: no stars, no confetti, no cue, because this boolean only ever
+  // matched `LEVEL_WON`. Only ever read as a boolean below (see `{won ? ...}`
+  // and `if (won)`), so widening it costs no type narrowing elsewhere.
+  const won = events.some((e) => e.type === 'LEVEL_WON' || e.type === 'SEQUENCE_EXHAUSTED');
   const over = events.some((e) => e.type === 'GAME_OVER');
   const isMultiLine = !!cleared && cleared.comboDisplay >= MULTI_LINE_COMBO_MIN;
 

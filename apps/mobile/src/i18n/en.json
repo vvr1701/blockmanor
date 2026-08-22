@@ -32,6 +32,8 @@
   "win.starsLabel": "{{stars}} of 3 stars",
   "win.scoreLabel": "Score",
   "win.next": "Next level",
+  "win.allShipped": "Back to Home",
+  "win.allShippedLine": "You've cleared every level shipped so far — nicely done!",
   "fail.title": "Out of space!",
   "fail.subtitle": "Level {{id}}",
   "fail.goalLine": "{{label}} {{done}}/{{total}}",

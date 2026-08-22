@@ -8,7 +8,8 @@
  */
 import { FIRST_POST_FTUE_LEVEL } from '@blockmanor/content';
 import { describe, expect, it } from 'vitest';
-import { migrateMetaState } from '../src/state/useMetaStore';
+import { mmkvStorage } from '../src/state/persist';
+import { migrateMetaState, useMetaStore } from '../src/state/useMetaStore';
 
 const BASE = {
   currentLevel: 1,
@@ -45,5 +46,16 @@ describe('migrateMetaState (PRD §7.5 audit B-1)', () => {
 
   it('tolerates a missing/undefined persisted state (fresh install, nothing to migrate)', () => {
     expect(migrateMetaState(undefined, 0)).toBeUndefined();
+  });
+
+  it('fires through the REAL zustand persist/rehydrate path, not `migrateMetaState` called directly (§7.5 re-audit item 7) — the `version: 0` assumption that makes the clamp fire at all is otherwise asserted nowhere', async () => {
+    mmkvStorage.setItem(
+      'meta',
+      JSON.stringify({ state: { ...BASE, currentLevel: 1 }, version: 0 }),
+    );
+
+    await useMetaStore.persist.rehydrate();
+
+    expect(useMetaStore.getState().currentLevel).toBe(FIRST_POST_FTUE_LEVEL);
   });
 });

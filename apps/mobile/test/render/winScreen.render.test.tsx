@@ -50,4 +50,25 @@ describe('WinScreen (PRD §7.5)', () => {
     expect(texts.filter((c) => c === '★').length).toBe(3);
     expect(texts.filter((c) => c === '☆').length).toBe(0);
   });
+
+  it('§7.5 re-audit item 5: `isLastLevel` swaps the CTA label and adds an acknowledgment line, but still calls onNext (no new route)', () => {
+    const onNext = vi.fn();
+    const renderer = render(<WinScreen score={100} stars={3} onNext={onNext} isLastLevel />);
+    const texts = renderer.root.findAllByType('RNText' as never).map((n) => n.props.children);
+    expect(texts).not.toContain('Next level');
+    expect(texts.join(' ')).toContain('cleared every level shipped so far');
+
+    const button = renderer.root.findAll((n) => n.props.accessibilityRole === 'button')[0];
+    act(() => {
+      (button!.props as { onPress: () => void }).onPress();
+    });
+    expect(onNext).toHaveBeenCalledTimes(1);
+  });
+
+  it('defaults `isLastLevel` to false — normal mid-content win shows "Next level", no acknowledgment line', () => {
+    const renderer = render(<WinScreen score={100} stars={2} onNext={vi.fn()} />);
+    const texts = renderer.root.findAllByType('RNText' as never).map((n) => n.props.children);
+    expect(texts).toContain('Next level');
+    expect(texts.join(' ')).not.toContain('cleared every level shipped so far');
+  });
 });

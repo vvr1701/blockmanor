@@ -199,7 +199,14 @@ export function LevelSession({ onExit }: LevelSessionProps): React.JSX.Element |
   if (!json || !initialState) return null;
 
   if (phase === 'won' && result) {
-    return <WinScreen score={result.score} stars={result.stars} onNext={handleNext} />;
+    return (
+      <WinScreen
+        score={result.score}
+        stars={result.stars}
+        onNext={handleNext}
+        isLastLevel={currentLevel >= MAX_LEVEL_ID}
+      />
+    );
   }
   if (phase === 'lost' && result) {
     return (

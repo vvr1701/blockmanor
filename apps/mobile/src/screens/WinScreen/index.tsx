@@ -32,9 +32,23 @@ export interface WinScreenProps {
   /** 1-3 (§7.5: star 1 = win). */
   stars: number;
   onNext: () => void;
+  /**
+   * True at `MAX_LEVEL_ID` (§7.5 re-audit item 5). No honest "next level"
+   * exists yet — §7.10's `LevelMapScreen` isn't built — so the default
+   * "Next level" CTA would relabel a replay-Home trip as forward progress.
+   * `onNext` still fires unchanged: `LevelSession.handleNext` already routes
+   * the ceiling case to Home (the one real, already-built destination); this
+   * prop only swaps the label and adds an acknowledgment line, no new route.
+   */
+  isLastLevel?: boolean;
 }
 
-export function WinScreen({ score, stars, onNext }: WinScreenProps): React.JSX.Element {
+export function WinScreen({
+  score,
+  stars,
+  onNext,
+  isLastLevel = false,
+}: WinScreenProps): React.JSX.Element {
   // §15.1 "star_slam (win stars, ×3)" — §7.5 audit mn-4. Fires once on mount
   // alongside this screen's own star glyphs, distinct from `win_fanfare`
   // (already wired, `JuiceLayer.tsx` — the board-side celebration held open
@@ -46,6 +60,7 @@ export function WinScreen({ score, stars, onNext }: WinScreenProps): React.JSX.E
   return (
     <View style={styles.root}>
       <Text style={styles.title}>{t('win.title')}</Text>
+      {isLastLevel ? <Text style={styles.lastLevelLine}>{t('win.allShippedLine')}</Text> : null}
 
       <View style={styles.starsRow} accessible accessibilityLabel={t('win.starsLabel', { stars })}>
         {Array.from({ length: TOTAL_STARS }, (_, i) => (
@@ -61,7 +76,11 @@ export function WinScreen({ score, stars, onNext }: WinScreenProps): React.JSX.E
       </View>
 
       <View style={styles.ctaSlot}>
-        <GoldButton label={t('win.next')} onPress={onNext} size="lg" />
+        <GoldButton
+          label={t(isLastLevel ? 'win.allShipped' : 'win.next')}
+          onPress={onNext}
+          size="lg"
+        />
       </View>
     </View>
   );
@@ -77,6 +96,12 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   title: { color: colors.cream, fontSize: fontSize.xxl, fontWeight: '800', textAlign: 'center' },
+  lastLevelLine: {
+    color: colors.muted,
+    fontSize: fontSize.sm,
+    textAlign: 'center',
+    paddingHorizontal: spacing.lg,
+  },
   starsRow: { flexDirection: 'row', gap: spacing.sm },
   starFilled: { color: colors.gold, fontSize: 44 },
   starEmpty: { color: colors.muted, fontSize: 44 },

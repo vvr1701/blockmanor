@@ -15,6 +15,17 @@
  *   — dark ink on a light card, the same "on-cream" reading the mockup's own
  *   exit link uses, expressed with this app's existing night token rather
  *   than the mockup's literal (untokenized) ink hex.
+ *
+ * `onLight` contrast against `colors.cream` (§7.5 re-audit item 1, sRGB
+ * relative luminance, WCAG formula):
+ *   - label @ 55% = 3.74:1 — fails the 4.5:1 normal-text minimum. Bumped to
+ *     70% = 5.98:1 (matches `onDark`'s label alpha, which already used 70%).
+ *   - border @ 28% = 1.82:1 — fails the 3:1 non-text minimum too, and by a
+ *     wider margin than the label did. Bumped to 70% as well (not a bespoke
+ *     value): reusing the label's alpha keeps this variant a one-alpha pair
+ *     instead of introducing a third arbitrary opacity, and at 70% the
+ *     border measures the same 5.98:1 — comfortably clear of 3:1 even
+ *     accounting for anti-aliasing/rendering variance at a 2px stroke width.
  */
 import React, { useCallback } from 'react';
 import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
@@ -29,8 +40,8 @@ const VARIANT_COLORS: Record<GhostButtonVariant, { border: string; label: string
     label: 'rgba(243,234,215,0.7)', // colors.cream @ 70%
   },
   onLight: {
-    border: 'rgba(19,24,48,0.28)', // colors.night @ 28%
-    label: 'rgba(19,24,48,0.55)', // colors.night @ 55%
+    border: 'rgba(19,24,48,0.7)', // colors.night @ 70% — 5.98:1 on cream (needs 3:1)
+    label: 'rgba(19,24,48,0.7)', // colors.night @ 70% — 5.98:1 on cream (needs 4.5:1)
   },
 };
 

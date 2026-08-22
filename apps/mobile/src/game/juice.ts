@@ -211,16 +211,35 @@ export const WIN_STAR_SLAM_MS = 180;
  * later session), so a modest burst rather than a full-screen system. */
 export const WIN_CONFETTI_COUNT = 16;
 export const WIN_CONFETTI_MS = 900;
+/**
+ * Confetti pieces stagger their start in `JuiceLayer` (`index %
+ * WIN_CONFETTI_LANE_COUNT`) so a 16-piece burst cascades in bands rather than
+ * dropping as one flat sheet. Not PRD-specified — hoisted here (rather than
+ * left as a bare literal in `JuiceLayer.tsx`) per §7.4's "all timings are
+ * design tokens in one file" (§7.5 re-audit item 3).
+ */
+export const WIN_CONFETTI_LANE_COUNT = 6;
+export const WIN_CONFETTI_STAGGER_MS_PER_LANE = 40;
+/** The longest any single confetti piece is delayed before it starts its own
+ * `WIN_CONFETTI_MS` fall — the last lane in the cycle above. */
+export const WIN_CONFETTI_MAX_STAGGER_MS =
+  (WIN_CONFETTI_LANE_COUNT - 1) * WIN_CONFETTI_STAGGER_MS_PER_LANE;
 
 /**
  * §7.5 audit M-2: how long `LevelSession` holds `GameplayScreen` (and its
  * `JuiceLayer`) mounted after a win before swapping in `WinScreen` — long
  * enough for the star slam sequence AND the confetti fall to actually play
  * out, derived from the tokens above rather than a second hardcoded number.
+ *
+ * Both arms account for their own stagger before adding the final tween's
+ * own duration (§7.5 re-audit item 3 — the previous formula added the star
+ * stagger but not the confetti one, so the confetti's own last-lane delay
+ * — `WIN_CONFETTI_MAX_STAGGER_MS` — was silently dropped and the last lane's
+ * fall was cut off by the screen swap).
  */
 export const WIN_HOLD_MS = Math.max(
   (WIN_STAR_COUNT - 1) * WIN_STAR_STAGGER_MS + WIN_STAR_SLAM_MS,
-  WIN_CONFETTI_MS,
+  WIN_CONFETTI_MAX_STAGGER_MS + WIN_CONFETTI_MS,
 );
 
 // --- fail (§7.4: "desaturate board 400ms | notificationError") -------------

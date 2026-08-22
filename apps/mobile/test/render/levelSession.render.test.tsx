@@ -183,11 +183,20 @@ import { track } from '../../src/services/analytics';
 
 const trackMock = vi.mocked(track);
 
+// §7.5 re-audit item 6: every `render()` below stayed mounted past its own
+// test, still subscribed to `useMetaStore` — the next test's `setState` then
+// re-rendered those zombies outside `act`, the source of the "An update to
+// LevelSession inside a test was not wrapped in act(...)" spam. Track every
+// renderer this file creates and unmount them all in `afterEach`, so no test
+// has to remember to do it individually.
+const activeRenderers: ReactTestRenderer[] = [];
+
 function render(el: React.ReactElement): ReactTestRenderer {
   let renderer!: ReactTestRenderer;
   act(() => {
     renderer = TestRenderer.create(el);
   });
+  activeRenderers.push(renderer);
   return renderer;
 }
 
@@ -215,6 +224,12 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  while (activeRenderers.length > 0) {
+    const renderer = activeRenderers.pop()!;
+    act(() => {
+      renderer.unmount();
+    });
+  }
   vi.useRealTimers();
 });
 
@@ -330,6 +345,23 @@ describe('LevelSession (PRD §7.5 progression loop)', () => {
     const onExit = vi.fn();
     render(<LevelSession onExit={onExit} />);
     expect(onExit).toHaveBeenCalled();
+  });
+
+  it('unmounting mid-hold clears the deferred phase-swap timer — no throw, no late setState (§7.5 re-audit item 6)', () => {
+    const renderer = render(<LevelSession onExit={vi.fn()} />);
+    place(renderer, 0, 0, 0); // WIN_LEVEL: arms the WIN_HOLD_MS phase-swap timer
+
+    // Unmount BEFORE the hold elapses — `LevelSession`'s own
+    // `useEffect(() => clearPhaseTimer, [clearPhaseTimer])` cleanup must
+    // clear the pending `setTimeout` so it never fires `setPhase` on an
+    // unmounted component.
+    act(() => {
+      renderer.unmount();
+    });
+    // Already unmounted — don't let `afterEach`'s cleanup double-unmount it.
+    activeRenderers.pop();
+
+    expect(() => advance(WIN_HOLD_MS)).not.toThrow();
   });
 
   it('winning AT MAX_LEVEL_ID exits instead of persisting an unreachable currentLevel — §7.5 audit M-1', () => {
