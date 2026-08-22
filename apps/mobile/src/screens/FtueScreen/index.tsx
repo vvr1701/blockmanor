@@ -16,7 +16,7 @@ import { StyleSheet, View } from 'react-native';
 import type { FtueStep } from '@blockmanor/shared';
 import { GameplayScreen } from '../GameplayScreen';
 import { track } from '../../services/analytics';
-import { useConfigStore } from '../../state/useConfigStore';
+import { useEngineTuning } from '../../state/useEngineTuning';
 import { useMetaStore } from '../../state/useMetaStore';
 import { t } from '../../i18n';
 import { FtueCallout, FtueHandCursor } from './FtueOverlay';
@@ -31,24 +31,6 @@ const CALLOUT_COPY: Partial<Record<FtueStep, { title: string; subtitle: string }
   l3: { title: t('ftue.l3.title'), subtitle: t('ftue.l3.subtitle') },
   l4: { title: t('ftue.l4.title'), subtitle: t('ftue.l4.subtitle') },
 };
-
-function useEngineTuning(): EngineTuning {
-  const mercy_threshold = useConfigStore((s) => s.value('mercy_threshold'));
-  const mercy_small_prob = useConfigStore((s) => s.value('mercy_small_prob'));
-  const score_clear_base = useConfigStore((s) => s.value('score_clear_base'));
-  const combo_step = useConfigStore((s) => s.value('combo_step'));
-  const perfect_clear_bonus = useConfigStore((s) => s.value('perfect_clear_bonus'));
-  return useMemo(
-    () => ({
-      mercy_threshold,
-      mercy_small_prob,
-      score_clear_base,
-      combo_step,
-      perfect_clear_bonus,
-    }),
-    [mercy_threshold, mercy_small_prob, score_clear_base, combo_step, perfect_clear_bonus],
-  );
-}
 
 function buildFtueGameState(json: LevelJson, tuning: EngineTuning): GameState {
   return createGame(

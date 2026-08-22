@@ -6,6 +6,7 @@ import { AnalyticsDebugOverlay } from './components/AnalyticsDebugOverlay';
 import { colors } from './components/tokens';
 import { DEV_BOARD_ENABLED, FTUE_FORCE_REPLAY } from './game/devFlag';
 import { createDemoGameState } from './game/demoGameState';
+import { EndlessScreen } from './screens/EndlessScreen';
 import { FtueScreen } from './screens/FtueScreen';
 import { GameplayScreen } from './screens/GameplayScreen';
 import { HomeScreen } from './screens/HomeScreen';
@@ -27,6 +28,10 @@ import { useMetaStore } from './state/useMetaStore';
  */
 export default function App(): React.JSX.Element {
   const [devBoard, setDevBoard] = useState(false);
+  // §7.6: Home → Endless entry has nowhere to navigate TO without a router
+  // (none exists yet, same gap `devBoard` above already works around) — same
+  // local-state seam, not a preview of §7.11's eventual real navigation.
+  const [showEndless, setShowEndless] = useState(false);
   const demoState = useMemo(() => (DEV_BOARD_ENABLED ? createDemoGameState() : null), []);
 
   // §7.1 v1.11 skip logic: "returning users (existing cloud/local save)
@@ -47,9 +52,11 @@ export default function App(): React.JSX.Element {
           <GameplayScreen initialState={demoState} />
         ) : showFtue ? (
           <FtueScreen />
+        ) : showEndless ? (
+          <EndlessScreen onExit={() => setShowEndless(false)} />
         ) : (
           <>
-            <HomeScreen />
+            <HomeScreen onPlayEndless={() => setShowEndless(true)} />
             {DEV_BOARD_ENABLED ? (
               <Pressable style={styles.devButton} onPress={() => setDevBoard(true)}>
                 <Text style={styles.devButtonText}>DEV: Board</Text>

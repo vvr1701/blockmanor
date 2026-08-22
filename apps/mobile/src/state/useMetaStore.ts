@@ -18,11 +18,17 @@ interface MetaState {
   /** §7.1.3 name/avatar screen, guest allowed: both null for a guest. */
   playerName: string | null;
   avatarId: number | null;
+  /** §7.6 "personal best tracked" — the Endless mode high score. 0 means
+   * "no record yet" (§12.9 empty-state trigger), never negative. */
+  endlessBest: number;
   setCurrentLevel: (level: number) => void;
   setStreak: (streak: number) => void;
   setBadge: (badge: keyof MetaState['badges'], on: boolean) => void;
   setFtueComplete: (complete: boolean) => void;
   setProfile: (name: string | null, avatarId: number | null) => void;
+  /** Monotonic: only ever raises `endlessBest`, never lowers it — enforced
+   * here (single source of truth) rather than trusted to every call site. */
+  setEndlessBest: (score: number) => void;
 }
 
 export const useMetaStore = create<MetaState>()(
@@ -34,11 +40,14 @@ export const useMetaStore = create<MetaState>()(
       ftueComplete: false,
       playerName: null,
       avatarId: null,
+      endlessBest: 0,
       setCurrentLevel: (currentLevel) => set({ currentLevel }),
       setStreak: (streak) => set({ streak }),
       setBadge: (badge, on) => set((state) => ({ badges: { ...state.badges, [badge]: on } })),
       setFtueComplete: (ftueComplete) => set({ ftueComplete }),
       setProfile: (playerName, avatarId) => set({ playerName, avatarId }),
+      setEndlessBest: (score) =>
+        set((state) => ({ endlessBest: Math.max(state.endlessBest, score) })),
     }),
     { name: 'meta', storage: createJSONStorage(() => mmkvStorage) },
   ),

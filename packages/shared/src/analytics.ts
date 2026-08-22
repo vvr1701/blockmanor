@@ -28,10 +28,24 @@ export interface FtueCompleteParams {
   guest: boolean;
 }
 
+/**
+ * §7.6 Endless mode: fired once per run when the board fills (§6.7 game
+ * over — Endless has no goals, so `state.status` never reaches `'won'`).
+ */
+export interface EndlessEndParams {
+  /** This run's final score. */
+  score: number;
+  /** The player's personal best AFTER this run is folded in — i.e.
+   * `Math.max(previousBest, score)`, matching `useMetaStore.endlessBest`
+   * post-update so the fired value always matches what got persisted. */
+  best: number;
+}
+
 /** Keyed by §14 event name; extend per-section as each PRD subsection lands. */
 export interface AnalyticsEvents {
   ftue_step: FtueStepParams;
   ftue_complete: FtueCompleteParams;
+  endless_end: EndlessEndParams;
 }
 
 export type AnalyticsEventName = keyof AnalyticsEvents;
