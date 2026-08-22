@@ -315,6 +315,64 @@ Fix pass deliberately HELD so one pass carries the fixes AND the transport.
 Blocked on: three §14 amendment rulings + `google-services.json`.
 
 
+### S2 — §7.6 Endless (`feat/7.6-endless`)
+Built `60f0760`. qa audit **FAIL** — 1 BLOCKER, 2 MAJOR, 6 MINOR, 4 NIT.
+The one permitted fix attempt is dispatched.
+
+- **BLOCKER: no exit mid-run.** The only route to Home renders inside the post-game
+  overlay; `GameplayScreen`'s pause affordance is an inert `View`; nothing repo-wide
+  handles `BackHandler`/`onRequestClose`, so Android back kills the app. §12.9:
+  "invitations, never dead ends". Fix is one close affordance on the existing
+  `onExit` prop — NOT a §12.2 PauseSheet, that is its own PR.
+- **MAJOR: §15 mockup composition unbuilt** and the "deliberately skipped" list was
+  incomplete. `GameplayScreen` is reused unchanged, so panel 10.2's ENDLESS chip,
+  52px centred score and best-line marker are absent, as are 10.3b's "Board full" +
+  progress-to-best bar and 10.3a's delta; the sheet is dark `night2` where the mockup
+  is cream parchment. All Stage-1-implementable from existing `GameState`.
+  Manor Pass XP (Stage 4) and the 5-run history chart stay skipped — the latter
+  because §4.4 has no run-history model, not because it is later-stage.
+- **MAJOR: the contrast tests are not regression guards.** `endlessCard.render.test.tsx:82`
+  hardcodes `#232A53` while claiming to read `tokens.ts`, and it is wrong by a channel
+  (the true composite is `#232B53`); the test never reads rendered styles. 2 of 3
+  contrast mutations SURVIVED. No live WCAG failure — all 12 pairs computed, lowest is
+  `progressFill/progressTrack` at 3.69 vs a 3.0 floor.
+- MINORs: locked copy reads "Unlocks at Level 10 — you're on 10" at the still-locked
+  boundary; the locked progress bar hits 100% while locked; §13 RC compliance untested
+  (inlining the five defaults SURVIVED all 76 render tests); "exactly once" for
+  `endless_end` asserted but never exercised; the card's payload is collapsed away from
+  screen readers.
+
+Both implementer judgement calls were **upheld**: `currentLevel > 10` is the right
+reading (`currentLevel` is the *next* level to play, consistently, repo-wide), and the
+`useEngineTuning` extraction preserved FtueScreen byte-for-byte (diff modulo the import
+is empty; hook order and dep arrays unchanged).
+
+Verified clean: §16.1 naming, §14 `endless_end{score,best}` (dropping `best` fails
+`tsc`), `flag_endless` gating, the engine contract (all three ways to break `goals: []`
+/ mercy-on are CAUGHT), §0 stage discipline, §4.5. Engine untouched, corpus `538e3dea`,
+99.54% lines.
+
+## HARD STOP — 3 §7.6 PRD gaps need operator rulings (2026-08-22)
+
+Escalated rather than guessed; explicitly excluded from the fix attempt.
+
+**A. §7.6 has no Acceptance Criteria.** `docs/PRD.md:267-268` is a single sentence.
+§0 rule 6 requires every §7-§12 feature spec to end with Acceptance Criteria, and
+CLAUDE.md rule 4 ("includes that section's acceptance criteria as passing tests") is
+unsatisfiable without them. Pre-existing and not §7.6-specific — §6.8 and §8.8 have
+them, most of §7 does not.
+
+**B. The Level-10 unlock has no `[RC]` key.** §7.6 carries no `[RC]` marker and §13 has
+no matching key, so hardcoding `ENDLESS_UNLOCK_LEVEL = 10` is correct TODAY under §13's
+registry-completeness rule. But it is exactly the number live-ops will want to move.
+Adding `endless_unlock_level` (10) needs §7.6 + §13 amended first.
+
+**C. §7.6 is silent on lives / stars / Manor Pass XP.** Mockup panel 10.1's footer says
+"Endless never costs a life and never pays stars — and it feeds the Manor Pass XP."
+§9.2 covers the lives half; stars and Manor Pass XP are unstated in §7.6. One line
+stating "no life cost, no stars; Manor Pass XP is Stage 4" stops the next implementer
+re-deriving it from a mockup.
+
 ## INCIDENT — work lost 2026-08-12, and the practice change
 
 The completed §14 analytics implementation was **lost**. Worktrees were created
