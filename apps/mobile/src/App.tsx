@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AnalyticsDebugOverlay } from './components/AnalyticsDebugOverlay';
 import { colors } from './components/tokens';
 import { DEV_BOARD_ENABLED, FTUE_FORCE_REPLAY } from './game/devFlag';
 import { createDemoGameState } from './game/demoGameState';
@@ -56,6 +57,7 @@ export default function App(): React.JSX.Element {
             ) : null}
           </>
         )}
+        <AnalyticsDebugOverlay />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
