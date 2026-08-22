@@ -18,7 +18,7 @@ const config: ExpoConfig = {
   // with the design system in Stage 1, not for a placeholder screen.
   backgroundColor: '#131830',
   android: {
-    package: 'com.ashfieldgames.blockmanor',
+    package: 'com.vvr1701.blockmanor',
     adaptiveIcon: {
       foregroundImage: './assets/android-icon-foreground.png',
       backgroundImage: './assets/android-icon-background.png',
@@ -27,7 +27,7 @@ const config: ExpoConfig = {
     },
   },
   ios: {
-    bundleIdentifier: 'com.ashfieldgames.blockmanor',
+    bundleIdentifier: 'com.vvr1701.blockmanor',
     supportsTablet: false,
   },
   owner: 'vvr1701',
