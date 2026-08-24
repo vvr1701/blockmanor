@@ -711,6 +711,46 @@ what makes one rep a there-and-back cycle.
 misleading `Expected 'from', got 'typeOf'` rollup parse error for every mobile test — on
 unmodified `main` too. It picks up the wrong config. Run mobile tests from `apps/mobile`.
 
+### S5c — §12.2 polish + walker convergence + stack rebase
+§12.2 polish committed; all four audit MINORs/NITs closed with mutation evidence. Two
+corrections the implementer made to the audit's own premises, both right: the header carried
+**no** divergence numeral (the "9" the finding cited is `panel 3.9`, and the commit body said
+"Eight", matching the list) — an explicit auditable count was added anyway, since a count that
+can drift silently was the real complaint; and only ONE panel sublabel actually uses the `.45`
+ink, so the settings sublabel and confirm body are declared as *inheriting* `INK_70` rather
+than as substitutions. Calling them substitutions would have been a fourth inaccuracy.
+
+NIT-7's root cause turned out to be ownership, not the handler: `confirming` lived inside
+`PauseSheet`, so the screen owning the only `BackHandler` could not see it. Lifted into
+`GameplayScreen`, `PauseSheet` made controlled; back now pops one layer per press.
+NIT-8 fixed via `.enabled(!paused)` on the pan — RNGH transitions an already-recognizing
+handler to FAILED/CANCELLED, so `.onFinalize` runs with `success: false`, which is §7.3's
+existing silent return-to-tray path rather than the commit path.
+
+**Walker convergence done (Follow-up cleared).** The `opacity` accumulator is ported and the
+`contrast.ts` fork is resolved:
+- `feat/7.10-level-map` `57cf349` — accumulator added. **Mutation-verified in the main
+  session:** adding `opacity: 0.3` to a map text reds the guard at a true 2.42:1; it passed
+  before.
+- `feat/7.6-endless` `affdd61` — took the newer walker wholesale, which also removes the fork.
+  That copy lacked BOTH the function-style resolution and the accumulator; neither was
+  reachable from its screens, so it is drift removal, not a bug fix. 175/175 unchanged.
+- `composite()` gained an `extraAlpha` parameter; `visit()` threads an accumulator that
+  multiplies down the tree, because a container's `opacity` dims its whole subtree.
+- **Deliberately NOT ported:** the §7.5 walker's disabled-control exemption. Nothing on these
+  branches needs it yet, and §12.2's disabled settings row is deliberately full-contrast — an
+  exemption would stop checking it. Add when something actually reds.
+
+**Stack rebased and coherent.** Each branch now contains everything below it, including the
+FailScreen WCAG fix:
+
+    feat/7.5-win-fail   56fc4c9   173 tests
+    feat/7.6-endless    affdd61   175 tests   (parallel, not in the chain)
+    feat/7.10-level-map 00f05ff   254 tests
+    feat/12.2-pause     296a779   308 tests
+
+All force-pushed with lease. Full mobile suite green on each after its rebase.
+
 ## Follow-ups (tracked, not blocking)
 
 - Wire `PauseSheet`'s settings row to `SettingsScreen` when §12.1 lands. It currently renders
@@ -723,12 +763,13 @@ unmodified `main` too. It picks up the wrong config. Run mobile tests from `apps
   `BackHandler` effect and `EndlessHud`'s close button. Two open questions at that merge —
   Endless has no goals so the >50% confirm can never fire, yet a mid-run exit forfeits a live
   score; and Endless fires `endless_end`, not `level_quit`.
-- **Port the opacity accumulator to `contrast.ts`** on `feat/7.10-level-map`,
-  `feat/12.2-pause` and `feat/7.6-endless` — all three walkers are still opacity-blind. Three
-  lines: thread an `opacity` accumulator through `visit`, `const alpha = typeof style.opacity
-  === 'number' ? opacity * style.opacity : opacity`, pass `alpha` into the `composite` calls.
-  Deliberately not done from the §7.5 branch to avoid an add/add rebase conflict.
-- Converge the forked `apps/mobile/test/contrast.ts` copies. Take the newest walker.
+- ~~Port the opacity accumulator; converge the forked `contrast.ts`~~ — **DONE** (`57cf349`,
+  `affdd61`). See S5c.
+- `apps/mobile/test/mocks/react-native-gesture-handler.ts` silently swallows `.minDistance()`
+  and `.shouldCancelWhenOutside()` the same way it swallowed `.enabled()`. Only `enabled` was
+  given recording, because only it is load-bearing today; the other two stay unassertable.
+- `t('fail.goalLine', ...)` is consumed by `FailScreen` and `PauseSheet` now, so the `fail.`
+  prefix is a misnomer. A two-screen i18n rename on an unmerged branch — for the drift audit.
 - `FtueOverlay.tsx:74` calls `withRepeat(..., -1)` for the §7.1.1 hand cursor with **no test
   asserting it at all** — `ftueScreen.render.test.tsx` never greps `withRepeat`. Same class as
   NIT-5 but a wider gap; §7.1's, already shipped.
