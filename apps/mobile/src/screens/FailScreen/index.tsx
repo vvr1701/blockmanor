@@ -30,6 +30,28 @@ import { CONTINUE_SLOT_RESERVED_HEIGHT } from './failTokens';
  * call: only claim "close" once progress is genuinely close. */
 const SO_CLOSE_MIN_PROGRESS_PCT = 50;
 
+/**
+ * De-emphasised ink for the card's secondary lines. The alpha is folded into
+ * the COLOUR, never applied as a `style.opacity` — same pattern as
+ * `GhostButton.onLight` (§7.5 audit M-3): `opacity` dims the composited pixel
+ * exactly the same way, but it is invisible to any check that reads
+ * `style.color`, so a dimmed line can silently sit under the WCAG floor.
+ *
+ * Contrast on `colors.cream` (WCAG sRGB relative luminance; `fontSize.sm`
+ * normal text, so the floor is 4.5:1, not 3:1) — was `opacity` 0.6/0.55,
+ * which renders 4.34:1 and 3.76:1 and FAILED:
+ *   - subtitle @ 70% = 5.98:1 (reuses `GhostButton.onLight`'s alpha)
+ *   - soClose  @ 65% = 5.07:1 (a step below the subtitle, keeping the
+ *     hierarchy title > goalLine > subtitle > soClose intact)
+ * `goalLine` stays on `style.opacity` at 0.75 (7.00:1) — it clears the floor,
+ * and leaving one live case keeps the render test's opacity-aware contrast
+ * walk exercised.
+ */
+const DIM = {
+  subtitle: 'rgba(19,24,48,0.7)', // colors.night @ 70% — 5.98:1 on cream
+  soClose: 'rgba(19,24,48,0.65)', // colors.night @ 65% — 5.07:1 on cream
+} as const;
+
 export interface FailScreenProps {
   levelId: number;
   /** Goal state at the moment the board died (§7.5's "Crates 9/12"). Empty
@@ -100,7 +122,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   title: { color: colors.night, fontSize: fontSize.xl, fontWeight: '800' },
-  subtitle: { color: colors.night, opacity: 0.6, fontSize: fontSize.sm, fontWeight: '700' },
+  subtitle: { color: DIM.subtitle, fontSize: fontSize.sm, fontWeight: '700' },
   goalBlock: { alignItems: 'center', marginTop: spacing.sm, gap: 2 },
   goalLine: {
     color: colors.night,
@@ -110,8 +132,7 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   soClose: {
-    color: colors.night,
-    opacity: 0.55,
+    color: DIM.soClose,
     fontSize: fontSize.sm,
     fontWeight: '700',
     marginTop: spacing.xs,
