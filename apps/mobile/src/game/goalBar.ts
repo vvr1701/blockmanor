@@ -51,3 +51,30 @@ export function goalProgressPct(goals: readonly GoalBarEntry[]): number {
   const done = goals.reduce((sum, g) => sum + (g.total - g.remaining), 0);
   return Math.round((100 * done) / total);
 }
+
+/**
+ * §12.2's quit-to-map gate: "confirm if goals >50% done".
+ *
+ * READING OF THE THRESHOLD (stated because "50%" has two sides): `>` is
+ * strict, so EXACTLY 50% does NOT confirm — the confirm appears only from the
+ * first unit of progress past half. Nothing in §12.2 or §6.7 is ambiguous
+ * here; the PRD writes `>`, not `>=`, and §7.5's neighbouring "so close"
+ * gate deliberately writes `>=` in its own code, so the distinction is being
+ * drawn, not glossed.
+ *
+ * Compared on the EXACT ratio, in integers, rather than on
+ * `goalProgressPct`'s rounded output: 101/200 crates is genuinely past half
+ * but rounds to 51 either way, while 100.5/200-shaped inputs cannot occur —
+ * what CAN occur is a case like 51/101 (50.495%), which rounds to 50 and
+ * would wrongly skip the confirm if this read the rounded integer. `2*done >
+ * total` is the same comparison with no float and no rounding at all.
+ *
+ * A goal-less config (endless-shaped, or FTUE's L1-L3) has nothing to be
+ * half-done with: `false`, matching `goalProgressPct`'s own 0.
+ */
+export function goalsPastHalf(goals: readonly GoalBarEntry[]): boolean {
+  const total = goals.reduce((sum, g) => sum + g.total, 0);
+  if (total === 0) return false;
+  const done = goals.reduce((sum, g) => sum + (g.total - g.remaining), 0);
+  return 2 * done > total;
+}

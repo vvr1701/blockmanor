@@ -11,6 +11,11 @@
  * there via the optional `onLevelMap` prop; the "ran past the last shipped
  * level" fallback still calls `onExit` (Home), which is the mount point's
  * own choice.
+ *
+ * §12.2's `PauseSheet` reaches the same two destinations: its restart IS
+ * §7.5's Retry (one `handleRetry`, so `attempt` cannot diverge between them)
+ * and its quit-to-map is the same `onLevelMap ?? onExit` route, plus §14's
+ * `level_quit{id,moves}`.
  */
 import {
   createGame,
@@ -25,7 +30,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { deriveGoalBar, goalProgressPct, type GoalBarEntry } from './goalBar';
 import { FAIL_HOLD_MS, WIN_HOLD_MS } from './juice';
 import { useEngineTuning } from './useEngineTuning';
-import { GameplayScreen } from '../screens/GameplayScreen';
+import { GameplayScreen, type PauseControls } from '../screens/GameplayScreen';
 import { WinScreen } from '../screens/WinScreen';
 import { FailScreen } from '../screens/FailScreen';
 import { track } from '../services/analytics';
@@ -138,10 +143,18 @@ export function LevelSession({ onExit, onLevelMap }: LevelSessionProps): React.J
   }, []);
   useEffect(() => clearPhaseTimer, [clearPhaseTimer]);
 
+  // §12.2 quit-to-map fires `level_quit` (§14) exactly once per run. The
+  // press can land twice before the mount point re-renders and swaps this
+  // component out (a double tap is one frame apart, navigation is not), which
+  // would double-count §3's per-level quit rate. Re-armed by the run-start
+  // effect below, so a restart-then-quit still reports.
+  const quitFiredRef = useRef(false);
+
   useEffect(() => {
     startedAtRef.current = Date.now();
     setPhase('playing');
     setResult(null);
+    quitFiredRef.current = false;
     clearPhaseTimer();
     if (json) {
       // Advanced at run START, not on fail and not on the Retry tap: an
@@ -258,6 +271,32 @@ export function LevelSession({ onExit, onLevelMap }: LevelSessionProps): React.J
     setAttempt(nextAttempt(currentLevel));
   }, [currentLevel]);
 
+  const handleQuit = useCallback(
+    (moves: number) => {
+      if (!json || quitFiredRef.current) return;
+      quitFiredRef.current = true;
+      // §14 `level_quit{id,moves}`. `moves` is the engine's own
+      // `GameState.placements`, handed up by `GameplayScreen` (the only
+      // holder of the live state) — not re-derived here.
+      track('level_quit', { id: json.id, moves });
+      (onLevelMap ?? onExit)();
+    },
+    [json, onLevelMap, onExit],
+  );
+
+  // §12.2 restart is `handleRetry` ITSELF, not a copy of it. Both start a new
+  // run of the same level, and §0 v1.17 (i) defines `attempt` by runs
+  // STARTED, not by which button started them — so re-seeding through one
+  // function is what makes "restart-from-pause and retry-from-fail advance
+  // `attempt` identically" true by construction rather than by two call sites
+  // happening to agree. (The one asymmetry is upstream and not ours: a fail
+  // has already fired `level_fail`, a pause-restart has not — an abandoned
+  // run mid-level is a quit-shaped hole in the funnel by design, §3.)
+  const pauseControls: PauseControls = useMemo(
+    () => ({ onRestart: handleRetry, onQuit: handleQuit }),
+    [handleRetry, handleQuit],
+  );
+
   if (!json || !initialState) return null;
 
   if (phase === 'won' && result) {
@@ -286,6 +325,7 @@ export function LevelSession({ onExit, onLevelMap }: LevelSessionProps): React.J
       key={`${json.id}-${attempt}`}
       initialState={initialState}
       onEvent={handleEvent}
+      pause={pauseControls}
     />
   );
 }

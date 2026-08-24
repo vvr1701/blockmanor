@@ -377,6 +377,15 @@ export interface JuiceLayerProps {
   reducedMotion: boolean;
   /** §7.4 fail juice — owned by `GameplayScreen`, also handed to `BoardCanvas`. */
   desaturateSV?: SharedValue<number>;
+  /** §12.2 / §4.5: the near-death vignette is the only INDEFINITE animation
+   * on this screen (`withRepeat(..., -1)`, §7.4's "1.2s loop"). While the
+   * §12.2 `PauseSheet` covers the board it must not keep running — a paused
+   * game that still burns a UI-thread animation every frame behind an opaque
+   * scrim is exactly the leak §4.5 budgets against. Forcing the vignette
+   * inactive routes through `NearDeathVignette`'s existing
+   * `cancelAnimation` + fade-out effect; unpausing re-enters the same effect
+   * and restarts the loop, so there is one code path, not two. */
+  paused?: boolean;
 }
 
 export function JuiceLayer({
@@ -389,6 +398,7 @@ export function JuiceLayer({
   fill,
   reducedMotion,
   desaturateSV,
+  paused = false,
 }: JuiceLayerProps): React.JSX.Element {
   const placed = events.find(
     (e): e is Extract<GameEvent, { type: 'PIECE_PLACED' }> => e.type === 'PIECE_PLACED',
@@ -451,7 +461,7 @@ export function JuiceLayer({
     anchorY = boardLayout.padding + (anchorCellR + 0.5) * step;
   }
 
-  const isNearDeath = fill > NEAR_DEATH_FILL_THRESHOLD;
+  const isNearDeath = fill > NEAR_DEATH_FILL_THRESHOLD && !paused;
 
   return (
     <View

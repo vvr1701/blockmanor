@@ -8,7 +8,15 @@ import {
 } from '@blockmanor/engine';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, Text, View, useWindowDimensions, type LayoutChangeEvent } from 'react-native';
+import {
+  BackHandler,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+  type LayoutChangeEvent,
+} from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useReducedMotion,
@@ -40,8 +48,13 @@ import { HUD_FADE_IN_MS } from '../../game/juice';
 import { JuiceLayer } from '../../game/JuiceLayer';
 import { spriteForObstacle } from '../../game/obstacleSprites';
 import { TrayCanvas } from '../../game/TrayCanvas';
+import { playCue } from '../../game/sfx';
 import { colors, fontSize, radius, spacing } from '../../components/tokens';
 import { t } from '../../i18n';
+import { PauseSheet } from '../PauseSheet';
+
+/** CLAUDE.md a11y rule — every interactive element ≥44dp. */
+const MIN_TOUCH_TARGET = 44;
 
 /**
  * Tiny non-Skia color swatch for the HUD goal bar — the board itself is where
@@ -78,6 +91,25 @@ function GoalRow({ goal }: { goal: GoalBarEntry }): React.JSX.Element {
   );
 }
 
+/**
+ * §12.2's two destructive pause actions, owned by whoever owns the RUN — this
+ * screen owns a `GameState`, not a level session, so it can neither re-seed
+ * an attempt nor navigate. Absent (`FtueScreen`, the dev board) means this
+ * screen has no pause affordance at all and no `BackHandler` subscription:
+ * FTUE has no destination behind it, so Android's default "back exits the
+ * app" is correct there (the same scope call §7.6's fix pass made).
+ */
+export interface PauseControls {
+  /** §12.2 restart. FREE in Stage 1 — §9.2's life cost is Stage 2 and is
+   * neither modelled nor reserved here. */
+  onRestart: () => void;
+  /** §12.2 quit-to-map. `moves` is `GameState.placements` at the moment of
+   * the quit, for §14's `level_quit{id,moves}`; this screen is the only
+   * holder of that number, so it hands it up rather than making the caller
+   * mirror the state. */
+  onQuit: (moves: number) => void;
+}
+
 export interface GameplayScreenProps {
   /** Seeds this screen's own session state (§7.3: placements now mutate the
    * board, so this is no longer a purely display-driven prop — see the "own
@@ -95,6 +127,10 @@ export interface GameplayScreenProps {
    * same `applyPlacement` return value `JuiceLayer` already consumes, just
    * also handed upward. Never used to re-derive rules, only to react to them. */
   onEvent?: (events: readonly GameEvent[], state: GameState) => void;
+  /** §12.2: hands this screen the two actions its `PauseSheet` cannot
+   * perform itself. Omit to leave the HUD's pause glyph inert (see
+   * `PauseControls`). */
+  pause?: PauseControls;
 }
 
 /**
@@ -124,6 +160,7 @@ export function GameplayScreen({
   hudVisible = true,
   hudFadeIn = false,
   onEvent,
+  pause,
 }: GameplayScreenProps): React.JSX.Element {
   const [state, setState] = useState(initialState);
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
@@ -197,6 +234,53 @@ export function GameplayScreen({
   const goals = useMemo(() => deriveGoalBar(state), [state]);
   const levelId = state.config.level?.id;
 
+  // --- §12.2 pause -------------------------------------------------------
+  const [paused, setPaused] = useState(false);
+  // Pause is only offered on a LIVE board. `LevelSession` deliberately holds
+  // this screen mounted for `WIN_HOLD_MS`/`FAIL_HOLD_MS` after a terminal
+  // placement so the §7.4 win/fail beat can play (§7.5 audit M-2) — opening a
+  // pause menu over a board that has already been won is not a state §12.2
+  // describes, and the sheet would be torn down by the phase swap anyway.
+  const canPause = pause !== undefined && state.status === 'playing';
+  // §15.1: `modal_open`/`modal_close` are the named cues for exactly this.
+  const openPause = useCallback(() => {
+    playCue('modal_open');
+    setPaused(true);
+  }, []);
+  const closePause = useCallback(() => {
+    playCue('modal_close');
+    setPaused(false);
+  }, []);
+
+  // §12.9 "invitations, never dead ends": Android's hardware back opens pause
+  // (or closes it when already open) and is ALWAYS consumed — the default
+  // handler pops an empty navigation stack and Android kills the process
+  // mid-run, which is the trap §7.6's audit filed as a BLOCKER. Consumed even
+  // during the terminal hold above, where `canPause` is false: swallowing one
+  // press for ~1s beats killing the app over a win animation.
+  useEffect(() => {
+    if (!pause) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (paused) closePause();
+      else if (canPause) openPause();
+      return true;
+    });
+    return () => sub.remove();
+  }, [pause, paused, canPause, openPause, closePause]);
+
+  const handleRestart = useCallback(() => {
+    // Closed first so this component is self-consistent even for a caller
+    // that does NOT remount it. `LevelSession` does remount (its `key`
+    // carries `attempt`, §0 v1.17), which makes this a no-op there.
+    closePause();
+    pause?.onRestart();
+  }, [closePause, pause]);
+
+  const handleQuit = useCallback(() => {
+    closePause();
+    pause?.onQuit(state.placements);
+  }, [closePause, pause, state.placements]);
+
   const handlePlace = useCallback((pieceIndex: number, r: number, c: number) => {
     const placement: Placement = { pieceIndex, r, c };
     let events: readonly GameEvent[] = [];
@@ -264,10 +348,21 @@ export function GameplayScreen({
       <StatusBar style="light" />
       <Animated.View style={hudAnimatedStyle} pointerEvents={hudVisible ? 'auto' : 'none'}>
         <View style={styles.hudRow}>
-          <View style={styles.pauseButton}>
+          {/* The glyph is 38dp per the mockup's HUD row (`HUD_ICON_SIZE`);
+              `hitSlop` carries it past the 44dp floor, the same way §7.3
+              sizes tray hitboxes independently of their visual size. */}
+          <Pressable
+            style={({ pressed }) => [styles.pauseButton, pressed ? styles.pausePressed : null]}
+            onPress={openPause}
+            disabled={!canPause}
+            accessibilityRole="button"
+            accessibilityLabel={t('pause.openLabel')}
+            accessibilityState={{ disabled: !canPause }}
+            hitSlop={(MIN_TOUCH_TARGET - HUD_ICON_SIZE) / 2}
+          >
             <View style={styles.pauseBar} />
             <View style={styles.pauseBar} />
-          </View>
+          </Pressable>
           <Text style={styles.levelTitle}>
             {levelId !== undefined ? t('gameplay.level', { id: levelId }) : ''}
           </Text>
@@ -335,11 +430,23 @@ export function GameplayScreen({
             fill={fillRatio(state.board)}
             reducedMotion={reducedMotion}
             desaturateSV={desaturateSV}
+            paused={paused}
           />
         </View>
       </View>
 
       <DevRenderTimeStats dep={state} />
+
+      {paused && pause ? (
+        <PauseSheet
+          levelId={levelId}
+          goals={goals}
+          moves={state.placements}
+          onResume={closePause}
+          onRestart={handleRestart}
+          onQuit={handleQuit}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -364,6 +471,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 3,
   },
+  pausePressed: { opacity: 0.6 },
   pauseBar: { width: 4, height: 14, borderRadius: 2, backgroundColor: colors.cream },
   levelTitle: {
     flex: 1,

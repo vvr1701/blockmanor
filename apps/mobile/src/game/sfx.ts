@@ -16,9 +16,10 @@
 
 /** The §15.1 cue names this session's call sites reach: the "Gameplay (from
  * §7.4)" 8 (`JuiceLayer`/`DragLayer`), plus the §7.5 audit mn-4 UI/reward
- * cues (`GoldButton`, `GhostButton`, `WinScreen`) and §7.10's `chest_open`
- * (`LevelMapScreen`'s chest sheet) — spelled exactly as §15.1 requires (file
- * names are permanent). */
+ * cues (`GoldButton`, `GhostButton`, `WinScreen`), §7.10's `chest_open`
+ * (`LevelMapScreen`'s chest sheet) and §12.2's `modal_open`/`modal_close`
+ * (`PauseSheet`) — spelled exactly as §15.1 requires (file names are
+ * permanent). */
 export type SfxCue =
   | 'piece_pick'
   | 'snap_thock'
@@ -31,7 +32,9 @@ export type SfxCue =
   | 'btn_tap'
   | 'btn_gold'
   | 'star_slam'
-  | 'chest_open';
+  | 'chest_open'
+  | 'modal_open'
+  | 'modal_close';
 
 /**
  * No-op: blocked on audio assets (see header). `semitones` is accepted now
