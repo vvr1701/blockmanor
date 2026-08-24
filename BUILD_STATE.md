@@ -20,7 +20,7 @@ Reference: `BUILD_GUIDE.md` §1 rhythm, §5 review discipline, §6 failure modes
 | 1b | Engine fuzz: cover the fixed-sequence path | 5 | **MERGED** PR #10 `8a02272` — corpus `392ad7a4` -> `538e3dea` |
 | 2 | Win/Fail + level progression loop | 7.5 | **PR #12 fix-complete** `111e54d` — audited, fixed, re-verified. Awaiting merge call |
 | 3 | Endless / Level map / Home real hub | 7.6, 7.10, 7.11 | §7.6 + §7.10 fix/audit stage; §7.11 next |
-| 4 | System screens — all eight | 12 | pending |
+| 4 | System screens | 12 | §12.2 Pause starting; 12.7 is S3, 12.6 overlaps §8.6 |
 | 5 | Daily Board client stack, on the emulator | 8.3-8.7 | pending |
 | 6 | Full drift audit + BLOCKER/MAJOR fixes + APK | S1.13 | pending |
 
@@ -538,6 +538,42 @@ FailScreen "Level map" ghost, so **a player who clears levels without ever faili
 the map, never opens a chest, and never receives the reward.** `App.tsx` correctly declines to
 invent a Home entry — §7.11's layout list (a)-(g) has no map slot and §0 rule 2a only permits
 explicitly-specced slots. Needs a §7.11 amendment adding the slot, or a §7.10 one naming the route.
+
+### S4c — §7.10 fix pass (`feat/7.10-level-map`)
+Fixed `8961a42`, pushed. Mobile 240 -> 253 tests, 15/15 tasks. 17 mutations, 17 caught.
+
+- **MAJOR-1 closed.** `setMockReducedMotion()` added to the reanimated mock so
+  `useReducedMotion()` is no longer hardcoded `false` — the reduced-motion branch now
+  executes for the first time. A `pulseCalls()` helper pairs each `withRepeat` with the
+  `withTiming` recorded immediately before it and asserts the wrapping rather than assuming
+  it. Six mutations caught, including "keeps pulsing after the chest opens" and "ignores
+  reduce-motion". One assertion honestly not made and commented as such: the opened chest's
+  *resting* transform — the mock evaluates `useAnimatedStyle` during render while the effect
+  parking the shared value runs after, with no further render.
+  **Re-verified independently:** pulse -> no-op now reds exactly that test.
+- **MAJOR-2(a) fixed rather than declared.** A mount effect calls `scrollToIndex({
+  viewPosition: 0.5 })`; `initialScrollIndex` still carries first paint.
+  `VirtualizedList.scrollToIndex` clamps with `Math.max(0, ...)` and the scroll view clamps
+  the far end, so L1 and past-the-ceiling need no special case. The FlatList mock became a
+  React-19 ref-as-prop component (not `forwardRef` — its `Omit<Props,'ref'>` collapses to the
+  props index signature and fails `tsc`).
+- MAJOR-2(b): behaviour kept (first *unclaimed* chest, not the next one ahead), divergence
+  now declared in the header list.
+- MINOR-2: `maxFontSizeMultiplier={1.2}` on the card's three `Text` nodes, with the dp
+  arithmetic in the constant's docblock. Not `allowFontScaling={false}` — that breaks a11y.
+- MINOR-3 fixed (`f * ROW_HEIGHT`), MINOR-4 header rewritten, NIT-2/3 covered, NIT-1 claim
+  softened rather than faked.
+- **NIT-4 decided toward the spec:** `PULSE_SCALE` and `CHEST_PULSE_SCALE` are both 1.03 now,
+  matching the `bm-pulse` keyframe, so only the two accessibility substitutions remain as
+  divergences. The durations already matched exactly, which is what made 1.08/1.06 read as
+  accidental.
+- Missing acceptance criterion added: the chest reward round-trips real MMKV through
+  `persist.rehydrate()`, re-renders the map, and asserts the chest reads "already collected",
+  is not a button, and that a replayed grant leaves exactly one frame.
+
+**All three of §7.5, §7.6 and §7.10 are now fix-complete and awaiting the merge call.**
+They stack: §7.10 is based on §7.5, and §7.6 conflicts with §7.10 on `test/contrast.ts`
+(take §7.10's copy). §7.11 is where all three converge.
 
 ## HARD STOP — 3 §7.6 PRD gaps need operator rulings (2026-08-22)
 
