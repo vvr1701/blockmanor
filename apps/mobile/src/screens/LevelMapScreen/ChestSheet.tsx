@@ -45,9 +45,11 @@ import { colors, fontFamily, fontSize, radius, spacing } from '../../components/
 import { playCue } from '../../game/sfx';
 import { t } from '../../i18n';
 
-/** The mockup's stage-1 "closed, pulsing" beat: `animation: bm-pulse 1.4s`. */
-const CHEST_PULSE_MS = 1400;
-const CHEST_PULSE_SCALE = 1.06;
+/** The mockup's stage-1 "closed, pulsing" beat: `animation: bm-pulse 1.4s`.
+ * Both numbers are the spec's keyframe verbatim — `bm-pulse` is
+ * `scale(1) → scale(1.03)` over half a period. */
+export const CHEST_PULSE_MS = 1400;
+export const CHEST_PULSE_SCALE = 1.03;
 const MIN_TOUCH_TARGET = 44;
 
 export interface ChestSheetProps {

@@ -15,10 +15,27 @@ import TestRenderer, {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { collectTextContrast, composite, contrastRatio, flattenStyle } from '../contrast';
 import { track } from '../../src/services/analytics';
-import { LevelMapScreen } from '../../src/screens/LevelMapScreen';
+import {
+  CARD_MAX_FONT_SCALE,
+  LevelMapScreen,
+  PULSE_MS,
+  PULSE_SCALE,
+} from '../../src/screens/LevelMapScreen';
+import { CHEST_PULSE_MS, CHEST_PULSE_SCALE } from '../../src/screens/LevelMapScreen/ChestSheet';
 import { ROW_HEIGHT } from '../../src/screens/LevelMapScreen/mapNodes';
 import en from '../../src/i18n/en.json';
+import { mmkvStorage } from '../../src/state/persist';
 import { useMetaStore } from '../../src/state/useMetaStore';
+// Imported through the MOCK path, not the package: `tsc` doesn't apply
+// vitest.config.ts's aliases, so the real packages' types don't have these
+// test-only helpers (same reason `dragLayer.render.test.tsx` does it).
+import {
+  mockAnimationCalls,
+  resetMockAnimationCalls,
+  setMockReducedMotion,
+  type MockAnimationCall,
+} from '../mocks/react-native-reanimated';
+import { mockScrollToIndexCalls, resetMockScrollToIndexCalls } from '../mocks/react-native';
 
 /** The opaque screen background the composite stack starts from — read off
  * the screen's own root style, never re-typed as a literal. */
@@ -79,14 +96,42 @@ vi.mock('../../src/services/analytics', () => ({ track: vi.fn() }));
 
 const noop = (): void => undefined;
 
+/** The `withRepeat` an infinite pulse produces, with the `withTiming` it
+ * wraps. The mock resolves `withTiming` to its `toValue` before `withRepeat`
+ * ever sees it, so the wrapped tween is the entry recorded immediately
+ * before — the pairing is asserted rather than assumed. */
+function pulseCalls(): { repeat: MockAnimationCall; tween: MockAnimationCall }[] {
+  return mockAnimationCalls.flatMap((call, i) => {
+    if (call.fn !== 'withRepeat') return [];
+    const tween = mockAnimationCalls[i - 1];
+    expect(tween, 'a withRepeat with no animation recorded before it').toBeDefined();
+    expect(tween!.fn).toBe('withTiming');
+    expect(call.toValue, 'the withRepeat does not wrap the tween before it').toBe(tween!.toValue);
+    return [{ repeat: call, tween: tween! }];
+  });
+}
+
+/** Every `scrollToIndex` the screen asked the list for, most recent last. */
+function scrollCalls(): typeof mockScrollToIndexCalls {
+  return mockScrollToIndexCalls;
+}
+
 beforeEach(() => {
   setProgress({ currentLevel: 1 });
+  resetMockAnimationCalls();
+  resetMockScrollToIndexCalls();
+  setMockReducedMotion(false);
 });
 
-afterEach(() => {
+function unmountAll(): void {
   act(() => {
     for (const r of mounted.splice(0)) r.unmount();
   });
+}
+
+afterEach(() => {
+  unmountAll();
+  setMockReducedMotion(false);
 });
 
 describe('§7.10 medallion states, rendered', () => {
@@ -130,6 +175,56 @@ describe('§7.10 medallion states, rendered', () => {
     const renderer = render(<LevelMapScreen onPlay={noop} onExit={noop} />);
     expect(renderer.root.findAll((n) => String(n.type) === 'AnimatedView')).toHaveLength(1);
   });
+
+  /**
+   * §7.10 gives exactly one medallion state a verb: "current(pulse)". Mounting
+   * an `Animated.View` is not that — this asserts the animation the screen
+   * actually STARTED: one infinite, reversing `withRepeat` around a
+   * `withTiming` carrying the spec's `bm-pulse` half-period and amplitude.
+   */
+  it('§7.10 "current(pulse)": the current medallion starts an infinite bm-pulse', () => {
+    setProgress({ currentLevel: 24 });
+    render(<LevelMapScreen onPlay={noop} onExit={noop} />);
+
+    const pulses = pulseCalls();
+    expect(pulses).toHaveLength(1);
+    expect(pulses[0]!.repeat.config).toEqual({ numberOfReps: -1, reverse: true });
+    expect(pulses[0]!.tween.toValue).toBe(PULSE_SCALE);
+    expect(pulses[0]!.tween.config).toEqual({ duration: PULSE_MS / 2 });
+    // Amplitude is real motion, not a no-op scale(1) -> scale(1).
+    expect(PULSE_SCALE).toBeGreaterThan(1);
+  });
+
+  /** Both pulses are the spec's `bm-pulse` keyframe, pinned to it here so an
+   * amplitude or period can only drift on purpose: the Production Spec
+   * defines `bm-pulse` as `scale(1) → scale(1.03)`, the current medallion
+   * runs it at `1.9s` (panel 5.1) and the closed chest at `1.4s`
+   * (panel 12.1). */
+  it('takes its pulse numbers from the spec keyframe, not from an eyeballed amplitude', () => {
+    expect(PULSE_SCALE).toBe(1.03);
+    expect(CHEST_PULSE_SCALE).toBe(1.03);
+    expect(PULSE_MS).toBe(1900);
+    expect(CHEST_PULSE_MS).toBe(1400);
+  });
+
+  it('starts NO pulse when the OS reduce-motion setting is on (§15 a11y)', () => {
+    setMockReducedMotion(true);
+    setProgress({ currentLevel: 24 });
+    const renderer = render(<LevelMapScreen onPlay={noop} onExit={noop} />);
+
+    expect(pulseCalls()).toHaveLength(0);
+    // Still the same medallion, still announced — motion is dropped, nothing
+    // else is.
+    expect(labels(renderer)).toContain('Level 24, your current level');
+    const animated = renderer.root.findAll((n) => String(n.type) === 'AnimatedView')[0]!;
+    expect(flattenStyle(animated.props.style).transform).toEqual([{ scale: 1 }]);
+  });
+
+  it('a map with no current medallion (past the ceiling) pulses nothing', () => {
+    setProgress({ currentLevel: MAX_LEVEL_ID + 1 });
+    render(<LevelMapScreen onPlay={noop} onExit={noop} />);
+    expect(pulseCalls()).toHaveLength(0);
+  });
 });
 
 describe('§7.10 "Map scrolls to current level on open"', () => {
@@ -164,6 +259,57 @@ describe('§7.10 "Map scrolls to current level on open"', () => {
 
     expect(earlyIndex).toBeLessThan(5);
     expect(lateIndex).toBeGreaterThan(50);
+  });
+
+  /**
+   * `Block Manor UI.dc.html`: "current node auto-centred on entry".
+   * `initialScrollIndex` alone puts that row at the TOP of the viewport, which
+   * scrolls the player's entire earned path off above it — so the centring is
+   * asserted through the one prop that expresses it, `viewPosition`.
+   */
+  it('centres the current row on entry, not top-aligns it', () => {
+    setProgress({ currentLevel: 24 });
+    const renderer = render(<LevelMapScreen onPlay={noop} onExit={noop} />);
+    const list = renderer.root.findAll((n) => String(n.type) === 'RNFlatList')[0]!;
+    expect(scrollCalls()).toHaveLength(1);
+    expect(scrollCalls()[0]).toEqual({
+      index: list.props.initialScrollIndex as number,
+      viewPosition: 0.5,
+      animated: false,
+    });
+  });
+
+  it('centres at every boundary: L1, mid-map, the last level and past the ceiling', () => {
+    for (const currentLevel of [1, 24, MAX_LEVEL_ID, MAX_LEVEL_ID + 1]) {
+      // A still-mounted renderer from the previous iteration would re-run its
+      // own entry effect on the store change and pollute the recording.
+      unmountAll();
+      resetMockScrollToIndexCalls();
+      setProgress({ currentLevel });
+      const renderer = render(<LevelMapScreen onPlay={noop} onExit={noop} />);
+      const list = renderer.root.findAll((n) => String(n.type) === 'RNFlatList')[0]!;
+      const rows = renderer.root.findAll((n) => {
+        const style = flattenStyle(n.props.style);
+        return typeof n.type === 'string' && style.height === ROW_HEIGHT;
+      });
+      const call = scrollCalls()[0];
+      expect(call, `no scroll on entry at currentLevel ${currentLevel}`).toBeDefined();
+      expect(call!.viewPosition, `not centred at currentLevel ${currentLevel}`).toBe(0.5);
+      expect(call!.index).toBe(list.props.initialScrollIndex as number);
+      expect(call!.index).toBeGreaterThanOrEqual(0);
+      expect(call!.index).toBeLessThan(rows.length);
+      // The row it centres is the one the player acts on: their current level,
+      // or — past the ceiling (§12.9), where no current medallion exists — the
+      // end of the map rather than the top of it.
+      if (currentLevel > MAX_LEVEL_ID) {
+        expect(call!.index).toBe(rows.length - 1);
+      } else {
+        expect(
+          texts(rows[call!.index]!),
+          `wrong row centred at currentLevel ${currentLevel}`,
+        ).toContain(String(currentLevel));
+      }
+    }
   });
 
   it('§4.5: the list is windowed — uniform `getItemLayout` rows, bounded initial render', () => {
@@ -272,6 +418,120 @@ describe('§7.10 chests — L10/20/30…, and the claim', () => {
     expect(useMetaStore.getState().ownedFrames).toEqual([frame.id]);
   });
 
+  /** Panel 12.1's stage-1 beat is "closed, PULSING" — the same hole the
+   * medallion had: an `Animated.View` mounting proves nothing moves. */
+  it('the closed chest pulses on the sheet, and stops once it is opened', () => {
+    setProgress({ currentLevel: 24 });
+    const renderer = render(<LevelMapScreen onPlay={noop} onExit={noop} />);
+    resetMockAnimationCalls();
+
+    act(() => {
+      (
+        byLabel(renderer, 'Level 20 chest, ready to open').props as { onPress: () => void }
+      ).onPress();
+    });
+    const pulses = pulseCalls();
+    expect(pulses).toHaveLength(1);
+    expect(pulses[0]!.repeat.config).toEqual({ numberOfReps: -1, reverse: true });
+    expect(pulses[0]!.tween.toValue).toBe(CHEST_PULSE_SCALE);
+    expect(pulses[0]!.tween.config).toEqual({ duration: CHEST_PULSE_MS / 2 });
+    expect(CHEST_PULSE_SCALE).toBeGreaterThan(1);
+
+    resetMockAnimationCalls();
+    act(() => {
+      const open = renderer.root.findAll(
+        (n) => n.props.accessibilityLabel === en['map.chest.open'],
+      )[0]!;
+      (open.props as { onPress: () => void }).onPress();
+    });
+    // An opened chest is a reward card, not a lure: the pulse stops and the
+    // chest rests at rest scale.
+    // No pulse is (re)started for the opened chest. The resting style itself
+    // isn't assertable here: the mock's `useAnimatedStyle` is evaluated during
+    // render, and the effect that parks the shared value at 1 runs after it
+    // with no further render to observe — on device that write lands on the UI
+    // thread. The `withRepeat` recording is the real signal.
+    expect(pulseCalls()).toHaveLength(0);
+    expect(texts(renderer.root)).toContain(en['map.chest.rewardKind']);
+  });
+
+  it('the chest does not pulse under OS reduce-motion either', () => {
+    setMockReducedMotion(true);
+    setProgress({ currentLevel: 24 });
+    const renderer = render(<LevelMapScreen onPlay={noop} onExit={noop} />);
+    resetMockAnimationCalls();
+    act(() => {
+      (
+        byLabel(renderer, 'Level 20 chest, ready to open').props as { onPress: () => void }
+      ).onPress();
+    });
+    expect(pulseCalls()).toHaveLength(0);
+    expect(texts(renderer.root)).toContain(en['map.chest.teaser']);
+  });
+
+  it('a truncated save with a null `chestsClaimed` still opens a chest instead of throwing', () => {
+    setProgress({ currentLevel: 24 });
+    act(() => {
+      useMetaStore.setState({ chestsClaimed: null as unknown as Record<string, boolean> });
+    });
+    const renderer = render(<LevelMapScreen onPlay={noop} onExit={noop} />);
+    expect(() => {
+      act(() => {
+        (
+          byLabel(renderer, 'Level 20 chest, ready to open').props as { onPress: () => void }
+        ).onPress();
+      });
+    }).not.toThrow();
+    // The sheet opened in its unopened state — the null read is what decides
+    // that, and it must not read as "already collected".
+    expect(texts(renderer.root)).toContain(en['map.chest.teaser']);
+  });
+
+  /**
+   * Acceptance criterion the store-level tests only covered in halves: the
+   * reward survives a RELAUNCH, through the screen, and the relaunched map
+   * cannot grant it a second time.
+   */
+  it('the reward survives a relaunch and the chest cannot be claimed twice', async () => {
+    setProgress({ currentLevel: 24 });
+    const first = render(<LevelMapScreen onPlay={noop} onExit={noop} />);
+    act(() => {
+      (byLabel(first, 'Level 20 chest, ready to open').props as { onPress: () => void }).onPress();
+    });
+    act(() => {
+      const open = first.root.findAll(
+        (n) => n.props.accessibilityLabel === en['map.chest.open'],
+      )[0]!;
+      (open.props as { onPress: () => void }).onPress();
+    });
+    const frame = frameForChest(20)!;
+    expect(useMetaStore.getState().ownedFrames).toEqual([frame.id]);
+
+    // Relaunch: the persisted image is all that crosses the process boundary.
+    const image = mmkvStorage.getItem('meta');
+    unmountAll();
+    act(() => {
+      useMetaStore.setState({ stars: {}, chestsClaimed: {}, ownedFrames: [] });
+    });
+    mmkvStorage.setItem('meta', String(image));
+    await act(async () => {
+      await useMetaStore.persist.rehydrate();
+    });
+
+    const relaunched = render(<LevelMapScreen onPlay={noop} onExit={noop} />);
+    expect(labels(relaunched)).toContain('Level 20 chest, already collected');
+    expect(labels(relaunched)).not.toContain('Level 20 chest, ready to open');
+    // No second grant: the claimed chest is not even a button any more, and
+    // replaying the grant behind it is idempotent.
+    const claimed = byLabel(relaunched, 'Level 20 chest, already collected');
+    expect(claimed.props.accessibilityRole).toBeUndefined();
+    expect(claimed.props.onPress).toBeUndefined();
+    act(() => {
+      useMetaStore.getState().claimChest(20, frame.id);
+    });
+    expect(useMetaStore.getState().ownedFrames).toEqual([frame.id]);
+  });
+
   it('§12.9: the chest sheet has a way out BEFORE it is opened', () => {
     setProgress({ currentLevel: 24 });
     const renderer = render(<LevelMapScreen onPlay={noop} onExit={noop} />);
@@ -296,6 +556,64 @@ describe('§7.10 chapter cards and the footer', () => {
     expect(all).toContain(en['map.chapter.1.title']);
     expect(all).toContain(en['map.chapter.2.title']);
     expect(all).toContain('23 of 30 levels · next chest at 10');
+  });
+
+  /**
+   * `getItemLayout` reports a flat `ROW_HEIGHT` for the chapter card like any
+   * other row, so the card's text is the one thing that can outgrow the number
+   * the whole scroll contract is computed from. Capped, not disabled.
+   */
+  it('caps the chapter card font scale so OS text size cannot break `getItemLayout`', () => {
+    setProgress({ currentLevel: 24 });
+    const renderer = render(<LevelMapScreen onPlay={noop} onExit={noop} />);
+    const capped = renderer.root.findAll(
+      (n) => String(n.type) === 'RNText' && n.props.maxFontSizeMultiplier !== undefined,
+    );
+    const cappedText = capped.map((n) => String(n.props.children));
+    for (const line of [
+      'Chapter 1',
+      en['map.chapter.1.title'],
+      '23 of 30 levels · next chest at 10',
+    ]) {
+      expect(cappedText, `chapter card line "${line}" is uncapped`).toContain(line);
+    }
+    for (const n of capped) {
+      expect(n.props.maxFontSizeMultiplier).toBe(CARD_MAX_FONT_SCALE);
+    }
+    // ~37dp of fixed chrome + ~54dp of text at scale 1.0 fits ROW_HEIGHT only
+    // while the multiplier stays under ~1.24.
+    expect(CARD_MAX_FONT_SCALE).toBeGreaterThan(1);
+    expect(CARD_MAX_FONT_SCALE).toBeLessThanOrEqual(1.24);
+    // The cap belongs to the card, not to the app: nothing else on the map
+    // gets its text size clamped.
+    expect(capped).toHaveLength(6);
+  });
+
+  /**
+   * The dotted path bridges THIS row's node to the next row's, a full
+   * `ROW_HEIGHT` below — the dots have to be spread across that whole gap, in
+   * step with the x interpolation, or the path renders as a kinked dash with
+   * two thirds of every gap empty.
+   */
+  it('spreads the path dots evenly across the whole node-to-node gap', () => {
+    setProgress({ currentLevel: 24 });
+    const renderer = render(<LevelMapScreen onPlay={noop} onExit={noop} />);
+    const list = renderer.root.findAll((n) => String(n.type) === 'RNFlatList')[0]!;
+    const rows = renderer.root.findAll((n) => {
+      const style = flattenStyle(n.props.style);
+      return typeof n.type === 'string' && style.height === ROW_HEIGHT;
+    });
+    const row = rows[list.props.initialScrollIndex as number]!;
+    const dots = row.findAll((n) => {
+      const style = flattenStyle(n.props.style);
+      return typeof n.type === 'string' && style.position === 'absolute';
+    });
+    const nodeCentre = ROW_HEIGHT / 2;
+    expect(dots.map((d) => flattenStyle(d.props.style).top)).toEqual([
+      nodeCentre + ROW_HEIGHT * 0.25,
+      nodeCentre + ROW_HEIGHT * 0.5,
+      nodeCentre + ROW_HEIGHT * 0.75,
+    ]);
   });
 
   it('the footer star chip totals the persisted stars, with tabular numerals', () => {

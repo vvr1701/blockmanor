@@ -204,6 +204,15 @@ describe('§7.10 "Map scrolls to current level on open"', () => {
     expect(nodes.some((n) => n.kind === 'level' && n.state === 'current')).toBe(false);
     expect(initialNodeIndex(nodes)).toBe(nodes.length - 1);
   });
+
+  it('opens at the TOP for a degenerate `currentLevel <= 0` save, not at the bottom', () => {
+    for (const currentLevel of [0, -1]) {
+      const nodes = buildMapNodes(progress({ currentLevel }));
+      expect(nodes.some((n) => n.kind === 'level' && n.state === 'current')).toBe(false);
+      expect(nodes.some((n) => n.kind === 'level' && n.state === 'completed')).toBe(false);
+      expect(initialNodeIndex(nodes), `currentLevel ${currentLevel} opened at the end`).toBe(0);
+    }
+  });
 });
 
 describe('the winding path (mockup panel 5.1 / A1)', () => {

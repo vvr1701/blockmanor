@@ -151,13 +151,17 @@ function chapterHeader(
 
 /**
  * §7.10 "Map scrolls to current level on open" — the row the list opens on.
- * Falls back to the last row for a save past `MAX_LEVEL_ID` (no current
- * medallion exists) and to 0 for an unexpectedly empty list.
+ * With no current medallion the fallback splits on WHICH end of the map the
+ * save fell off: past `MAX_LEVEL_ID` (everything completed) opens at the last
+ * row, a `currentLevel <= 0` save opens at the first. Both are degenerate
+ * saves; opening a fresh-looking map at the bottom would be the worse guess.
+ * 0 also covers an unexpectedly empty list.
  */
 export function initialNodeIndex(nodes: readonly MapNode[]): number {
   const i = nodes.findIndex((n) => n.kind === 'level' && n.state === 'current');
   if (i >= 0) return i;
-  return Math.max(0, nodes.length - 1);
+  const anyCompleted = nodes.some((n) => n.kind === 'level' && n.state === 'completed');
+  return anyCompleted ? Math.max(0, nodes.length - 1) : 0;
 }
 
 /** Fixed row height — what makes `getItemLayout` (and therefore windowing and

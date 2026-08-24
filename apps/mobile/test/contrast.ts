@@ -83,12 +83,19 @@ type Style = Record<string, unknown>;
 
 /**
  * RN accepts a style object, an array, or nested arrays with falsy holes —
- * and, on `Pressable`, a `({ pressed }) => style` FUNCTION. That last case is
- * not cosmetic here: `GoldButton`/`GhostButton` set their fill inside it, so a
- * walker that skipped it would score every primary CTA's label against
- * whatever is behind the button instead of against the button, and report a
- * 1.00:1 that isn't real. Resolved in the resting (`pressed: false`) state,
- * which is the state a contrast check is about.
+ * and, on `Pressable`, a `({ pressed }) => style` FUNCTION.
+ *
+ * This file is FORKED: an older copy without the function case lives on other
+ * feature branches, and that copy is not wrong on them — nothing they render
+ * uses a function style (`GoldButton`/`GhostButton`, which set their fill
+ * inside one, arrive with §7.5). Nor does the older walker skip silently: an
+ * unresolved function style yields `{}`, the label is scored against the
+ * surface BEHIND the button, and the suite fails loudly with an impossible
+ * 1.00:1. The hazard is that the walker and the components it walks drift on
+ * either branch, so the resolution belongs in whichever copy merges last —
+ * this one — rather than being re-derived from a red run later. Resolved in
+ * the resting (`pressed: false`) state, which is the state a contrast check
+ * is about.
  */
 export function flattenStyle(style: unknown): Style {
   if (typeof style === 'function') {

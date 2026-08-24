@@ -34,13 +34,31 @@
  *    §11's renovation meta gives meaning to, and no art pipeline output exists
  *    (§15 "SVG masters → PNG"). The garden/fountain identity of the two
  *    chapters carries in the chapter titles and path tint instead.
- * 5. **Medallions are not tappable.** The panels imply a level map you touch;
+ * 5. **"next chest at N" means the next UNCLAIMED chest, not the next one
+ *    AHEAD.** The `Block Manor UI` panel reads "23 of 40 levels · next chest
+ *    at 30" for a player on L24 — i.e. the next chest they will REACH. Here
+ *    (`mapNodes.ts` `chapterHeader`) it is the first chest in the chapter they
+ *    have not opened, so the same player reads "next chest at 10" while an
+ *    un-opened L10 chest is still sitting behind them. That is the chest the
+ *    line should point at: it is claimable NOW, one tap away, and the mockup's
+ *    reading would send the player 6 levels forward past a reward they already
+ *    own. It reverts to the mockup's meaning the moment they open it.
+ * 6. **Medallions are not tappable.** The panels imply a level map you touch;
  *    §7.10 specs medallion STATES and a scroll position, and says nothing
  *    about replaying a level. Replay would need star/attempt semantics no PRD
  *    section defines today (§7.5's `attempt` counter is per level and
  *    `currentLevel` is single-valued), so the one play affordance is the
  *    panels' own footer CTA. Medallions stay fully announced to screen
  *    readers. Flagged for a §7.10 amendment rather than invented here.
+ * 7. **Two accessibility substitutions on panel colours** (each also commented
+ *    at its style below): the path dots run at `colors.gold` @ 55% instead of
+ *    the panels' 42%, which is 2.57:1 on `night` and under WCAG's 3:1 non-text
+ *    floor; and a locked medallion gains a `muted` outline the panels do not
+ *    draw, because its `night2` fill is 1.06:1 against the screen — invisible
+ *    as a UI component. §15's accessibility floor outranks a panel's exact
+ *    values. The pulse is NOT among these: `PULSE_SCALE` and
+ *    `CHEST_PULSE_SCALE` are the spec's `bm-pulse` keyframe verbatim
+ *    (`scale(1) → scale(1.03)`), pinned by test.
  *
  * State coverage (CLAUDE.md screen checklist):
  * - **loading / error / offline: not applicable, and deliberately so.** Every
@@ -56,7 +74,7 @@
  *   than a dead footer, the CTA becomes the single action §12.9 requires.
  */
 import { MAX_LEVEL_ID, frameForChest } from '@blockmanor/content';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View, type ListRenderItemInfo } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, {
@@ -83,12 +101,28 @@ import {
 } from './mapNodes';
 
 const MIN_TOUCH_TARGET = 44;
-/** The mockup's `bm-pulse 1.9s` on the current node. ONE element animates. */
-const PULSE_MS = 1900;
-const PULSE_SCALE = 1.08;
+/** The mockup's `bm-pulse 1.9s` on the current node. ONE element animates.
+ * Both numbers are the spec's keyframe verbatim — `bm-pulse` is
+ * `scale(1) → scale(1.03)` over half a period, so no amplitude of our own. */
+export const PULSE_MS = 1900;
+export const PULSE_SCALE = 1.03;
 /** Dots drawn per row along the path between this node and the next. */
 const PATH_DOTS_PER_ROW = 3;
 const TOTAL_STARS = 3;
+/**
+ * Font-scale ceiling for the chapter card's text, and ONLY for it.
+ * `getItemLayout` reports a flat `ROW_HEIGHT` for every row; if a row's real
+ * content grows past that, the offsets it reports go wrong and §7.10's
+ * scroll-to-current lands on the wrong pixel. The card is the one row whose
+ * height is text-driven: ~37dp of fixed chrome (padding + gaps + the 9dp
+ * progress track) plus ~54dp of text at fontScale 1.0 — so it fits 104dp
+ * while `37 + 54 × m ≤ 104`, i.e. `m ≤ 1.24`.
+ *
+ * NOT `allowFontScaling={false}`: capping the multiplier still honours a
+ * player's larger-text setting up to the cap; switching it off ignores the
+ * setting outright.
+ */
+export const CARD_MAX_FONT_SCALE = 1.2;
 const FILLED_STAR = '★';
 const EMPTY_STAR = '☆';
 
@@ -110,13 +144,24 @@ export function LevelMapScreen({ onPlay, onExit }: LevelMapScreenProps): React.J
     () => buildMapNodes({ currentLevel, stars, chestsClaimed }),
     [currentLevel, stars, chestsClaimed],
   );
-  // §7.10 "Map scrolls to current level on open". `initialScrollIndex` (not a
-  // post-mount `scrollToIndex`) so the FIRST paint is already at the right
-  // offset — no visible jump, and no work on a frame the player can see
-  // (§4.5). It is only honoured because `getItemLayout` below makes every row
-  // measurable without laying it out, which is also what lets the list window
-  // 66 rows instead of mounting them (§4.5: no per-cell React components).
+  // §7.10 "Map scrolls to current level on open", and the `Block Manor UI`
+  // panel's "current node auto-centred on entry". `initialScrollIndex` gets
+  // the FIRST paint to the right row with no measure pass and no work on a
+  // frame the player can see (§4.5) — but it top-ALIGNS that row, which would
+  // scroll the player's whole earned path off above the viewport. The mount
+  // effect below re-lands the same row at `viewPosition: 0.5`; both are only
+  // possible because `getItemLayout` makes every row measurable without laying
+  // it out, which is also what lets the list window 66 rows instead of
+  // mounting them (§4.5: no per-cell React components).
   const initialIndex = useMemo(() => initialNodeIndex(nodes), [nodes]);
+  const listRef = useRef<FlatList<MapNode>>(null);
+
+  useEffect(() => {
+    // `animated: false` — this is the entry position, not a transition.
+    // VirtualizedList clamps the resulting offset to `[0, contentEnd]`, so the
+    // L1 and past-the-ceiling ends need no special case here.
+    listRef.current?.scrollToIndex({ index: initialIndex, viewPosition: 0.5, animated: false });
+  }, [initialIndex]);
 
   const totalStars = useMemo(
     () => Object.values(stars ?? {}).reduce<number>((sum, n) => sum + (n || 0), 0),
@@ -153,6 +198,7 @@ export function LevelMapScreen({ onPlay, onExit }: LevelMapScreenProps): React.J
       </View>
 
       <FlatList
+        ref={listRef}
         style={styles.list}
         data={nodes}
         renderItem={renderItem}
@@ -219,8 +265,10 @@ interface MapRowProps {
   onChestPress: (chestLevel: number) => void;
 }
 
-/** Memoized: a chest claim changes ONE row's props, and without this every
- * mounted row re-renders on it (§4.5). */
+/** Memoized: a chest claim changes ONE row's props, so `React.memo` lets the
+ * other mounted rows bail out of re-rendering. Not measured — no benchmark
+ * here attributes a frame to it; it is the cheap default for a list row, not
+ * a §4.5 budget line this screen was shown to need. */
 const MapRow = React.memo(function MapRow({
   node,
   index,
@@ -256,7 +304,11 @@ function PathDots({ from, to }: { from: number; to: number }): React.JSX.Element
               styles.pathDot,
               {
                 transform: [{ translateX: Math.round(from + (to - from) * f) }],
-                top: ROW_HEIGHT / 2 + f * (ROW_HEIGHT / 2),
+                // The gap the dots bridge runs from THIS row's node (row
+                // centre) to the next row's node, a full `ROW_HEIGHT` below —
+                // so `f` scales a whole row, matching the x interpolation
+                // above. Half of that would kink the path into a dash.
+                top: ROW_HEIGHT / 2 + f * ROW_HEIGHT,
               },
             ]}
           />
@@ -271,14 +323,16 @@ function ChapterCard({ node }: { node: ChapterNode }): React.JSX.Element {
   return (
     <View style={styles.row}>
       <View style={styles.chapterCard}>
-        <Text style={styles.chapterEyebrow}>{t('map.chapter.eyebrow', { n: node.chapter })}</Text>
-        <Text style={styles.chapterTitle}>
+        <Text maxFontSizeMultiplier={CARD_MAX_FONT_SCALE} style={styles.chapterEyebrow}>
+          {t('map.chapter.eyebrow', { n: node.chapter })}
+        </Text>
+        <Text maxFontSizeMultiplier={CARD_MAX_FONT_SCALE} style={styles.chapterTitle}>
           {t(`map.chapter.${node.chapter}.title` as Parameters<typeof t>[0])}
         </Text>
         <View style={styles.progressTrack}>
           <View style={[styles.progressFill, { width: `${pct}%` }]} />
         </View>
-        <Text style={styles.chapterMeta}>
+        <Text maxFontSizeMultiplier={CARD_MAX_FONT_SCALE} style={styles.chapterMeta}>
           {node.nextChestLevel === null
             ? t('map.chapter.progress', { done: node.completed, total: node.total })
             : t('map.chapter.progressWithChest', {

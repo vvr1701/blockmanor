@@ -1,4 +1,11 @@
-import { Fragment, createElement, type ReactElement, type ReactNode } from 'react';
+import {
+  Fragment,
+  createElement,
+  useImperativeHandle,
+  type ReactElement,
+  type ReactNode,
+  type Ref,
+} from 'react';
 
 /**
  * Minimal `react-native` stand-in for render-tree tests — see vitest.config.ts.
@@ -74,7 +81,28 @@ export const AppState = {
  * through onto the host node so a test can assert the values the component
  * actually handed to the list — which is what makes §7.10's "map scrolls to
  * current level on open" checkable here at all.
+ *
+ * The imperative handle records every `scrollToIndex` into
+ * `mockScrollToIndexCalls` (same idea as the reanimated mock's
+ * `mockAnimationCalls`): §7.10's mockup says the current node is AUTO-CENTRED
+ * on entry, and `viewPosition` is the only thing that says so — an assertion
+ * on `initialScrollIndex` alone cannot tell centred from top-aligned.
  */
+export interface MockScrollToIndexCall {
+  index: number;
+  viewPosition?: number;
+  animated?: boolean;
+}
+
+export const mockScrollToIndexCalls: MockScrollToIndexCall[] = [];
+
+export function resetMockScrollToIndexCalls(): void {
+  mockScrollToIndexCalls.length = 0;
+}
+
+export interface FlatListHandle {
+  scrollToIndex: (params: MockScrollToIndexCall) => void;
+}
 interface FlatListLikeProps<T> {
   data: readonly T[] | null | undefined;
   renderItem: (info: { item: T; index: number; separators: unknown }) => ReactNode;
@@ -82,8 +110,15 @@ interface FlatListLikeProps<T> {
   [key: string]: unknown;
 }
 
-export function FlatList<T>(props: FlatListLikeProps<T>): ReactElement {
-  const { data, renderItem, keyExtractor, ...rest } = props;
+// `ref` is a plain prop on a React 19 function component, so no `forwardRef`
+// (whose `Omit<Props, 'ref'>` collapses to this props type's index signature).
+export function FlatList(props: FlatListLikeProps<unknown>): ReactElement {
+  const { data, renderItem, keyExtractor, ref, ...rest } = props;
+  useImperativeHandle(ref as Ref<FlatListHandle>, () => ({
+    scrollToIndex: (params: MockScrollToIndexCall): void => {
+      mockScrollToIndexCalls.push(params);
+    },
+  }));
   const items = (data ?? []).map((item, index) =>
     createElement(
       Fragment,
