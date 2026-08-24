@@ -50,14 +50,23 @@ function toHex({ r, g, b }: Rgba): string {
   return `#${[r, g, b].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`;
 }
 
-/** Source-over composite of `fg` (possibly translucent) onto an OPAQUE `bg`. */
-export function composite(fg: string, bg: string): string {
+/**
+ * Source-over composite of `fg` (possibly translucent) onto an OPAQUE `bg`.
+ *
+ * `extraAlpha` is the accumulated `style.opacity` of the ancestor chain. RN's
+ * `opacity` dims a view AND its whole subtree, so it multiplies into the
+ * source alpha rather than replacing it. A walker that ignores it reports the
+ * undimmed ratio — which is how two sub-floor `FailScreen` texts scored a fake
+ * 14.62:1 while the device rendered 4.34:1 and 3.76:1 (§12.2 audit).
+ */
+export function composite(fg: string, bg: string, extraAlpha = 1): string {
   const f = parseColor(fg);
   const b = parseColor(bg);
+  const a = f.a * extraAlpha;
   return toHex({
-    r: f.r * f.a + b.r * (1 - f.a),
-    g: f.g * f.a + b.g * (1 - f.a),
-    b: f.b * f.a + b.b * (1 - f.a),
+    r: f.r * a + b.r * (1 - a),
+    g: f.g * a + b.g * (1 - a),
+    b: f.b * a + b.b * (1 - a),
     a: 1,
   });
 }
@@ -129,19 +138,24 @@ function textOf(node: ReactTestInstance): string {
  */
 export function collectTextContrast(node: ReactTestInstance, backdrop: string): TextContrast[] {
   const out: TextContrast[] = [];
-  const visit = (n: ReactTestInstance, bg: string): void => {
+  // `opacity` accumulates DOWN the tree: nested opacities multiply, and a
+  // container's opacity dims everything it contains, not just its own paint.
+  const visit = (n: ReactTestInstance, bg: string, opacity: number): void => {
     const style = flattenStyle((n.props as { style?: unknown }).style);
+    const alpha = typeof style.opacity === 'number' ? opacity * style.opacity : opacity;
     const own =
-      typeof style.backgroundColor === 'string' ? composite(style.backgroundColor, bg) : bg;
+      typeof style.backgroundColor === 'string'
+        ? composite(style.backgroundColor, bg, alpha)
+        : bg;
     if (String(n.type) === 'RNText' && typeof style.color === 'string') {
-      const color = composite(style.color, own);
+      const color = composite(style.color, own, alpha);
       out.push({ text: textOf(n), color, background: own, ratio: contrastRatio(color, own) });
     }
     for (const child of n.children) {
-      if (typeof child !== 'string') visit(child, own);
+      if (typeof child !== 'string') visit(child, own, alpha);
     }
   };
-  visit(node, backdrop);
+  visit(node, backdrop, 1);
   return out;
 }
 
