@@ -456,12 +456,22 @@ them die with the session, so medallions had nothing to render), `chestsClaimed`
 `track` is never called through the whole open-chest flow. §13: no RC keys read or added;
 §7.10 marks nothing `[RC]`.
 
-**CROSS-BRANCH FINDING — `test/contrast.ts` has a blind spot on `feat/7.6-endless`.**
-`flattenStyle` did not resolve React Native's `({pressed}) => style` function styles, so the
-walker cannot see `GoldButton`/`GhostButton` fills and scores every primary CTA label at a
-fake **1.00:1**. §7.10 added the resolution; §7.6's suite passes WITHOUT it while containing
-GoldButtons, which means §7.6 is either not reaching a function-styled element or silently
-mis-scoring one. Being resolved in the §7.10 audit. Take §7.10's version of the file at merge.
+**CROSS-BRANCH FINDING — RESOLVED, and it was a false alarm.**
+`flattenStyle` did not resolve React Native's `({pressed}) => style` function styles. The
+§7.10 implementer reported this as a blind spot in `feat/7.6-endless`'s already-audited
+contrast suite. **It is not.** `GoldButton`/`GhostButton` do not exist on that branch — they
+arrive with `feat/7.5-win-fail` — and `grep -rnE "style=\{[^}]*=>" apps/mobile/src/` returns
+zero hits there, so the walker never reaches a function style. Proved positively, not by
+absence: copying §7.10's fixed walker into wt-76 and running both contrast suites gives 32/32.
+
+Second correction: the unfixed walker does not silently skip. It mis-scores **loudly** — a
+false FAIL (`"PLAY — Level 24" #131830 on #131830 = 1.00:1`), not a false PASS. The fix is
+still correct and worth keeping because the general hazard is two-way (a function style
+setting a background close to its ancestor's WOULD produce a silent false PASS).
+
+Residual risk: `apps/mobile/test/contrast.ts` now exists as two diverging copies. Merge order
+decides which walker survives. **Take §7.10's version at merge** — but note a bad merge here
+announces itself rather than going quiet.
 
 Entry point: the only specced route to the map is §7.5's FailScreen "Level map" ghost, which
 now goes there (`LevelSession` gained an optional `onLevelMap`, falling back to `onExit`).
@@ -480,6 +490,54 @@ sheet shows one loot card not three (the other two are Stage 2/§9.3) and no par
 feature PR is the wrong PR); two colour deviations to clear WCAG — path dots and the chapter
 card border at gold 55% (the mockup's 42% and 30% compute to 2.57:1 and 1.86:1), and locked
 medallions gained a `muted` outline.
+
+### S4b — §7.10 audit (`feat/7.10-level-map`)
+**FAIL** — 2 MAJOR, 4 MINOR, 3 NIT, no BLOCKER. Fix attempt dispatched.
+Auditor ran 10 of its own mutations: 8 caught, 2 survived.
+
+- **MAJOR-1: "current(pulse)" is asserted by nothing.** §7.10 names three medallion states
+  and gives exactly one a verb. Replacing the pulse with `scale.value = 1` leaves **240/240
+  green**. The guard counts mounted `AnimatedView` nodes — it proves mounting, not animating.
+  The instrument was already on the bench: `test/mocks/react-native-reanimated.ts:80-88`
+  records every `withRepeat` call and `dragLayer.render.test.tsx` already asserts against it.
+  Same hole in `ChestSheet`. The reduced-motion branch has **never executed** — the mock's
+  `useReducedMotion()` returns a hardcoded `false`.
+- **MAJOR-2: the §15 divergence list is incomplete** — the same shape §7.6 was failed for.
+  (a) `Block Manor UI.dc.html:84` says "current node auto-centred on entry"; the
+  implementation top-aligns, so a player opens the map with their whole earned path scrolled
+  off above. (b) The mockup's "next chest at 30" means the next chest AHEAD; the code returns
+  the first UNCLAIMED one, so a player on L24 reads "next chest at 10" — defensible, arguably
+  better, but undeclared, and it is the one string on the card a player acts on.
+- MINOR-2: the scroll contract rests on uniform `ROW_HEIGHT`, but nothing caps font scaling.
+  At OS fontScale >= ~1.3 the chapter card exceeds its hard-locked 104dp row, gets clipped,
+  **and `getItemLayout` keeps reporting 104** — so §7.10's one testable clause quietly stops
+  holding on a device with large text.
+- MINOR-3: path dots span 26dp of a 104dp gap while the x-interpolation sweeps the full delta
+  across it — a kinked dash, not the mockup's continuous sine. `f * (ROW_HEIGHT / 2)` should
+  almost certainly be `f * ROW_HEIGHT`.
+- NIT-1/2/3: `React.memo`, one `?? {}` guard, and the `currentLevel <= 0` fallback all
+  uncovered. NIT-4: `PULSE_SCALE` is 1.08 vs the spec's 1.03 while the durations match
+  `bm-pulse` exactly — reads accidental rather than chosen.
+
+Verified sound and NOT to be churned by the fix: the three-step migration (real v0 payload
+through zustand's own `rehydrate()` keeps a planted unknown key and gets all three steps in
+one pass), chest atomicity (one `set()` returning both keys — both drop-directions
+mutation-caught), §4.5 (exactly one `Animated.View`; the 60-`Animated.View` defect is fixed
+at the mechanism, not moved), scroll-to-current at all four boundaries, §14 firing nothing
+correctly (the "fires no event" test is non-vacuous — sneaking in a `track()` reds it), and
+stage discipline (zero economy fields; `avatarFrames.json` carries `{id, chestLevel}` only).
+
+Recorded so nobody re-chases it: main's `persist` ships with no `version` option, which looks
+like it would hand `migrate()` an `undefined` version and make every `version < N` predicate
+false. It does not — zustand v5 defaults to 0 and writes `"version":0` to disk. Verified
+empirically against main's exact options object. Real devices are v0 and get all three steps.
+
+**PRD gap found by this audit (add to the HARD STOP list):** §7.10 specs a Stage-1 chest
+reward and specs nothing about reaching it. The only route to `LevelMapScreen` is §7.5's
+FailScreen "Level map" ghost, so **a player who clears levels without ever failing never sees
+the map, never opens a chest, and never receives the reward.** `App.tsx` correctly declines to
+invent a Home entry — §7.11's layout list (a)-(g) has no map slot and §0 rule 2a only permits
+explicitly-specced slots. Needs a §7.11 amendment adding the slot, or a §7.10 one naming the route.
 
 ## HARD STOP — 3 §7.6 PRD gaps need operator rulings (2026-08-22)
 
