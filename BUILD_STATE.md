@@ -20,7 +20,7 @@ Reference: `BUILD_GUIDE.md` §1 rhythm, §5 review discipline, §6 failure modes
 | 1b | Engine fuzz: cover the fixed-sequence path | 5 | **MERGED** PR #10 `8a02272` — corpus `392ad7a4` -> `538e3dea` |
 | 2 | Win/Fail + level progression loop | 7.5 | **PR #12 fix-complete** `111e54d` — audited, fixed, re-verified. Awaiting merge call |
 | 3 | Endless / Level map / Home real hub | 7.6, 7.10, 7.11 | §7.6 + §7.10 fix/audit stage; §7.11 next |
-| 4 | System screens | 12 | §12.2 built, audit running. **11 subsections, not 8**: 12.7 is S3, 12.6 half-S2/§8.6, so the S1 set is 12.1-12.5 + 12.8-12.11 = nine |
+| 4 | System screens | 12 | §12.2 **audit PASS**, polish pass running. **11 subsections, not 8**: 12.7 is S3, 12.6 half-S2/§8.6, so the S1 set is 12.1-12.5 + 12.8-12.11 = nine |
 | 5 | Daily Board client stack, on the emulator | 8.3-8.7 | pending |
 | 6 | Full drift audit + BLOCKER/MAJOR fixes + APK | S1.13 | pending |
 
@@ -622,6 +622,70 @@ Also flagged: `ModalSheet(brass frame)` IS in §15's component list and this is 
 instance. Extraction noted as the point but not done — it would rewrite two audited screens
 on two unmerged branches. Do it when the stack lands and there is one tree to touch.
 
+### S5b — §12.2 audit: **PASS**
+No BLOCKER, no MAJOR. 4 MINOR, 5 NIT. First clean audit of the run. The auditor ran 10
+mutations (4 of the implementer's, 6 of its own); 9 caught, 1 survived (NIT-5).
+
+All four re-derived claims held: the strict-`>` reading and the integer arithmetic (both
+readings of "goals >50% done" agree that exactly half does not confirm, so there is no
+ambiguity to resolve — and `2*done > total` is right on BOTH 51/101 and 50/101 where a
+rounded `>50` and a rounded `>=50` each get one wrong); `onRestart` IS `handleRetry` by
+reference; `moves` is live not stale (that mutation is invisible to every unit test and dies
+only against the e2e test that makes two real placements); and the §4.5 companion test is
+genuinely non-vacuous. Confirmed against the engine that `finalResult().moves` is literally
+`state.placements` (`packages/engine/src/simulate.ts:478`).
+
+Also upheld with a better reason than was given: `FtueScreen` passing no `pause` is right
+because §7.1 specs L1-L4 as "no HUD, no menus", so a pause affordance there would be a §7.1
+violation — not merely a scope choice.
+
+**REAL DEFECT FOUND ON ANOTHER BRANCH — `feat/7.5-win-fail` ships two sub-floor texts.**
+This is NOT the §7.6 false alarm. `apps/mobile/test/contrast.ts:130-146` composites
+`backgroundColor` and `color` only; `opacity` appears nowhere in the file. `FailScreen`
+dims three texts with `opacity`, so the walker reports **14.62:1 for all three** while the
+device renders:
+
+    subtitle  opacity=0.6  -> 4.34:1   FAILS (floor 4.5:1, fontSize.sm normal text)
+    goalLine  opacity=0.75 -> 7.00:1   passes
+    soClose   opacity=0.55 -> 3.76:1   FAILS
+
+Computed with the repo's own `composite`/`contrastRatio`. Being fixed at source on
+`feat/7.5-win-fail`: fold alpha into the colour (the pattern `PauseSheet` and
+`GhostButton.onLight` already use), and teach the walker to multiply through an ancestor
+`opacity` — it is cumulative down the tree, and a container `opacity` dims its whole subtree.
+`GoldButton`'s `disabled: {opacity: 0.4}` (2.33:1) is the same shape but WCAG 1.4.3 exempts
+inactive controls — leave it, and make any walker exemption narrow rather than a blanket skip.
+
+**NIT-5, a pre-existing §7.4 coverage gap the new helper's name surfaced:** helpers counting
+"infinite repeats" filter on `config !== null`, but the reanimated mock ALWAYS sets `config`
+to an object, so the filter is a no-op and `numberOfReps` is never inspected. Mutating
+`withRepeat(..., -1, true)` to `..., 5, true` survives the whole suite — the near-death
+vignette could silently become a 5-pulse animation against §7.4's "1.2s **loop**".
+
+Other findings being fixed: a dead pause control is now announced to TalkBack in FTUE
+(MINOR-1); "Not built yet" is developer copy on a player-visible beta surface (MINOR-2);
+back from the confirm dismisses the whole sheet instead of popping one layer (NIT-7); back
+during an in-flight drag commits a placement behind the scrim (NIT-8); two undeclared mockup
+divergences and a wrong count (NIT-9); a circular rationale citing a self-authored constant
+as evidence of PRD intent (NIT-6).
+
+Flagged for the drift audit, not fixed: `t('fail.goalLine', ...)` is now used by two screens,
+so the `fail.` prefix has become a misnomer.
+
+## Follow-ups (tracked, not blocking)
+
+- Wire `PauseSheet`'s settings row to `SettingsScreen` when §12.1 lands. It currently renders
+  disabled by design — §16.1 lists `SettingsScreen` as Stage 1, so it is a not-yet, and
+  dropping one of §12.2's four clauses silently is the failure mode four audits died on.
+- Extract `ModalSheet(brass frame)` into `src/components`. It IS in §15's component list and
+  `PauseSheet` is its third instance. Deferred because extracting it now would rewrite two
+  audited screens across two unmerged branches — do it when the stack lands.
+- Converge `EndlessScreen` onto §12.2's pause: pass `pause={{...}}` and delete its own
+  `BackHandler` effect and `EndlessHud`'s close button. Two open questions at that merge —
+  Endless has no goals so the >50% confirm can never fire, yet a mid-run exit forfeits a live
+  score; and Endless fires `endless_end`, not `level_quit`.
+- Converge the forked `apps/mobile/test/contrast.ts` copies. Take the newest walker.
+
 ## HARD STOP — 3 §7.6 PRD gaps need operator rulings (2026-08-22)
 
 Escalated rather than guessed; explicitly excluded from the fix attempt.
@@ -636,6 +700,16 @@ them, most of §7 does not.
 no matching key, so hardcoding `ENDLESS_UNLOCK_LEVEL = 10` is correct TODAY under §13's
 registry-completeness rule. But it is exactly the number live-ops will want to move.
 Adding `endless_unlock_level` (10) needs §7.6 + §13 amended first.
+
+**D. §12.2's "goals >50% done" is undefined for multi-goal levels** (found by the §12.2
+audit; PRD-AMENDMENT-NEEDED). Across `[{crate:12},{chain:1}]` it has two readings — 50% of
+total goal *units*, or 50% of *goals met* — and they disagree constantly (12/13 units is past
+half; 1 of 2 goals met is exactly half). The implementation chose total-units, which is right
+because it matches `goalProgressPct`, the same instrument §14's `level_fail.goal_progress_pct`
+ships. But the PRD says none of this and §14 does not define `goal_progress_pct` either, so
+**two Stage-1 gates rest on an undocumented convention.** Amend §12.2 or §14's
+`goal_progress_pct` entry to state that goal progress is unit-weighted across goals. No code
+change either way.
 
 **C. §7.6 is silent on lives / stars / Manor Pass XP.** Mockup panel 10.1's footer says
 "Endless never costs a life and never pays stars — and it feeds the Manor Pass XP."
