@@ -672,6 +672,45 @@ as evidence of PRD intent (NIT-6).
 Flagged for the drift audit, not fixed: `t('fail.goalLine', ...)` is now used by two screens,
 so the `fail.` prefix has become a misnomer.
 
+### S6 — FailScreen WCAG fix (`feat/7.5-win-fail`)
+Fixed `56fc4c9`, pushed. Both sub-floor texts now clear 4.5:1 with the hierarchy intact:
+
+    subtitle  4.34:1 -> **5.98:1**  (rgba(19,24,48,0.7) — reuses GhostButton.onLight's 70%)
+    soClose   3.76:1 -> **5.07:1**  (rgba(19,24,48,0.65))
+    title     14.62:1 unchanged · goalLine 7.00:1 unchanged, deliberately still on `opacity`
+
+`goalLine` keeps `style.opacity` on purpose — it passes, and it is the live fixture that keeps
+the walker's new opacity path exercised forever. Without it the code path would have zero
+coverage on this branch.
+
+**Correction to my brief, caught by the implementer:** `apps/mobile/test/contrast.ts` does NOT
+exist on `feat/7.5-win-fail`. It was introduced independently on `feat/7.10-level-map` and
+`feat/7.6-endless`, both *downstream*. Creating it here would have caused an **add/add conflict
+on rebase, where the standard "take theirs" resolution silently drops the opacity fix.** The
+opacity-aware walk went into the guard that already exists on this branch instead. Neither
+downstream branch touches `FailScreen/` or `failScreen.render.test.tsx`, so this rebases clean
+and their walkers read the corrected `rgba` colours correctly.
+
+Mutation evidence with a control, which is what makes it conclusive: reverting FailScreen to
+`opacity` reds the new guard with `['Level 24: 4.34:1', 'So close!: 3.76:1']`, while the SAME
+mutated screen under the pre-fix walker passes 7/7. **Re-verified independently:** dropping the
+subtitle alpha to 0.35 reds the guard and it reports the true 2.15:1.
+
+`GoldButton.disabled` (2.33:1) left alone per WCAG 1.4.3. The exemption added is narrow by
+construction — the walker skips a subtree whose host reports `accessibilityState.disabled`,
+and the test asserts all five live FailScreen strings are still in the collected set, so it
+cannot silently widen to swallow live controls. Included now because §9.4's continue slot will
+make it matter.
+
+Also fixed here (NIT-5's equivalent on this branch): the near-death loop assertion was
+`expect(repeat).toBeDefined()` with `numberOfReps` never read, so `withRepeat(-1)` ->
+`withRepeat(5)` survived. Now pins `numberOfReps === -1` AND `reverse === true` — `reverse` is
+what makes one rep a there-and-back cycle.
+
+**New environment gotcha:** `pnpm exec vitest run <path>` **from the repo root** fails with a
+misleading `Expected 'from', got 'typeOf'` rollup parse error for every mobile test — on
+unmodified `main` too. It picks up the wrong config. Run mobile tests from `apps/mobile`.
+
 ## Follow-ups (tracked, not blocking)
 
 - Wire `PauseSheet`'s settings row to `SettingsScreen` when §12.1 lands. It currently renders
@@ -684,7 +723,17 @@ so the `fail.` prefix has become a misnomer.
   `BackHandler` effect and `EndlessHud`'s close button. Two open questions at that merge —
   Endless has no goals so the >50% confirm can never fire, yet a mid-run exit forfeits a live
   score; and Endless fires `endless_end`, not `level_quit`.
+- **Port the opacity accumulator to `contrast.ts`** on `feat/7.10-level-map`,
+  `feat/12.2-pause` and `feat/7.6-endless` — all three walkers are still opacity-blind. Three
+  lines: thread an `opacity` accumulator through `visit`, `const alpha = typeof style.opacity
+  === 'number' ? opacity * style.opacity : opacity`, pass `alpha` into the `composite` calls.
+  Deliberately not done from the §7.5 branch to avoid an add/add rebase conflict.
 - Converge the forked `apps/mobile/test/contrast.ts` copies. Take the newest walker.
+- `FtueOverlay.tsx:74` calls `withRepeat(..., -1)` for the §7.1.1 hand cursor with **no test
+  asserting it at all** — `ftueScreen.render.test.tsx` never greps `withRepeat`. Same class as
+  NIT-5 but a wider gap; §7.1's, already shipped.
+- Extract a shared `withAlpha(token, a)` helper in `tokens.ts`. `GhostButton`, `PauseSheet` and
+  now `FailScreen` all use the literal-plus-comment form. Its own PR across all three call sites.
 
 ## HARD STOP — 3 §7.6 PRD gaps need operator rulings (2026-08-22)
 
