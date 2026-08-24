@@ -153,6 +153,7 @@ function mount(state: GameState): Mounted {
       // mock — DragLayer only ever writes `.value` on it.
       boardShakeX={boardShakeX as never}
       reducedMotion={false}
+      paused={false}
     />
   );
   const renderer = render(buildElement());

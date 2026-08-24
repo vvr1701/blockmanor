@@ -13,8 +13,9 @@
  * as underlined text inside the card ("Exit is text, never a button", per
  * that panel's own footnote).
  *
- * DIVERGENCES from panel 3.9, all deliberate — the PRD wins (§15) and every
- * mismatch is listed here, including the obvious ones:
+ * NINE DIVERGENCES from panel 3.9, all deliberate — the PRD wins (§15) and
+ * every mismatch is listed here, including the obvious ones (keep the count
+ * in this sentence in step with the list):
  *
  * 1. NO life cost and NO life counter on the restart row. The panel shows
  *    "Costs 1 life" plus a heart chip reading 5, and its footnote argues for
@@ -31,7 +32,7 @@
  *    §12.1 — so a route is what this renders, honestly unavailable.
  * 3. That disabled row is NOT dimmed to a grey. Its title stays at the same
  *    `colors.night` on cream every enabled row uses, and "disabled" is
- *    carried by the "Not built yet" sublabel, the absent press handler and
+ *    carried by the "coming soon" sublabel, the absent press handler and
  *    `accessibilityState.disabled`. WCAG 1.4.3 exempts inactive controls
  *    from the 4.5:1 floor, but that exemption is a licence to be
  *    low-contrast, not a reason to be — a row a player is supposed to READ
@@ -45,10 +46,16 @@
  *    under an 82% scrim; RN has no free blur primitive (that is `expo-blur`,
  *    an un-installed dependency) and §15's component list has no blur token.
  *    The 82% scrim alone is kept — it is the part that carries the meaning.
- * 6. "Exit to map" is `colors.night` @ 70%, not the panel's `rgba(42,33,21,.4)`
- *    ink. That ink computes to 2.55:1 on cream and fails the 4.5:1 text
- *    floor. Same substitution `GhostButton`'s `onLight` variant already made
- *    for the same reason (§7.5 re-audit item 1).
+ * 6. EVERY secondary text on the cream is `colors.night` @ 70% (`INK_70`),
+ *    not the panel's ink — not just "Exit to map". The panel writes
+ *    `rgba(42,33,21,.4)` on "Exit to map" (2.55:1 on cream) and
+ *    `rgba(42,33,21,.45)` on the status line and the restart row's sublabel
+ *    (2.83:1); all three are under the 4.5:1 normal-text floor. Same
+ *    substitution `GhostButton`'s `onLight` variant already made for the same
+ *    reason (§7.5 re-audit item 1). The settings sublabel and the confirm
+ *    body take `INK_70` too, for consistency rather than as a substitution:
+ *    they are PRD-only compositions (divergences 2 and 7) with no panel ink
+ *    of their own to diverge from.
  * 7. The panel has NO confirm step; §12.2 requires one past 50% goal
  *    progress, so the confirm composition below is PRD-only and has no
  *    mockup to match. It is built from this sheet's own parts (title +
@@ -56,6 +63,13 @@
  * 8. The panel's serif "Paused" is Playfair Display; `fontFamily.display` is
  *    still the platform `serif` fallback repo-wide (§15's font loading is not
  *    wired). Pre-existing, not introduced here, listed for completeness.
+ * 9. The status line's goal segment reads "Crates 7/12"; the panel writes
+ *    "crates 7/12", lower case. The label is `GOAL_LABEL_KEY` — the single
+ *    §7.8 goal-type -> i18n-key mapping, shared with §7.5's `FailScreen`
+ *    (which renders it title-cased at the start of its own line). Reusing
+ *    that map is the right call; sentence-casing it only here would fork it
+ *    per screen or add a casing prop for one caller. The case mismatch is
+ *    the price, declared rather than hidden.
  *
  * `SheetRow` is local to this file on purpose. §15's component list
  * (`GoldButton · GhostButton · Card · ModalSheet · HUDBar · TimerChip ·
@@ -92,9 +106,10 @@
  * the goal segments rather than rendering "0/0", and `Resume` remains the one
  * action, so there is still no dead end. Every state here is escapable:
  * Resume, the confirm's "Keep playing", and Android back (handled by
- * `GameplayScreen`, which owns the `BackHandler` subscription).
+ * `GameplayScreen`, which owns the `BackHandler` subscription and pops one
+ * layer per press — see `confirming` below).
  */
-import React, { useCallback, useState } from 'react';
+import React, { useCallback } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { GoldButton } from '../../components/GoldButton';
 import { colors, fontFamily, fontSize, radius, spacing } from '../../components/tokens';
@@ -192,6 +207,13 @@ export interface PauseSheetProps {
   /** §12.2 quit-to-map. Called only AFTER the confirm when §12.2's threshold
    * says one is needed. */
   onQuit: () => void;
+  /** Which LAYER of the sheet is showing: the pause menu (`false`) or the
+   * quit confirm (`true`). Controlled by `GameplayScreen` because that screen
+   * owns the single Android `BackHandler` subscription and back must pop one
+   * layer at a time (confirm -> menu -> board); a handler that could not see
+   * this flag dismissed the whole sheet from the confirm. */
+  confirming: boolean;
+  onConfirmingChange: (confirming: boolean) => void;
 }
 
 export function PauseSheet({
@@ -201,16 +223,16 @@ export function PauseSheet({
   onResume,
   onRestart,
   onQuit,
+  confirming,
+  onConfirmingChange,
 }: PauseSheetProps): React.JSX.Element {
-  const [confirming, setConfirming] = useState(false);
-
   const handleQuitPress = useCallback(() => {
     // §12.2: "quit-to-map (confirm if goals >50% done)". At or below half the
     // player has invested little enough that a second tap is friction, not
     // protection (§1 P6) — leave immediately.
-    if (goalsPastHalf(goals)) setConfirming(true);
+    if (goalsPastHalf(goals)) onConfirmingChange(true);
     else onQuit();
-  }, [goals, onQuit]);
+  }, [goals, onQuit, onConfirmingChange]);
 
   const status = [
     ...(levelId === undefined ? [] : [t('gameplay.level', { id: levelId })]),
@@ -238,7 +260,7 @@ export function PauseSheet({
               <Text style={styles.confirmBody}>{t('pause.confirm.body')}</Text>
               <GoldButton
                 label={t('pause.confirm.stay')}
-                onPress={() => setConfirming(false)}
+                onPress={() => onConfirmingChange(false)}
                 size="lg"
                 style={styles.cta}
               />

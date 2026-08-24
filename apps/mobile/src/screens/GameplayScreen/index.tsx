@@ -236,6 +236,10 @@ export function GameplayScreen({
 
   // --- §12.2 pause -------------------------------------------------------
   const [paused, setPaused] = useState(false);
+  // §12.2's quit confirm is the sheet's SECOND layer, held here (not in the
+  // sheet) because the `BackHandler` below is the only one on this screen and
+  // it has to know which layer is on top in order to pop just that one.
+  const [confirming, setConfirming] = useState(false);
   // Pause is only offered on a LIVE board. `LevelSession` deliberately holds
   // this screen mounted for `WIN_HOLD_MS`/`FAIL_HOLD_MS` after a terminal
   // placement so the §7.4 win/fail beat can play (§7.5 audit M-2) — opening a
@@ -250,6 +254,9 @@ export function GameplayScreen({
   const closePause = useCallback(() => {
     playCue('modal_close');
     setPaused(false);
+    // The sheet unmounts on close, so the confirm layer must not survive to
+    // greet the next open.
+    setConfirming(false);
   }, []);
 
   // §12.9 "invitations, never dead ends": Android's hardware back opens pause
@@ -258,15 +265,21 @@ export function GameplayScreen({
   // mid-run, which is the trap §7.6's audit filed as a BLOCKER. Consumed even
   // during the terminal hold above, where `canPause` is false: swallowing one
   // press for ~1s beats killing the app over a win animation.
+  //
+  // Back pops exactly ONE layer per press — confirm -> pause menu -> board —
+  // which is the Android convention (§12.9 audit nit 7). Dismissing the whole
+  // sheet from the confirm would also silently discard the "are you sure"
+  // the player was answering.
   useEffect(() => {
     if (!pause) return;
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (paused) closePause();
+      if (confirming) setConfirming(false);
+      else if (paused) closePause();
       else if (canPause) openPause();
       return true;
     });
     return () => sub.remove();
-  }, [pause, paused, canPause, openPause, closePause]);
+  }, [pause, paused, confirming, canPause, openPause, closePause]);
 
   const handleRestart = useCallback(() => {
     // Closed first so this component is self-consistent even for a caller
@@ -350,19 +363,37 @@ export function GameplayScreen({
         <View style={styles.hudRow}>
           {/* The glyph is 38dp per the mockup's HUD row (`HUD_ICON_SIZE`);
               `hitSlop` carries it past the 44dp floor, the same way §7.3
-              sizes tray hitboxes independently of their visual size. */}
-          <Pressable
-            style={({ pressed }) => [styles.pauseButton, pressed ? styles.pausePressed : null]}
-            onPress={openPause}
-            disabled={!canPause}
-            accessibilityRole="button"
-            accessibilityLabel={t('pause.openLabel')}
-            accessibilityState={{ disabled: !canPause }}
-            hitSlop={(MIN_TOUCH_TARGET - HUD_ICON_SIZE) / 2}
-          >
-            <View style={styles.pauseBar} />
-            <View style={styles.pauseBar} />
-          </Pressable>
+              sizes tray hitboxes independently of their visual size.
+
+              With NO `pause` prop there is no control here at all, ever — so
+              it is rendered as the decorative `View` it is, hidden from the
+              accessibility tree. Announcing a permanently-disabled "Pause the
+              game" button would put a dead end (§12.9) on `FtueScreen`, which
+              shows this row at step L5 on a screen §7.1 specs as "no HUD, no
+              menus". Same 38dp box either way, so the row never reflows. */}
+          {pause ? (
+            <Pressable
+              style={({ pressed }) => [styles.pauseButton, pressed ? styles.pausePressed : null]}
+              onPress={openPause}
+              disabled={!canPause}
+              accessibilityRole="button"
+              accessibilityLabel={t('pause.openLabel')}
+              accessibilityState={{ disabled: !canPause }}
+              hitSlop={(MIN_TOUCH_TARGET - HUD_ICON_SIZE) / 2}
+            >
+              <View style={styles.pauseBar} />
+              <View style={styles.pauseBar} />
+            </Pressable>
+          ) : (
+            <View
+              style={styles.pauseButton}
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+            >
+              <View style={styles.pauseBar} />
+              <View style={styles.pauseBar} />
+            </View>
+          )}
           <Text style={styles.levelTitle}>
             {levelId !== undefined ? t('gameplay.level', { id: levelId }) : ''}
           </Text>
@@ -418,6 +449,7 @@ export function GameplayScreen({
             onDragIndexChange={setDraggingIndex}
             boardShakeX={boardShakeX}
             reducedMotion={reducedMotion}
+            paused={paused}
           />
 
           <JuiceLayer
@@ -445,6 +477,8 @@ export function GameplayScreen({
           onResume={closePause}
           onRestart={handleRestart}
           onQuit={handleQuit}
+          confirming={confirming}
+          onConfirmingChange={setConfirming}
         />
       ) : null}
     </SafeAreaView>

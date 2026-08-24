@@ -58,9 +58,7 @@ export function goalProgressPct(goals: readonly GoalBarEntry[]): number {
  * READING OF THE THRESHOLD (stated because "50%" has two sides): `>` is
  * strict, so EXACTLY 50% does NOT confirm — the confirm appears only from the
  * first unit of progress past half. Nothing in §12.2 or §6.7 is ambiguous
- * here; the PRD writes `>`, not `>=`, and §7.5's neighbouring "so close"
- * gate deliberately writes `>=` in its own code, so the distinction is being
- * drawn, not glossed.
+ * here; the PRD writes `>`, not `>=`.
  *
  * Compared on the EXACT ratio, in integers, rather than on
  * `goalProgressPct`'s rounded output: 101/200 crates is genuinely past half

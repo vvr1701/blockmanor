@@ -128,6 +128,19 @@ function backdropOf(renderer: ReactTestRenderer): string {
 
 const noop = (): void => undefined;
 
+/**
+ * The §12.2 confirm layer is controlled by `GameplayScreen` (so its one
+ * `BackHandler` can pop layers in order — audit nit 7). These describes drive
+ * the sheet directly, so they hold the same one bit of state locally. The
+ * rendered subject is still the real `PauseSheet`.
+ */
+function Sheet(
+  props: Omit<React.ComponentProps<typeof PauseSheet>, 'confirming' | 'onConfirmingChange'>,
+): React.JSX.Element {
+  const [confirming, setConfirming] = React.useState(false);
+  return <PauseSheet {...props} confirming={confirming} onConfirmingChange={setConfirming} />;
+}
+
 beforeEach(() => {
   resetMockAnimationCalls();
 });
@@ -152,7 +165,7 @@ describe('PauseSheet — §12.2 clause by clause', () => {
       onQuit: vi.fn(),
       ...over,
     };
-    return { renderer: render(<PauseSheet {...props} />), props };
+    return { renderer: render(<Sheet {...props} />), props };
   }
 
   it('titles itself "Paused" and states level, goal progress and moves in one tabular line', () => {
@@ -219,7 +232,7 @@ describe('PauseSheet — §12.2 quit-to-map, the >50% confirm boundary', () => {
   function quitAt(done: number, total: number) {
     const onQuit = vi.fn();
     const renderer = render(
-      <PauseSheet
+      <Sheet
         levelId={24}
         goals={goals(done, total)}
         moves={4}
@@ -287,7 +300,7 @@ describe('PauseSheet — §12.2 quit-to-map, the >50% confirm boundary', () => {
 describe('PauseSheet — a11y and contrast (§15, CLAUDE.md a11y rules)', () => {
   function full() {
     return render(
-      <PauseSheet
+      <Sheet
         levelId={24}
         goals={goals(7, 12)}
         moves={18}
@@ -370,14 +383,32 @@ describe('PauseSheet — a11y and contrast (§15, CLAUDE.md a11y rules)', () => 
 describe('GameplayScreen — the §12.2 pause affordance', () => {
   const controls = () => ({ onRestart: vi.fn(), onQuit: vi.fn() });
 
-  it('without `pause` the affordance is inert and NO BackHandler is registered (FTUE / dev board)', () => {
+  it('without `pause` there is NO announced control at all and no BackHandler (FTUE / dev board)', () => {
     const before = BackHandler.__count();
     const renderer = render(<GameplayScreen initialState={levelState()} />);
     expect(BackHandler.__count()).toBe(before);
     expect(sheetOf(renderer)).toBeUndefined();
-    const pause = byLabel(renderer, en['pause.openLabel']);
-    expect(pause.props.disabled).toBe(true);
-    expect(pause.props.accessibilityState).toEqual({ disabled: true });
+    // §12.9 "invitations, never dead ends": TalkBack must not hear a
+    // permanently-disabled "Pause the game" button on a screen §7.1 specs as
+    // "no HUD, no menus" (`FtueScreen` shows this row from L5). The glyph is
+    // decorative here, so it is hidden from the accessibility tree entirely.
+    // Lengths, not `toEqual([])`: a failing deep-equal on `ReactTestInstance`
+    // objects walks the whole fiber tree into the differ and OOMs the worker.
+    expect(
+      renderer.root.findAll((n) => n.props.accessibilityLabel === en['pause.openLabel']),
+    ).toHaveLength(0);
+    expect(renderer.root.findAll((n) => n.props.accessibilityRole === 'button')).toHaveLength(0);
+    const glyph = renderer.root.findAll(
+      (n) => typeof n.type === 'string' && n.props.accessibilityElementsHidden === true,
+    )[0]!;
+    expect(glyph).toBeDefined();
+    expect(glyph.props.importantForAccessibility).toBe('no-hide-descendants');
+    // …and it still occupies the SAME 38dp box, so the HUD row never reflows
+    // between a pausable screen and an FTUE one.
+    const withPause = render(<GameplayScreen initialState={levelState()} pause={controls()} />);
+    const live = flattenStyle(byLabel(withPause, en['pause.openLabel']).props.style);
+    const dead = flattenStyle(glyph.props.style);
+    expect([dead.width, dead.height]).toEqual([live.width, live.height]);
   });
 
   it('with `pause`, tapping the HUD affordance opens the sheet; Resume closes it', () => {
@@ -445,6 +476,26 @@ describe('GameplayScreen — the §12.2 pause affordance', () => {
     expect(sheetOf(renderer)).toBeUndefined();
   });
 
+  it('pausing DISABLES the drag recognizer — a release mid-drag cannot commit behind the scrim', () => {
+    // Audit nit 8: the sheet renders ABOVE `DragLayer`, but a gesture that is
+    // already active is unaffected by a view appearing over it — pressing
+    // 3-button back with a second finger down would otherwise land a
+    // placement behind the scrim and desync §14 `level_quit.moves`.
+    const renderer = render(<GameplayScreen initialState={levelState()} pause={controls()} />);
+    const enabled = (): boolean[] =>
+      (
+        renderer.root.findAllByType('GHDetector' as never) as unknown as {
+          props: { gesture: { __enabled: boolean } };
+        }[]
+      ).map((d) => d.props.gesture.__enabled);
+    expect(enabled().length).toBeGreaterThan(0);
+    expect(enabled()).not.toContain(false);
+    press(byLabel(renderer, en['pause.openLabel']));
+    expect(enabled()).not.toContain(true);
+    press(byLabel(renderer, en['pause.resume']));
+    expect(enabled()).not.toContain(false);
+  });
+
   it('an endless-shaped config (no level, no goals) still pauses without a dead end', () => {
     const renderer = render(<GameplayScreen initialState={endlessState()} pause={controls()} />);
     press(byLabel(renderer, en['pause.openLabel']));
@@ -483,7 +534,7 @@ describe('GameplayScreen — Android hardware back (§12.9, no dead ends)', () =
     expect(backPress()).toBe(false);
   });
 
-  it('back closes the CONFIRM through the sheet, not the app', () => {
+  it('pops ONE layer per press: confirm -> pause menu -> board, never the app', () => {
     const c = controls();
     const renderer = render(
       <GameplayScreen
@@ -494,9 +545,38 @@ describe('GameplayScreen — Android hardware back (§12.9, no dead ends)', () =
     press(byLabel(renderer, en['pause.openLabel']));
     press(byLabel(renderer, en['pause.quit']));
     expect(texts(renderer)).toContain(en['pause.confirm.title']);
+
+    // Back from the confirm returns to the PAUSE MENU (the Android
+    // convention: back pops the topmost layer), not out of the sheet.
+    expect(backPress()).toBe(true);
+    expect(sheetOf(renderer)).toBeDefined();
+    expect(texts(renderer)).not.toContain(en['pause.confirm.title']);
+    expect(texts(renderer)).toContain(en['pause.title']);
+
+    // The next press pops the menu, and only then is the board back.
     expect(backPress()).toBe(true);
     expect(sheetOf(renderer)).toBeUndefined();
     expect(c.onQuit).not.toHaveBeenCalled();
+  });
+
+  it('closing the sheet drops the confirm layer, so the next open is the MENU', () => {
+    // Reachable on any caller that does not unmount this screen after a quit
+    // (`LevelSession` does; §12.2 does not require it). Without the reset the
+    // next pause would open straight into "Leave this level?".
+    const c = controls();
+    const renderer = render(
+      <GameplayScreen
+        initialState={{ ...levelState(), goals: [{ type: 'crate', remaining: 1 }] }}
+        pause={c}
+      />,
+    );
+    press(byLabel(renderer, en['pause.openLabel']));
+    press(byLabel(renderer, en['pause.quit']));
+    press(byLabel(renderer, en['pause.confirm.leave']));
+    expect(c.onQuit).toHaveBeenCalledTimes(1);
+    press(byLabel(renderer, en['pause.openLabel']));
+    expect(texts(renderer)).toContain(en['pause.title']);
+    expect(texts(renderer)).not.toContain(en['pause.confirm.title']);
   });
 });
 
