@@ -20,7 +20,7 @@ Reference: `BUILD_GUIDE.md` §1 rhythm, §5 review discipline, §6 failure modes
 | 1b | Engine fuzz: cover the fixed-sequence path | 5 | **MERGED** PR #10 `8a02272` — corpus `392ad7a4` -> `538e3dea` |
 | 2 | Win/Fail + level progression loop | 7.5 | **PR #12 fix-complete** `111e54d` — audited, fixed, re-verified. Awaiting merge call |
 | 3 | Endless / Level map / Home real hub | 7.6, 7.10, 7.11 | §7.6 + §7.10 fix/audit stage; §7.11 next |
-| 4 | System screens | 12 | §12.2 Pause starting; 12.7 is S3, 12.6 overlaps §8.6 |
+| 4 | System screens | 12 | §12.2 built, audit running. **11 subsections, not 8**: 12.7 is S3, 12.6 half-S2/§8.6, so the S1 set is 12.1-12.5 + 12.8-12.11 = nine |
 | 5 | Daily Board client stack, on the emulator | 8.3-8.7 | pending |
 | 6 | Full drift audit + BLOCKER/MAJOR fixes + APK | S1.13 | pending |
 
@@ -574,6 +574,53 @@ Fixed `8961a42`, pushed. Mobile 240 -> 253 tests, 15/15 tasks. 17 mutations, 17 
 **All three of §7.5, §7.6 and §7.10 are now fix-complete and awaiting the merge call.**
 They stack: §7.10 is based on §7.5, and §7.6 conflicts with §7.10 on `test/contrast.ts`
 (take §7.10's copy). §7.11 is where all three converge.
+
+### S5 — §12.2 Pause (`feat/12.2-pause`)
+Built `2aa1a2b`, pushed. **Stacked on `feat/7.10-level-map`**, which stacks on §7.5 — the
+chain is now four deep. Mobile 253 -> 305 tests, 15/15 tasks. 25 mutations, 25 caught.
+Audit running.
+
+- **The >50% gate is integer arithmetic** (`2*done > total`), NOT `goalProgressPct > 50`.
+  51/101 is 50.495% — genuinely past half — but rounds to 50, so the rounded read would skip
+  the confirm. Tested at 0 / 41.7 / exactly 50 / 58.3 / 100%, plus 51/101 and its mirror.
+  Threshold reading stated and defended: `>` is strict, so exactly 50% does NOT confirm —
+  the PRD writes `>` while §7.5's neighbouring "so close" gate writes `>=` in its own code,
+  so the distinction is being drawn deliberately.
+- **Restart and Retry are the same function object.** `pauseControls.onRestart` IS
+  `handleRetry`, so §0 v1.17's "advances once per run started" holds structurally rather than
+  by two call sites agreeing. Proven three ways: reference identity, counter equality, and an
+  observable tray change on the `RESEED` fixture. The one asymmetry is upstream and by design:
+  a fail has fired `level_fail`, a pause-restart has not — a quit-shaped hole in the §3 funnel.
+- §14: `level_quit{id,moves}` only, `moves` = `GameState.placements`, which is what the
+  engine's own `finalResult().moves` reports. **Debug-view verification actually executed**
+  rather than claimed — a test drives the real `track()` (no module mock) through the real
+  queue into the real `AnalyticsDebugOverlay` and reads `level_quit {"id":24,"moves":18}` off
+  it. This is the first time the CLAUDE.md DoD's analytics-debug-view clause has been
+  satisfied in CI rather than deferred to a device.
+- M14 is not the §7.10 MAJOR-1 shape: a companion test first proves the near-death loop IS
+  running on a >80%-fill board (built through the engine's own `computeOcc`, not a hand-poked
+  mask) before asserting pause kills it and resume restarts it.
+- Settings shortcut **rendered disabled, not omitted** — §16.1 lists `SettingsScreen` as
+  Stage 1, so it is a not-yet rather than out-of-stage, and silently dropping one of four
+  clauses is the failure the last four audits died on. Deliberately NOT dimmed to grey.
+
+**PRE-EXISTING HAZARD surfaced, to verify in the audit:** `apps/mobile/test/contrast.ts`
+composites `backgroundColor` but **ignores `opacity`**, so any control dimmed via `opacity` is
+invisible to the walker. The implementer reports `FailScreen` on `feat/7.5-win-fail` currently
+sits on this and used rgba tokens throughout instead. Same class as the §7.6 blind-spot
+question, which turned out to be a false alarm — being settled definitively.
+
+**§7.6 convergence point, noted in code and NOT acted on:** `GameplayScreen` now owns the
+`BackHandler` for any caller passing `pause`. When §7.6 merges, `EndlessScreen` should pass
+`pause={{...}}` and delete both its own `BackHandler` effect and `EndlessHud`'s close button.
+Two things to decide at that merge rather than guess now: (a) Endless has no goals so the
+>50% confirm can never fire there, yet a mid-run exit forfeits a live score — whether that
+deserves its own confirm is a §7.6 amendment; (b) Endless fires `endless_end`, not
+`level_quit`, which is why `PauseControls.onQuit` fires nothing itself and hands `moves` up.
+
+Also flagged: `ModalSheet(brass frame)` IS in §15's component list and this is its third
+instance. Extraction noted as the point but not done — it would rewrite two audited screens
+on two unmerged branches. Do it when the stack lands and there is one tree to touch.
 
 ## HARD STOP — 3 §7.6 PRD gaps need operator rulings (2026-08-22)
 
