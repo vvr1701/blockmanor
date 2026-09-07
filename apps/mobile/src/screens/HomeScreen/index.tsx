@@ -1,3 +1,4 @@
+import { MAX_LEVEL_ID } from '@blockmanor/content';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
@@ -30,10 +31,13 @@ import { HudBar } from './HudBar';
  * (b) manor exterior — Stage 1 is the STATIC night manor (`styles.manor*`);
  *     the real per-room renovation reflection is Stage 3 (§3).
  * (c) `DailyBoardTile` — countdown/LIVE seam, red badge dot, streak chip.
- * (d) the ONE gold CTA on this screen — "PLAY — Level N".
- * (e) `EndlessCard`, its §7.6 behaviour untouched — the one composition-only
- *     addition is `ctaEmphasis="secondary"` (qa-prd-auditor B-4: unlocked,
- *     its own inner pill was a second `colors.gold` fill next to (d)'s CTA).
+ * (d) the ONE gold CTA on this screen — "PLAY — Level N", or, past the last
+ *     shipped level (§0 v1.23's content-ceiling state), the map's own
+ *     "all shipped" copy, routed to `onOpenMap` instead of `onPlay` — never
+ *     a persisted no-op CTA for a level `getLevel` can't resolve.
+ * (e) `EndlessCard` (qa-prd-auditor B-4: its inner pill no longer renders
+ *     gold at all — see the component's own note — since it has exactly one
+ *     live caller, always composed beside (d)'s real CTA).
  * (f) event banner slot — reserved, `flag_events` (Stage 4)-gated, empty today.
  * (g) `BottomNav` — only Home renders in Stage 1; the rest are flag-hidden.
  *
@@ -136,6 +140,13 @@ export function HomeScreen({
   // ever, not once per render) line up with "at most once per session".
   const [pulseThisEntry] = useState(() => consumeDailyPulse());
 
+  // §0 v1.23: clearing the last shipped level legitimately advances
+  // `currentLevel` past `MAX_LEVEL_ID` (§7.10's L60 chest depends on it) —
+  // persisted, so an unconditional "PLAY — Level N" CTA here would be a
+  // permanent no-op surviving relaunch (§12.9 dead end). Reuses
+  // `LevelMapScreen`'s own ceiling copy rather than inventing a second string.
+  const pastContentCeiling = currentLevel > MAX_LEVEL_ID;
+
   return (
     <SafeAreaView style={styles.safe}>
       <StatusBar style="light" />
@@ -178,8 +189,7 @@ export function HomeScreen({
             />
           ) : null}
 
-          {/* §7.6 / §7.11(e): flag-gated. `ctaEmphasis="secondary"` is the
-              one composition change — see the file-level note above. */}
+          {/* §7.6 / §7.11(e): flag-gated. */}
           {endlessFlag ? (
             <EndlessCard
               unlocked={endlessUnlocked}
@@ -187,7 +197,6 @@ export function HomeScreen({
               currentLevel={currentLevel}
               best={endlessBest}
               onPress={() => onPlayEndless?.()}
-              ctaEmphasis="secondary"
             />
           ) : null}
         </View>
@@ -195,10 +204,14 @@ export function HomeScreen({
         <View style={styles.spacer} />
 
         {/* (d): the ONE gold button on this screen (mockup panel 2.1's own
-            design note). */}
+            design note). Past the content ceiling it becomes the §0 v1.23
+            ceiling action, routed to the map instead of a level that
+            doesn't exist. */}
         <GoldButton
-          label={t('home.play', { level: currentLevel })}
-          onPress={onPlay}
+          label={
+            pastContentCeiling ? t('map.allShippedLine') : t('home.play', { level: currentLevel })
+          }
+          onPress={pastContentCeiling ? onOpenMap : onPlay}
           size="lg"
           style={styles.cta}
         />

@@ -218,7 +218,7 @@ describe('EndlessCard (PRD §7.6 / §7.11(e))', () => {
     }
   });
 
-  it('every text on the UNLOCKED card clears the 4.5:1 floor (incl. the CTA on gold and the best row on its inset)', () => {
+  it('every text on the UNLOCKED card clears the 4.5:1 floor (incl. the CTA pill and the best row on its inset)', () => {
     const renderer = render(
       <EndlessCard
         unlocked

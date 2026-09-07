@@ -47,7 +47,7 @@ describe('selectBadges.mapChestReady boundaries (qa-prd-auditor M-5/M-6)', () =>
     expect(chestReady(25, { [String(FIRST_CHEST + 10)]: true })).toBe(true);
   });
 
-  it(`L${LAST_CHEST} (the final chest, MAX_LEVEL_ID=${MAX_LEVEL_ID}) unclaimed: ready — proves the FULL CHEST_LEVELS list is walked, not a truncated one`, () => {
+  it(`currentLevel L${LAST_CHEST + 1} (cleared the final chest level L${LAST_CHEST}, MAX_LEVEL_ID=${MAX_LEVEL_ID}), L${LAST_CHEST} unclaimed: ready — proves the FULL CHEST_LEVELS list is walked, not a truncated one`, () => {
     // Every earlier chest claimed; only the last one isn't. `[10].some`
     // would report `false` here — this is what actually catches that mutation.
     const allButLast: Record<string, boolean> = {};

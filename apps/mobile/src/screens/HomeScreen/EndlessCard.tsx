@@ -44,15 +44,6 @@ export interface EndlessCardProps {
   /** `useMetaStore.endlessBest`. 0 renders the §12.9 empty-state copy. */
   best: number;
   onPress: () => void;
-  /**
-   * The inner "Play Endless" pill's fill. Defaults `'primary'` (gold) — this
-   * component's own §7.6 standalone look, unchanged for every existing
-   * caller/test. `HomeScreen` passes `'secondary'`: the mockup note §7.11
-   * quotes is explicit ("one primary action, four secondary tiles… never a
-   * second gold button"), and once Endless unlocks this pill was a second
-   * `colors.gold` fill next to the real PLAY CTA (qa-prd-auditor B-4).
-   */
-  ctaEmphasis?: 'primary' | 'secondary';
 }
 
 export function EndlessCard({
@@ -61,7 +52,6 @@ export function EndlessCard({
   currentLevel,
   best,
   onPress,
-  ctaEmphasis = 'primary',
 }: EndlessCardProps): React.JSX.Element {
   if (!unlocked) {
     // Progress toward the gate, which opens at `currentLevel > 10` (see
@@ -126,10 +116,8 @@ export function EndlessCard({
           {best > 0 ? formatScore(best) : t('home.endless.emptyBest')}
         </Text>
       </View>
-      <View style={ctaEmphasis === 'secondary' ? styles.ctaSecondary : styles.cta}>
-        <Text style={ctaEmphasis === 'secondary' ? styles.ctaTextSecondary : styles.ctaText}>
-          {t('home.endless.cta')}
-        </Text>
+      <View style={styles.cta}>
+        <Text style={styles.ctaText}>{t('home.endless.cta')}</Text>
       </View>
     </Pressable>
   );
@@ -208,21 +196,13 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   progressFill: { height: '100%', backgroundColor: 'rgba(220,226,238,0.45)' },
+  // §0 v1.21/qa-prd-auditor B-4: "never a second gold button" binds the
+  // COMPOSED screen — this card has exactly one live caller (`HomeScreen`),
+  // which always sits beside the real PLAY CTA, so there is no standalone
+  // context where gold would be correct. `colors.night2` is already this
+  // card's own lock-badge/badge token, not a new hex; cream text on it is
+  // >4.5:1 (verified in the render test).
   cta: {
-    marginTop: spacing.sm,
-    minHeight: MIN_TOUCH,
-    borderRadius: radius.card,
-    backgroundColor: colors.gold,
-    borderBottomWidth: 3,
-    borderBottomColor: colors.goldDeep,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ctaText: { color: colors.night, fontSize: fontSize.md, fontWeight: '800' },
-  // §7.11 composition only (B-4): same pill, `night2` fill instead of gold —
-  // `colors.night2` is already this card's own lock-badge/badge token, not a
-  // new hex. Cream text on it is >4.5:1 (verified in the render test).
-  ctaSecondary: {
     marginTop: spacing.sm,
     minHeight: MIN_TOUCH,
     borderRadius: radius.card,
@@ -232,5 +212,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ctaTextSecondary: { color: colors.cream, fontSize: fontSize.md, fontWeight: '800' },
+  ctaText: { color: colors.cream, fontSize: fontSize.md, fontWeight: '800' },
 });

@@ -8,6 +8,7 @@
  * assertions + `test/contrast.ts` are its existing substitute — see every
  * other `*.render.test.tsx` file).
  */
+import { MAX_LEVEL_ID } from '@blockmanor/content';
 import React from 'react';
 import TestRenderer, {
   act,
@@ -16,6 +17,7 @@ import TestRenderer, {
 } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { colors as contrastColors } from '../../src/components/tokens';
+import en from '../../src/i18n/en.json';
 import { collectTextContrast, flattenStyle } from '../contrast';
 import { HomeScreen } from '../../src/screens/HomeScreen';
 import { HudBar } from '../../src/screens/HomeScreen/HudBar';
@@ -120,7 +122,7 @@ function goldFillCount(root: ReactTestInstance): number {
 }
 
 describe('HomeScreen — exactly ONE gold button (mockup: "never a second gold button", qa-prd-auditor B-4)', () => {
-  it.each([1, 5, 9, 10, 11, 25, 60])(
+  it.each([1, 5, 9, 10, 11, 25, 60, MAX_LEVEL_ID + 1])(
     'currentLevel %i: exactly 1 gold-filled node on the whole screen',
     (level) => {
       setMeta({ currentLevel: level });
@@ -128,6 +130,40 @@ describe('HomeScreen — exactly ONE gold button (mockup: "never a second gold b
       expect(goldFillCount(renderer.root)).toBe(1);
     },
   );
+});
+
+describe('HomeScreen (d) content-ceiling CTA (§0 v1.23, qa-prd-auditor blocker fix)', () => {
+  it('at MAX_LEVEL_ID (still playable): normal "PLAY — Level N" CTA, routed to onPlay', () => {
+    setMeta({ currentLevel: MAX_LEVEL_ID });
+    const onPlay = vi.fn();
+    const onOpenMap = vi.fn();
+    const renderer = render(<HomeScreen onPlay={onPlay} onOpenMap={onOpenMap} />);
+    const cta = renderer.root.findByProps({
+      accessibilityLabel: `PLAY — Level ${MAX_LEVEL_ID}`,
+    });
+    act(() => (cta.props as { onPress: () => void }).onPress());
+    expect(onPlay).toHaveBeenCalledTimes(1);
+    expect(onOpenMap).not.toHaveBeenCalled();
+  });
+
+  it('past MAX_LEVEL_ID: the CTA reuses map.allShippedLine copy and routes to onOpenMap, never onPlay', () => {
+    setMeta({ currentLevel: MAX_LEVEL_ID + 1 });
+    const onPlay = vi.fn();
+    const onOpenMap = vi.fn();
+    const renderer = render(<HomeScreen onPlay={onPlay} onOpenMap={onOpenMap} />);
+    // No PLAY label survives past the ceiling.
+    expect(
+      renderer.root.findAll(
+        (n) =>
+          typeof n.props.accessibilityLabel === 'string' &&
+          n.props.accessibilityLabel.startsWith('PLAY'),
+      ).length,
+    ).toBe(0);
+    const cta = renderer.root.findByProps({ accessibilityLabel: en['map.allShippedLine'] });
+    act(() => (cta.props as { onPress: () => void }).onPress());
+    expect(onOpenMap).toHaveBeenCalledTimes(1);
+    expect(onPlay).not.toHaveBeenCalled();
+  });
 });
 
 describe('HomeScreen (a) HUD bar', () => {
