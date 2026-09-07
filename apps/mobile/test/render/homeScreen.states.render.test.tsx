@@ -68,6 +68,7 @@ beforeEach(() => {
     flag_endless: true,
     flag_events: false,
     flag_manor: false,
+    flag_team: false,
     flag_economy: false,
   });
   resetDailyPulseForTest();
@@ -181,11 +182,27 @@ describe('HomeScreen (g) bottom nav — locked tabs hidden, not greyed', () => {
     expect(renderer.root.findAllByProps({ accessibilityLabel: 'Manor' }).length).toBe(1);
   });
 
-  it('flag_events on: BOTH Events and Team appear (Team shares the flag — see BottomNav)', () => {
+  it('flag_events on: Events appears', () => {
     setFlags({ flag_events: true });
     const renderer = render(<HomeScreen onPlay={noop} onOpenMap={noop} />);
     expect(renderer.root.findAllByProps({ accessibilityLabel: 'Events' }).length).toBe(1);
+  });
+
+  // §7.11(g) v1.20: Team gates on its OWN `flag_team`, not `flag_events` —
+  // the two must be able to move independently. These two cases are the
+  // regression guard for that: each flag ALONE must show only its own tab.
+  it('flag_events ON ALONE: Team stays hidden — the two flags are independent', () => {
+    setFlags({ flag_events: true, flag_team: false });
+    const renderer = render(<HomeScreen onPlay={noop} onOpenMap={noop} />);
+    expect(renderer.root.findAllByProps({ accessibilityLabel: 'Events' }).length).toBe(1);
+    expect(renderer.root.findAllByProps({ accessibilityLabel: 'Team' }).length).toBe(0);
+  });
+
+  it('flag_team ON ALONE: Team appears, Events stays hidden', () => {
+    setFlags({ flag_team: true, flag_events: false });
+    const renderer = render(<HomeScreen onPlay={noop} onOpenMap={noop} />);
     expect(renderer.root.findAllByProps({ accessibilityLabel: 'Team' }).length).toBe(1);
+    expect(renderer.root.findAllByProps({ accessibilityLabel: 'Events' }).length).toBe(0);
   });
 
   it('flag_economy on: Shop appears', () => {
@@ -195,7 +212,7 @@ describe('HomeScreen (g) bottom nav — locked tabs hidden, not greyed', () => {
   });
 
   it('every flag on: all five tabs render, Home first', () => {
-    setFlags({ flag_manor: true, flag_events: true, flag_economy: true });
+    setFlags({ flag_manor: true, flag_events: true, flag_team: true, flag_economy: true });
     const renderer = render(<HomeScreen onPlay={noop} onOpenMap={noop} />);
     const nav = renderer.root.findByType(BottomNav);
     const labels = collectTextContrast(nav, contrastColors.night)

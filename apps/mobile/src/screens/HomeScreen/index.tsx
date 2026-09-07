@@ -120,9 +120,11 @@ export function HomeScreen({
   // "Stage-4 STATE" (§0 rule 2a's own worked example is exactly this kind
   // of flag-hidden slot); no event content model is read or rendered.
   const eventsFlag = useConfigStore((s) => s.value('flag_events'));
-  // (g) bottom nav gates — see `BottomNav`'s own doc comment for the
-  // Team/Shop flag-mapping rationale.
+  // (g) bottom nav gates — §7.11(g) (PRD v1.20) names each tab's flag
+  // inline; `flag_economy`-for-Shop is the one deliberate non-1:1 mapping
+  // (see `BottomNav`'s own doc comment).
   const manorFlag = useConfigStore((s) => s.value('flag_manor'));
+  const teamFlag = useConfigStore((s) => s.value('flag_team'));
   const economyFlag = useConfigStore((s) => s.value('flag_economy'));
 
   // §7.11 "tile pulses once on screen entry, max 1 pulse/session" — consumed
@@ -200,7 +202,7 @@ export function HomeScreen({
         <BottomNav
           manorUnlocked={manorFlag}
           eventsUnlocked={eventsFlag}
-          teamUnlocked={eventsFlag}
+          teamUnlocked={teamFlag}
           shopUnlocked={economyFlag}
         />
       </View>

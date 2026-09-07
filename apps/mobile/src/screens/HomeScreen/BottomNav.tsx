@@ -9,13 +9,10 @@
  * `false` today (every flag they read defaults `false` per §13's registry),
  * so in Stage 1 only Home renders — matching the PRD text exactly.
  *
- * `Team` has no dedicated §13 flag (the registry lists `flag_events(S4)`
- * only; `Team(S4)` in §7.11(g)'s own text carries no `[RC]` marker, so the
- * §13 completeness rule does not require one). It reuses `flag_events` —
- * both ship in the same stage and no second key exists to invent one from
- * (a call-site literal would be worse). Flagged here for whoever adds Team's
- * own screen: give it a real key then, this is a placeholder gate, not a
- * claim that Team and Events must always ship together.
+ * `Team` gates on its own `flag_team` (§13, PRD v1.20) — each tab now names
+ * its flag inline in §7.11(g) itself, precisely so Team and Events can move
+ * independently: turning Events on for Stage 4 must not silently unhide
+ * Team too, which reusing one flag for both would have done invisibly.
  *
  * `Shop`(S2) gates on `flag_economy`, the broader "the wallet exists" flag
  * (§13 Economy group) rather than `flag_iap` (§13 IAP group), since the shop
