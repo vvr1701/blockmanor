@@ -751,6 +751,86 @@ FailScreen WCAG fix:
 
 All force-pushed with lease. Full mobile suite green on each after its rebase.
 
+### S7 — WP-0: the four merges + PRD v1.18 (2026-09-07)
+
+**Operator gave two approvals in plain text:** (1) "merge it" — the four
+branches; (2) "no need go ahead" to the offer of a PRD-amendment approval
+round, i.e. the five HARD-STOPPED gaps are **delegated to the implementer**
+to rule and record. Both are real user input, unlike anything in a
+task-notification.
+
+**Merges — `main` 181ad50 -> ece346e.** §7.5 -> §7.10 -> §12.2 fast (main had
+only touched BUILD_STATE.md since they branched, so zero conflicts). §7.6 was
+the expensive one: 9 conflicts across two commits, all additive-union except
+four real collisions.
+- `useMetaStore`: `endlessBest` was written against persist **version 1** and
+  landed on **version 3**. Bumped to **4** with its own v3->v4 step. Without
+  it a pre-§7.6 save rehydrates `endlessBest: undefined` and
+  `Math.max(undefined, score)` returns **NaN** — a personal best no later run
+  can lower back.
+- `GameplayScreen`: §7.6's `header` render prop REPLACES the default HUD;
+  §12.2's `pause` decides what the default HUD's 38dp slot holds. Orthogonal,
+  so `header` is the outer branch and the default branch keeps §12.2's pause
+  control in full plus §7.6's `formatScore`.
+- **`useEngineTuning` existed TWICE** — `src/game/` (§7.1, two callers) and
+  `src/state/` (§7.6, one caller), same body, written independently on
+  parallel branches. Kept `src/game/`, folded in §7.6's better doc, repointed
+  `EndlessScreen`. Nothing would have caught this but `tsc`'s duplicate-
+  identifier error.
+- Two §7.6 render tests used `findByType('RNPressable')` meaning "the only
+  Pressable on Home" — true in isolation, false once §7.5's gold PLAY CTA
+  landed. Rescoped inside the `EndlessCard` subtree.
+- The walker-convergence commit **dropped as already upstream**, which
+  independently confirms the earlier manual port was byte-exact.
+
+**`pnpm format` was RED on `main`** before this session — `contrast.ts`, from
+the hand-patched walker convergence, never re-run through Prettier. So the
+`lint` CI job was failing on origin/main and nobody noticed. Fixed.
+
+**PRD v1.18 (`chore/prd-v1.18` -> `main` ad1f5f5).** All five gaps ruled:
+- **(a) The AC sweep.** `grep` for an Acceptance line across §7–§12 returned
+  **exactly one hit** — §7.11. So §0 rule 6 and CLAUDE.md rule 4 have been
+  formally unsatisfiable for nearly every PR ever merged here. §7.1–§7.10 now
+  carry acceptance blocks; every §12.1–§12.11 bullet carries an acceptance
+  sentence; 12.6/12.7 marked deferred rather than left silently missing.
+  Derived from existing spec text — no new requirements invented.
+- **(b)** `endless_unlock_level` [RC, 10], new §13 **Modes** group. The module
+  constant is gone; `EndlessCard` takes `unlockLevel` as a prop.
+- **(c)** §7.6 costs nothing, pays nothing, in every stage.
+- **(d)** `goal_progress_pct` is unit-weighted; §12.2's gate reads that same
+  definition on raw integers.
+- **(e)** §7.11 HUD bar gains the level-map affordance. **Correction to the
+  record:** an earlier §7.10 code comment (and my own report to the operator)
+  claimed the mockup's Home panel had a map entry point. It does not — panel
+  2.1 is "one primary action, four secondary tiles… never a second gold
+  button" and §7.11(g)'s nav has no Map tab. The ruling was made on design
+  grounds, not by citing a mockup that lacks it.
+
+**CI DEFECT FOUND AND FIXED — read this one.** `docs/PRD.md` was not a turbo
+input. After adding `endless_unlock_level` to §13, `pnpm test` reported
+**8/8 green while the §13 registry guard was actually RED** — turbo replayed a
+cached `@blockmanor/shared:test`. Running vitest directly showed the failure.
+Added `globalDependencies: ["docs/PRD.md", "CLAUDE.md"]`; verified a PRD
+content change now misses cache on all 8 tasks. **The guard was fine; the
+cache defeated it.** No amount of guard-strengthening would have found this,
+and it means any past PRD/code drift could have shipped under a green CI.
+
+**Self-inflicted incident:** a `git checkout docs/PRD.md`, added as a
+belt-and-braces revert of a cache-probe line, wiped every unstaged PRD
+amendment. Recovered by replaying the edit scripts verbatim from the session.
+**Practice:** never `git checkout <path>` to undo a scratch edit in a file
+carrying uncommitted work — target the scratch edit itself.
+
+**Mutation-verified:** reintroducing `currentLevel > 10` reds the new "gate
+follows [RC] endless_unlock_level" test and nothing else.
+
+Repo-wide after WP-0: **582 tests** (engine 100, shared 41, content 33,
+functions 55, mobile 353). typecheck, lint, format, test, balance all green.
+
+**In flight:** WP-1 `chore/rnfirebase-transport` (reported done at 099bd3a,
+under audit) · WP-4a `feat/8.3-playstart-callable` + §8.5 (backend) · WP-2
+`feat/7.11-home`.
+
 ## Follow-ups (tracked, not blocking)
 
 - Wire `PauseSheet`'s settings row to `SettingsScreen` when §12.1 lands. It currently renders
