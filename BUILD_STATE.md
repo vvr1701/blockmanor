@@ -954,6 +954,49 @@ published board with the engine, not from committed fixtures.
 **Not yet audited.** CLAUDE.md requires qa-prd-auditor on daily-board work
 before merge. Goes to audit after the return-the-sequence change lands.
 
+### S10 — WP-2 §7.11 Home hub + PRD v1.20 (2026-09-07)
+
+`feat/7.11-home` df63fd4. Replaces the Stage-0 placeholder whose PLAY CTA was
+a `<View>` with no handler. All of (a)-(g): HUD bar with the v1.18 map
+affordance + reserved S2 economy slots · static night manor · Daily tile with
+unplayed badge and flame chip · the one gold CTA · Endless card reused
+unmodified · flag-hidden event slot · bottom nav with locked tabs hidden.
+382 mobile tests, 7 mutations all red-then-green.
+
+**PRD/mockup disagreement, handled correctly rather than silently.** The
+mockup puts the primary CTA near the bottom; §7.11's `(a)-(g)` prose order
+puts it above the Endless card. The agent noticed `(b)` is an absolute
+background layer, which proves the letter list was never a literal DOM order,
+followed the mockup for ARRANGEMENT and the PRD for CONTENT, and wrote the
+reasoning into the file. Also flagged that the mockup draws the streak as a
+separate card while §7.11(c)'s text bundles the flame chip into the Daily
+tile — followed the PRD text.
+
+**Overruled: `flag_events` reused for the Team tab -> PRD v1.20 registers
+`flag_team`.** §13 listed flags for four of §7.11(g)'s five tabs. The agent
+correctly refused to INVENT a key at the call site (§13's completeness rule)
+and reused the neighbouring one instead — but that is the same defect in
+disguise: enabling Events in Stage 4 would silently unhide Team, and the
+coupling is invisible at the registry, which is the one place anyone would
+look. §7.11(g) now names every tab's flag inline. Shop on `flag_economy`
+(wallet exists) rather than `flag_iap` is recorded as deliberate — the shop is
+reachable before any purchase flow.
+
+**The guard this needed and did not have:** "only Home renders in Stage 1"
+passes whether Team reads `flag_team` or `flag_events`, because both default
+false. Requested a case that enables each flag ALONE. Same shape as every
+other guard-that-guards-nothing here: the assertion is true for the wrong
+reason.
+
+Sound and not to be churned: `selectBadges` as the single centralized badge
+computation (§7.11 mandates it) and `BadgeDot` as a genuinely-reused shared
+component (§15 listed it unbuilt).
+
+**Correction to my own brief:** `pnpm test` from the repo root is FINE —
+turbo dispatches into each package's own directory. The `Expected 'from', got
+'typeOf'` rollup failure afflicts only `pnpm exec vitest run <path>` from the
+root. The gotchas section overstated it.
+
 ## Follow-ups (tracked, not blocking)
 
 - Wire `PauseSheet`'s settings row to `SettingsScreen` when §12.1 lands. It currently renders
