@@ -90,6 +90,18 @@ BLOCKED ON OPERATOR:
 
 ## Environment gotchas — do not rediscover
 
+- **A Claude Code process exit kills every in-flight background agent** and no
+  completion record arrives — the next session is told only that they stopped.
+  Recovery is cheap and worth doing in this order: (1) verify every branch SHA
+  and every worktree's `git status`; agent work already COMMITTED survives
+  untouched, and an audit is read-only so it risks nothing but its own
+  findings. (2) `SendMessage` the agent id to RESUME rather than dispatching a
+  fresh one — the transcript survives, so a half-finished audit continues
+  instead of restarting. (3) In the resume message, require the agent to state
+  **how far it actually got** before reporting anything; a resumed agent that
+  is not asked this can present assumed results as observed ones, which is
+  worse than a restart. Happened 2026-09-07 with three concurrent audits.
+
 - **`pnpm ci` is a pnpm builtin.** It prints `ERR_PNPM_CI_NOT_IMPLEMENTED` and **exits 0**,
   so the repo's root `ci` script never runs. Anything reporting "pnpm run ci green" is
   reporting nothing. Use `pnpm exec turbo run typecheck lint test --force`.
