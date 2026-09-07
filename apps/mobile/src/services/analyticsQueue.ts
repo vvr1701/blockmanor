@@ -1,4 +1,3 @@
-import { logEvent } from '@react-native-firebase/analytics';
 import { AppState } from 'react-native';
 import { MMKV } from 'react-native-mmkv';
 import { REMOTE_CONFIG_DEFAULTS } from '@blockmanor/shared';
@@ -44,28 +43,56 @@ export function isAnalyticsConsentGranted(): boolean {
 }
 
 /**
+ * A send that will NEVER succeed on a retry — Firebase rejects the event name
+ * itself (reserved name, reserved prefix, or a name failing its
+ * `/^[a-zA-Z][a-zA-Z0-9_]{0,39}$/` rule), which it reports by throwing
+ * synchronously before any native call. `flush()` drops these instead of
+ * retrying the head forever; anything else is treated as transient.
+ */
+export class PermanentSendError extends Error {}
+
+/**
  * §14 transport — `@react-native-firebase/analytics` (operator-approved; the
- * `firebase` JS SDK cannot do Analytics on React Native). Carries
- * `installId`, `sessionId` and the idempotency `id` through as params
- * (requirements 3 and 4): a bare `logEvent(event.name, event.params)` would
- * silently drop all three. Rejects — never resolves falsely — when no native
- * Firebase app is present, so the queue's normal failure path (stop draining,
- * leave events queued, retry next flush) still runs honestly offline (§12.4)
- * and the debug overlay never lies about delivery. The queue, identity, and
- * overlay stay transport-agnostic.
+ * `firebase` JS SDK cannot do Analytics on React Native).
+ *
+ * Uses the Analytics INSTANCE method, not the modular `logEvent()` free
+ * function: the latter is typed `void` and does `void analytics.logEvent(...)`
+ * internally (RNFB 26.4.0 `analytics/lib/index.ts`), discarding the promise —
+ * awaiting it would resolve instantly and the queue would delete an event that
+ * never reached Firebase, breaking the §14 at-least-once guarantee. The
+ * instance method returns the real promise.
+ *
+ * Carries `installId`, `sessionId` and the idempotency id (as `event_id`)
+ * through as params (§14 requirements 3 and 4): a bare
+ * `logEvent(event.name, event.params)` would silently drop all three. The
+ * transport fields go FIRST and `...event.params` LAST so a §14 param can
+ * never be clobbered by transport metadata — four §14 Core events already
+ * declare `id` as the LEVEL id, which is why the idempotency key is NOT sent
+ * as `id`. `firebase.test.ts` carries a compile-time guard that reds if any
+ * §14 param name ever collides with one of these three.
+ *
+ * Rejects — never resolves falsely — when no native Firebase app is present,
+ * so the queue's normal failure path (stop draining, leave events queued,
+ * retry next flush) still runs honestly offline (§12.4) and the debug overlay
+ * never lies about delivery.
  */
 export const defaultSender: AnalyticsSender = async (event) => {
   const analytics = getFirebaseAnalytics();
   if (!analytics) throw new Error('analytics transport not configured — no native Firebase app');
-  // RNFB's modular typings declare `logEvent` as returning void; the native
-  // call really is async, so awaiting it keeps a delivery failure on the
-  // queue's retry path instead of turning into an unhandled rejection.
-  await logEvent(analytics, event.name, {
-    ...event.params,
-    installId: event.installId,
-    sessionId: event.sessionId,
-    id: event.id,
-  });
+  let sent: Promise<void>;
+  try {
+    sent = analytics.logEvent(event.name, {
+      installId: event.installId,
+      sessionId: event.sessionId,
+      event_id: event.id,
+      ...event.params,
+    });
+  } catch (error) {
+    // Name/param validation throws synchronously and will never pass on a
+    // retry — surface it as permanent so one bad event can't wedge the queue.
+    throw new PermanentSendError(error instanceof Error ? error.message : String(error));
+  }
+  await sent;
 };
 
 interface PersistedQueueV1 {
@@ -196,16 +223,29 @@ export class AnalyticsQueue {
         // event's to clear.
         const attached = outgoing !== head ? this.pendingDroppedCount : 0;
         this.inFlightId = head.id;
+        let permanentlyUnsendable = false;
         try {
           await this.sender(outgoing);
-        } catch {
-          break; // no transport / send failed — leave it queued, try later
+        } catch (error) {
+          // Transient (offline, native error): leave it queued, try later.
+          if (!(error instanceof PermanentSendError)) break;
+          // Permanent (Firebase rejects the event name itself): retrying can
+          // only fail again, and `flush()` is strict head-of-line, so keeping
+          // it would block every later event on this install forever. Drop it.
+          permanentlyUnsendable = true;
         } finally {
           this.inFlightId = null;
         }
         // Per-event removal (requirement 4): only this id, only after ITS
         // own send resolved — never a batch-wide clear.
         this.events = this.events.filter((e) => e.id !== head.id);
+        if (permanentlyUnsendable) {
+          // Counted like a cap eviction so the loss still reaches BigQuery as
+          // `dropped_count` on the next event that does dispatch (§14 v1.15).
+          // `attached` is deliberately NOT cleared: this event never landed.
+          this.pendingDroppedCount += 1;
+          continue;
+        }
         // Subtract, never zero — a drop attached to a LATER event (from
         // in-flight overflow) must survive this delivery.
         if (attached > 0)

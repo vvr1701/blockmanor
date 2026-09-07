@@ -1,12 +1,44 @@
+import { existsSync } from 'node:fs';
+import { isAbsolute, join } from 'node:path';
 import type { ExpoConfig } from 'expo/config';
 
 /**
  * Expo app config (PRD §4.1). Firebase is `@react-native-firebase/*`, whose
- * config plugin bakes `google-services.json` into the native project at build
- * time — the file is git-ignored (PRD §16: credentials never in the repo), so
- * fetch it from the Firebase console before a build. No EXPO_PUBLIC_FIREBASE_*
- * env vars any more: the native SDK reads the plist/json, not `extra`.
+ * config plugin bakes the native credential files into the project at build
+ * time. Both files are git-ignored (PRD §16: credentials never in the repo):
+ *
+ *   Android  google-services.json          EAS file secret GOOGLE_SERVICES_JSON
+ *   iOS      GoogleService-Info.plist      EAS file secret GOOGLE_SERVICES_PLIST
+ *
+ * EAS injects a file secret as an absolute path in the env var of the same
+ * name, so a build picks the file up with no repo change; locally the files
+ * sit next to this config. There are no EXPO_PUBLIC_FIREBASE_* vars any more —
+ * the native SDKs read these files, not `extra`.
+ *
+ * The plugin THROWS if it is enabled and its platform's file is missing, which
+ * would break `eas build -p android --profile preview` on any machine without
+ * the credentials. So Firebase is wired only when a credential file is
+ * actually present; without one the app builds and boots into the §12.4
+ * offline path (Home shows "not configured"), exactly as it does today.
  */
+// Expo evaluates this config with the project dir as cwd; so does vitest.
+const localPath = (file: string): string => (isAbsolute(file) ? file : join(process.cwd(), file));
+const googleServicesJson = localPath(process.env.GOOGLE_SERVICES_JSON ?? './google-services.json');
+const googleServicesPlist = localPath(
+  process.env.GOOGLE_SERVICES_PLIST ?? './GoogleService-Info.plist',
+);
+const hasAndroidFirebase = existsSync(googleServicesJson);
+const hasIosFirebase = existsSync(googleServicesPlist);
+const firebasePlugins: NonNullable<ExpoConfig['plugins']> =
+  hasAndroidFirebase || hasIosFirebase
+    ? [
+        '@react-native-firebase/app',
+        // No JS import: this package exists for the Crashlytics Gradle plugin
+        // and pod, which is what makes native crash reporting work (§4.1).
+        // The §12.8 JS error boundary lands on its own branch.
+        '@react-native-firebase/crashlytics',
+      ]
+    : [];
 const config: ExpoConfig = {
   name: 'Block Manor',
   slug: 'blockmanor',
@@ -20,14 +52,13 @@ const config: ExpoConfig = {
   // with the design system in Stage 1, not for a placeholder screen.
   backgroundColor: '#131830',
   plugins: [
-    '@react-native-firebase/app',
-    '@react-native-firebase/crashlytics',
+    ...firebasePlugins,
     // RNFB's iOS pods are static frameworks; use_frameworks! is required.
     ['expo-build-properties', { ios: { useFrameworks: 'static' } }],
   ],
   android: {
     package: 'com.vvr1701.blockmanor',
-    googleServicesFile: './google-services.json',
+    ...(hasAndroidFirebase ? { googleServicesFile: googleServicesJson } : {}),
     adaptiveIcon: {
       foregroundImage: './assets/android-icon-foreground.png',
       backgroundImage: './assets/android-icon-background.png',
@@ -38,6 +69,7 @@ const config: ExpoConfig = {
   ios: {
     bundleIdentifier: 'com.vvr1701.blockmanor',
     supportsTablet: false,
+    ...(hasIosFirebase ? { googleServicesFile: googleServicesPlist } : {}),
   },
   owner: 'vvr1701',
   extra: {

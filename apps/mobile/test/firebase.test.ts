@@ -1,13 +1,14 @@
+import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { REMOTE_CONFIG_DEFAULTS, REMOTE_CONFIG_TTL_MS } from '@blockmanor/shared';
-import { AnalyticsQueue, defaultSender } from '../src/services/analyticsQueue';
-import { installId, sessionId } from '../src/services/analyticsIdentity';
 import {
-  initFirebase,
-  isFirebaseConfigured,
-  recordError,
-  syncRemoteConfig,
-} from '../src/services/firebase';
+  REMOTE_CONFIG_DEFAULTS,
+  REMOTE_CONFIG_TTL_MS,
+  type AnalyticsEventName,
+  type AnalyticsEvents,
+} from '@blockmanor/shared';
+import { AnalyticsQueue, analyticsQueue, defaultSender } from '../src/services/analyticsQueue';
+import { installId, sessionId } from '../src/services/analyticsIdentity';
+import { initFirebase, isFirebaseConfigured, syncRemoteConfig } from '../src/services/firebase';
 import { useConfigStore } from '../src/state/useConfigStore';
 import { firebaseMock, resetFirebaseMock } from './mocks/react-native-firebase';
 
@@ -42,7 +43,26 @@ beforeEach(() => {
   useConfigStore.setState({ snapshot: { ...REMOTE_CONFIG_DEFAULTS }, fetchedAt: null });
 });
 
+/**
+ * B-1: the three transport fields must never collide with a §14 param name —
+ * four Core events declare `id` as the LEVEL id, so the idempotency key ships
+ * as `event_id`. This is a COMPILE-time guard: if a future §14 event ever
+ * declares a param called `installId`, `sessionId` or `event_id`, `pnpm
+ * typecheck` fails here rather than the param being silently overwritten in
+ * BigQuery.
+ */
+type TransportParamName = 'installId' | 'sessionId' | 'event_id';
+type AnalyticsParamName = {
+  [K in AnalyticsEventName]: keyof AnalyticsEvents[K] & string;
+}[AnalyticsEventName];
+type TransportCollision = Extract<AnalyticsParamName, TransportParamName>;
+const noTransportCollision: TransportCollision[] = [];
+
 describe('§14 analytics transport', () => {
+  it('no §14 param name collides with a transport field (compile-time)', () => {
+    expect(noTransportCollision).toEqual([]);
+  });
+
   it('a track() call reaches Firebase with installId, sessionId and the idempotency id intact', async () => {
     firebaseMock.configured = true;
     const queue = new AnalyticsQueue({
@@ -59,8 +79,64 @@ describe('§14 analytics transport', () => {
     expect(sent?.params['step']).toBe(2);
     expect(sent?.params['installId']).toBe(installId);
     expect(sent?.params['sessionId']).toBe(sessionId);
-    expect(typeof sent?.params['id']).toBe('string');
-    expect(sent?.params['id']).toBeTruthy();
+    expect(typeof sent?.params['event_id']).toBe('string');
+    expect(sent?.params['event_id']).toBeTruthy();
+  });
+
+  it("never clobbers a §14 param: level_start's `id` is the LEVEL id, not the queue id", async () => {
+    firebaseMock.configured = true;
+    const queue = new AnalyticsQueue({
+      sender: defaultSender,
+      getCap: () => 500,
+      mmkvId: freshMmkvId(),
+    });
+    queue.track('level_start', { id: 7, attempt: 2 });
+    await drained(queue);
+
+    const sent = firebaseMock.logged[0];
+    expect(sent?.params['id']).toBe(7);
+    expect(sent?.params['attempt']).toBe(2);
+    expect(sent?.params['event_id']).not.toBe(7);
+    expect(typeof sent?.params['event_id']).toBe('string');
+  });
+
+  it('a native send failure keeps the event queued (at-least-once past the JS boundary)', async () => {
+    firebaseMock.configured = true;
+    firebaseMock.logEventRejects = true;
+    const queue = new AnalyticsQueue({
+      sender: defaultSender,
+      getCap: () => 500,
+      mmkvId: freshMmkvId(),
+    });
+    queue.track('ftue_complete', {});
+    await queue.flush();
+    await tick();
+    expect(firebaseMock.logged).toHaveLength(0);
+    expect(queue.getSnapshot().queued).toBe(1);
+
+    // ...and it really is retried once the transport recovers.
+    firebaseMock.logEventRejects = false;
+    void queue.flush();
+    await drained(queue);
+    expect(firebaseMock.logged).toHaveLength(1);
+  });
+
+  it('an event Firebase can never accept is dropped, not left blocking the queue forever', async () => {
+    firebaseMock.configured = true;
+    const queue = new AnalyticsQueue({
+      sender: defaultSender,
+      getCap: () => 500,
+      mmkvId: freshMmkvId(),
+    });
+    // `session_start` is Firebase-reserved (§14 v1.15) — the SDK throws on it.
+    queue.track('session_start', {});
+    queue.track('ftue_complete', {});
+    await drained(queue);
+
+    expect(firebaseMock.logged.map((e) => e.name)).toEqual(['ftue_complete']);
+    // The loss still reaches BigQuery as `dropped_count` on the event behind it.
+    expect(firebaseMock.logged[0]?.params['dropped_count']).toBe(1);
+    expect(queue.getSnapshot().queued).toBe(0);
   });
 
   it('rejects (leaving events queued) when no native Firebase app exists — §12.4', async () => {
@@ -84,7 +160,8 @@ describe('§13 Remote Config', () => {
     await syncRemoteConfig();
 
     expect(useConfigStore.getState().value('analytics_queue_cap')).toBe(3);
-    expect(useConfigStore.getState().fetchedAt).not.toBeNull();
+    // A real fetch timestamp, not 0 (which is falsy but not null).
+    expect(useConfigStore.getState().fetchedAt ?? 0).toBeGreaterThan(1_700_000_000_000);
 
     // The real call site: the queue reads its cap through the store (never the
     // literal 500), so the fetched 3 must actually bind eviction.
@@ -98,11 +175,20 @@ describe('§13 Remote Config', () => {
     expect(queue.getSnapshot().pendingDroppedCount).toBe(2);
   });
 
-  it('fetches with the §13 6h TTL, read from the shared constant', async () => {
+  it("fetches with §13's 6h TTL, sourced from the shared constant", async () => {
     firebaseMock.configured = true;
     await syncRemoteConfig();
     expect(firebaseMock.fetchCalls).toBe(1);
-    expect(firebaseMock.settings.minimumFetchIntervalMillis).toBe(REMOTE_CONFIG_TTL_MS);
+    // The applied value is 6h (and the whole-object assignment reached the
+    // setter — a nested assignment on the getter's copy would leave 12h).
+    expect(firebaseMock.settings.minimumFetchIntervalMillis).toBe(6 * 60 * 60 * 1000);
+    expect(firebaseMock.settings.fetchTimeoutMillis).toBe(60_000);
+    // CLAUDE.md rule 3: the call site must READ the registry constant, not a
+    // literal that happens to equal it today. Nothing at runtime can tell
+    // those apart, so this asserts on the source.
+    // vitest's root is apps/mobile (vitest.config.ts lives there).
+    const source = readFileSync('src/services/firebase.ts', 'utf8');
+    expect(source).toMatch(/minimumFetchIntervalMillis: REMOTE_CONFIG_TTL_MS/);
     expect(REMOTE_CONFIG_TTL_MS).toBe(6 * 60 * 60 * 1000);
   });
 
@@ -111,6 +197,9 @@ describe('§13 Remote Config', () => {
     firebaseMock.remote = {
       daily_piece_count: { value: '72' },
       flag_endless: { value: 'false' },
+      // RNFB's own asBoolean() truthy set — an operator typing `True` in the
+      // console must not silently disable a flag.
+      flag_share_card: { value: 'True' },
       winstreak_thresholds: { value: '2:1,4:3' },
       mercy_threshold: { value: 'not-a-number' },
       combo_step: { value: '   ' },
@@ -122,6 +211,7 @@ describe('§13 Remote Config', () => {
     const snapshot = useConfigStore.getState().snapshot;
     expect(snapshot.daily_piece_count).toBe(72);
     expect(snapshot.flag_endless).toBe(false);
+    expect(snapshot.flag_share_card).toBe(true);
     expect(snapshot.winstreak_thresholds).toBe('2:1,4:3');
     // malformed number → compiled default stands, NOT 0
     expect(snapshot.mercy_threshold).toBe(REMOTE_CONFIG_DEFAULTS.mercy_threshold);
@@ -130,6 +220,20 @@ describe('§13 Remote Config', () => {
     expect(snapshot.streak_repair_price).toBe(REMOTE_CONFIG_DEFAULTS.streak_repair_price);
     // registry completeness: exactly the §13 keys, no server-invented ones
     expect(Object.keys(snapshot).sort()).toEqual(Object.keys(REMOTE_CONFIG_DEFAULTS).sort());
+  });
+
+  it('the app-wide analyticsQueue singleton reads its cap from the fetched snapshot', async () => {
+    firebaseMock.configured = true;
+    firebaseMock.remote = { analytics_queue_cap: { value: '2' } };
+    await syncRemoteConfig();
+
+    // Unconfigured from here on: the singleton's real sender rejects, so
+    // nothing drains and the cap is the only thing that can bound the queue.
+    firebaseMock.configured = false;
+    expect(analyticsQueue.getSnapshot().queued).toBe(0);
+    for (let i = 0; i < 4; i += 1) analyticsQueue.track(`singleton_e${i}`, {});
+    await tick();
+    expect(analyticsQueue.getSnapshot().queued).toBe(2);
   });
 
   it('applySnapshot accepts a non-default value (RemoteConfigSnapshot widening)', () => {
@@ -156,24 +260,15 @@ describe('§4.1 cold-start bootstrap', () => {
     expect(firebaseMock.currentUser?.uid).toBe('anon-uid');
   });
 
-  it('reports to Crashlytics through the §12.8 seam, wrapping non-Errors', () => {
-    firebaseMock.configured = true;
-    recordError(new Error('boom'));
-    recordError('string failure');
-    expect(firebaseMock.recorded.map((e) => e.message)).toEqual(['boom', 'string failure']);
-  });
-
   it('boots with Firebase entirely absent: no throw, no fetch, defaults intact — §12.4', async () => {
     firebaseMock.configured = false;
     expect(isFirebaseConfigured()).toBe(false);
     expect(() => initFirebase()).not.toThrow();
-    expect(() => recordError(new Error('boom'))).not.toThrow();
     await syncRemoteConfig();
     await tick();
 
     expect(firebaseMock.fetchCalls).toBe(0);
     expect(firebaseMock.signInCalls).toBe(0);
-    expect(firebaseMock.recorded).toHaveLength(0);
     expect(useConfigStore.getState().value('mercy_threshold')).toBe(
       REMOTE_CONFIG_DEFAULTS.mercy_threshold,
     );

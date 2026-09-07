@@ -1,10 +1,6 @@
 import { getAnalytics } from '@react-native-firebase/analytics';
 import { getApp, getApps } from '@react-native-firebase/app';
 import { getAuth, signInAnonymously } from '@react-native-firebase/auth';
-import {
-  getCrashlytics,
-  recordError as crashlyticsRecordError,
-} from '@react-native-firebase/crashlytics';
 import { fetchAndActivate, getAll, getRemoteConfig } from '@react-native-firebase/remote-config';
 import {
   REMOTE_CONFIG_DEFAULTS,
@@ -53,23 +49,6 @@ export function getFirebaseAnalytics(): ReturnType<typeof getAnalytics> | null {
 }
 
 /**
- * Crashlytics seam (PRD §12.8). The §12.8 error-boundary SCREEN is its own
- * subsection and its own branch — this is only the reporting call it will use.
- * Never throws: a crash reporter that crashes is worse than no reporter.
- */
-export function recordError(error: unknown): void {
-  if (!isFirebaseConfigured()) return;
-  try {
-    crashlyticsRecordError(
-      getCrashlytics(),
-      error instanceof Error ? error : new Error(String(error)),
-    );
-  } catch {
-    // reporting is best-effort
-  }
-}
-
-/**
  * PRD §4.1 Anonymous Auth. Idempotent: the native SDK persists the session, so
  * a relaunch already has `currentUser` and this signs in exactly once per
  * install. Awaited by nobody — §7.11 "Home renders from cache instantly".
@@ -107,7 +86,9 @@ function coerceSnapshot(
       if (!Number.isFinite(parsed)) continue;
       out[key] = parsed;
     } else if (typeof fallback === 'boolean') {
-      out[key] = raw === 'true' || raw === '1';
+      // Same truthy set as RNFB's `Value.asBoolean()`, so a flag typed as
+      // `True`/`yes` in the Firebase console doesn't silently read false.
+      out[key] = ['true', '1', 't', 'y', 'yes'].includes(raw.trim().toLowerCase());
     } else {
       out[key] = raw;
     }
@@ -124,7 +105,14 @@ export async function syncRemoteConfig(): Promise<void> {
   if (!isFirebaseConfigured()) return;
   try {
     const remoteConfig = getRemoteConfig();
-    remoteConfig.settings.minimumFetchIntervalMillis = REMOTE_CONFIG_TTL_MS;
+    // `settings` is a getter that returns a NEW object each read (RNFB 26.4.0
+    // `remote-config/lib/index.ts`), so `settings.minimumFetchIntervalMillis =
+    // x` mutates a temporary and is silently discarded, leaving the native 12h
+    // default. Only whole-object assignment reaches the setter.
+    remoteConfig.settings = {
+      ...remoteConfig.settings,
+      minimumFetchIntervalMillis: REMOTE_CONFIG_TTL_MS,
+    };
     await fetchAndActivate(remoteConfig);
     useConfigStore.getState().applySnapshot(coerceSnapshot(getAll(remoteConfig)), Date.now());
   } catch {

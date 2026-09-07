@@ -15,6 +15,7 @@ import { HomeScreen } from '../../src/screens/HomeScreen';
 import { LevelMapScreen } from '../../src/screens/LevelMapScreen';
 import { LevelSession } from '../../src/game/LevelSession';
 import { useMetaStore } from '../../src/state/useMetaStore';
+import { firebaseMock, resetFirebaseMock } from '../mocks/react-native-firebase';
 
 function render(el: React.ReactElement): ReactTestRenderer {
   let renderer!: ReactTestRenderer;
@@ -25,6 +26,7 @@ function render(el: React.ReactElement): ReactTestRenderer {
 }
 
 beforeEach(() => {
+  resetFirebaseMock();
   useMetaStore.setState({
     currentLevel: 1,
     ftueComplete: false,
@@ -96,5 +98,28 @@ describe('§7.10 level-map route', () => {
       (renderer.root.findByType(LevelMapScreen).props as { onExit: () => void }).onExit();
     });
     expect(renderer.root.findAllByType(HomeScreen).length).toBe(1);
+  });
+});
+
+describe('§4.1/§13 cold-start bootstrap is wired to mount', () => {
+  it('mounting App signs in anonymously and fetches Remote Config', async () => {
+    firebaseMock.configured = true;
+    render(<App />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(firebaseMock.signInCalls).toBe(1);
+    expect(firebaseMock.fetchCalls).toBe(1);
+  });
+
+  it('mounting App with Firebase absent still renders and touches nothing — §12.4', async () => {
+    firebaseMock.configured = false;
+    const renderer = render(<App />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(renderer.root.findAllByType(FtueScreen).length).toBe(1);
+    expect(firebaseMock.signInCalls).toBe(0);
+    expect(firebaseMock.fetchCalls).toBe(0);
   });
 });

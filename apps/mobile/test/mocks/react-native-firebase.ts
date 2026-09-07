@@ -1,6 +1,6 @@
 /**
  * Minimal `@react-native-firebase/*` stand-in — see vitest.config.ts, which
- * aliases app / auth / analytics / remote-config / crashlytics all to this one
+ * aliases app / auth / analytics / remote-config all to this one
  * file (the real packages are native modules and throw outside an RN runtime).
  * There is no device in the test loop, so this is the only way the transport,
  * the Remote Config sync and the offline degradation get exercised at all.
@@ -23,11 +23,12 @@ export const firebaseMock = {
   /** Remote Config payload: key -> raw string value (+ optional source). */
   remote: {} as Record<string, { value: string; source?: string }>,
   fetchCalls: 0,
-  /** The live settings object `getRemoteConfig()` hands back — the TTL is set
-   * by assigning `minimumFetchIntervalMillis` on it (RNFB's modular API has no
-   * `setConfigSettings`, matching the Firebase web SDK). */
-  settings: { minimumFetchIntervalMillis: 0, fetchTimeoutMillis: 60000 },
-  recorded: [] as Error[],
+  /** Native RNFB defaults (12h / 60s) — what stands if nothing sets them. */
+  settings: { minimumFetchIntervalMillis: 43_200_000, fetchTimeoutMillis: 60_000 },
+  /** Set to make `logEvent` reject asynchronously (native send failure). */
+  logEventRejects: false,
+  /** Names the real SDK refuses SYNCHRONOUSLY — reserved or malformed. */
+  reservedEventNames: ['session_start', 'first_open', 'app_remove'],
   /** Simulate the native module blowing up rather than returning empty. */
   throwOnGetApps: false,
 };
@@ -39,8 +40,8 @@ export function resetFirebaseMock(): void {
   firebaseMock.logged = [];
   firebaseMock.remote = {};
   firebaseMock.fetchCalls = 0;
-  firebaseMock.settings = { minimumFetchIntervalMillis: 0, fetchTimeoutMillis: 60000 };
-  firebaseMock.recorded = [];
+  firebaseMock.settings = { minimumFetchIntervalMillis: 43_200_000, fetchTimeoutMillis: 60_000 };
+  firebaseMock.logEventRejects = false;
   firebaseMock.throwOnGetApps = false;
 }
 
@@ -71,21 +72,48 @@ export async function signInAnonymously(_auth: unknown): Promise<{ user: MockUse
 }
 
 // --- analytics ---
-export function getAnalytics(): { kind: 'analytics' } {
-  return { kind: 'analytics' };
-}
-
-export async function logEvent(
-  _analytics: unknown,
-  name: string,
-  params: Record<string, unknown>,
-): Promise<void> {
-  firebaseMock.logged.push({ name, params });
+/**
+ * The Analytics INSTANCE, as production uses it. `logEvent` mirrors the real
+ * module: it validates the name SYNCHRONOUSLY (throwing on a reserved or
+ * malformed one, RNFB `analytics/lib/index.ts`) and otherwise returns a
+ * promise that can reject for a native send failure.
+ */
+export function getAnalytics(): {
+  logEvent: (name: string, params: Record<string, unknown>) => Promise<void>;
+} {
+  return {
+    logEvent(name, params) {
+      if (firebaseMock.reservedEventNames.includes(name)) {
+        throw new Error(`the event name '${name}' is reserved and can not be used.`);
+      }
+      if (!/^[a-zA-Z][a-zA-Z0-9_]{0,39}$/.test(name)) {
+        throw new Error(`invalid event name '${name}'.`);
+      }
+      if (firebaseMock.logEventRejects) return Promise.reject(new Error('native send failed'));
+      firebaseMock.logged.push({ name, params });
+      return Promise.resolve();
+    },
+  };
 }
 
 // --- remote config ---
-export function getRemoteConfig(): { settings: { minimumFetchIntervalMillis: number } } {
-  return { settings: firebaseMock.settings };
+/**
+ * `settings` models the real module's GETTER, which returns a fresh copy each
+ * read, and its SETTER, which is the only path that actually applies a change
+ * (RNFB `remote-config/lib/index.ts`). A mock exposing one shared mutable
+ * object made a discarded nested assignment look like it worked.
+ */
+export function getRemoteConfig(): {
+  settings: { minimumFetchIntervalMillis: number; fetchTimeoutMillis: number };
+} {
+  return {
+    get settings() {
+      return { ...firebaseMock.settings };
+    },
+    set settings(next: { minimumFetchIntervalMillis: number; fetchTimeoutMillis: number }) {
+      firebaseMock.settings = { ...next };
+    },
+  };
 }
 
 export async function fetchAndActivate(_remoteConfig: unknown): Promise<boolean> {
@@ -104,13 +132,4 @@ export function getAll(
     };
   }
   return out;
-}
-
-// --- crashlytics ---
-export function getCrashlytics(): { kind: 'crashlytics' } {
-  return { kind: 'crashlytics' };
-}
-
-export function recordError(_crashlytics: unknown, error: Error): void {
-  firebaseMock.recorded.push(error);
 }
