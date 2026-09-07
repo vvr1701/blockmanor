@@ -20,6 +20,15 @@ before then.
 3. Tell me they've landed. The wiring session does the rest: real playback,
    the sprite build, the mute toggles, and the PRD amendment below.
 
+**CI watches for a partial drop.** `apps/mobile/test/sfxManifest.test.ts` is
+green while `assets/audio/` is absent or empty — that is the documented state
+today, and it is not a failure: `playCue` is a no-op and every cue is equally
+silent. The guard **arms itself the moment the first file lands**, and from
+then on a missing cue fails the build by name. That is the state §15.1's rule
+is really about: not silence everywhere, but seven of eight files present
+while the eighth moment goes quiet and nothing says so. So a partial drop is
+safe to make — CI will tell you exactly what is still outstanding.
+
 ## Format specs
 
 | Property | SFX | Music |
