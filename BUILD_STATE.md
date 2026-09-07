@@ -949,11 +949,17 @@ Recorded as PRD v1.19 (v).
   submissions fail TOGETHER — that correlated failure is the signal, via
   `opsAlerts`, not a per-player verdict.
 
-**Test change reviewed and approved.** `generate.test.ts`'s "no module in
-`src/daily/` reads RC except `publish.ts`" filter went from `!== 'publish.ts'`
-to an explicit two-entry allowlist. The agent flagged it rather than sliding
-it through — correct, that is the HARD STOP category. Approved because it is
-STRICTER: the old filter silently exempted any new file. `daily_streak_min_
+**Test change reviewed and approved — but MY STATED REASON WAS WRONG.** I
+approved `generate.test.ts`'s filter change (`!== 'publish.ts'` -> a two-entry
+allowlist) on the grounds that "the old filter silently exempted any new
+file." **It did not.** `.filter(f => f !== 'publish.ts')` includes every
+newly-added file. The auditor dropped a real third RC-importing module into
+`src/daily/` and confirmed the NEW form catches it — so the outcome is right —
+but measured honestly the change is one exemption *wider* (`streak.ts` joins
+`publish.ts`) plus a canary asserting `submit.ts` is still scanned. Keep the
+change; do NOT record "stricter because the old filter exempted new files" as
+precedent. The agent flagged the change rather than sliding it through, which
+was correct — that is the HARD STOP category. `daily_streak_min_
 moves` is live-RC by necessity (not in the frozen snapshot), so the read moved
 into a new `streak.ts` rather than exempting `submit.ts`, which stays the file
 that cannot read RC at all.
