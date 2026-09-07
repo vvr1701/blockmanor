@@ -1,15 +1,22 @@
 /**
- * Daily Board tile — PRD §7.11(c) / §7.1.3 ("Home reveal with Daily Board
- * tile pulsing"). SCOPE (per the §7.1 task boundary): render the tile's
- * pulsing presence only — no daily-board behavior (state, countdown, LIVE
- * detection) lives here; that's §7.11/§8's own build. Static "unplayed
- * today" presentation + the one-pulse-on-entry animation is the whole of
- * this component.
+ * Daily Board tile — PRD §7.11(c): "countdown or 'LIVE' state, red badge dot
+ * if unplayed today, streak flame chip 🔥N".
+ *
+ * SCOPE: the tile's data is not this component's to fetch — §8.3's client
+ * flow (real countdown, LIVE detection, today's percentile) is a different,
+ * not-yet-built branch. This renders exactly what `useMetaStore` already
+ * holds today (`badges.dailyUnplayed`, `streak`) and nothing else; the
+ * `subtitle`/`subtitleComplete` copy is the seam §8.3 replaces with a real
+ * countdown/LIVE string — see the two i18n keys below.
  *
  * Mockup: `docs/design/spec/Block Manor Production Spec.dc.html`, the Daily
  * Board card inside panel "2.1 Home — default" (title, red unplayed badge
  * dot, mini board preview omitted here — that preview needs real board data,
- * §8 scope).
+ * §8 scope). The mockup draws the streak as a SEPARATE card; the PRD's own
+ * §7.11(c) bullet lists the flame chip as one of three things the Daily
+ * Board tile itself shows, so it renders inline here (content per PRD,
+ * layout latitude per CLAUDE.md "layouts follow the approved mockups" — see
+ * the report note on this one deliberate divergence).
  */
 
 import React, { useEffect } from 'react';
@@ -21,6 +28,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
+import { BadgeDot } from '../../components/Badge';
 import { colors, fontFamily, fontSize, radius, spacing } from '../../components/tokens';
 import { t } from '../../i18n';
 
@@ -30,33 +38,58 @@ const PULSE_MS = 260;
 const PULSE_PEAK_SCALE = 1.06;
 
 export interface DailyBoardTileProps {
-  /** Defaults true: pulse once when this tile mounts. §7.11's "max 1
-   * pulse/session" (repeat-visit suppression) is Home-screen session state
-   * that belongs to the full §7.11 build; this prop is the seam for it. */
+  /** `useMetaStore.badges.dailyUnplayed` — renders the red dot and the
+   * "tap to play" copy. */
+  unplayed: boolean;
+  /** `useMetaStore.streak` — renders a 🔥N chip when > 0. Independent of
+   * `unplayed`: a streak can be nonzero while today is still unplayed
+   * (yesterday's play, today not yet consumed), so it is not nested under it. */
+  streak: number;
+  /** Defaults true: pulse once when this tile mounts, IF `unplayed` is also
+   * true. §7.11's "max 1 pulse/session" cap is Home-screen SESSION state
+   * (outlives one mount) — `HomeScreen` computes it via `homeSession.ts` and
+   * passes the result down; this prop is only the mount-local seam. */
   pulseOnMount?: boolean;
 }
 
-export function DailyBoardTile({ pulseOnMount = true }: DailyBoardTileProps): React.JSX.Element {
+export function DailyBoardTile({
+  unplayed,
+  streak,
+  pulseOnMount = true,
+}: DailyBoardTileProps): React.JSX.Element {
   const reducedMotion = useReducedMotion();
   const scale = useSharedValue(1);
 
   useEffect(() => {
-    if (pulseOnMount && !reducedMotion) {
+    if (pulseOnMount && unplayed && !reducedMotion) {
       scale.value = withSequence(
         withTiming(PULSE_PEAK_SCALE, { duration: PULSE_MS / 2 }),
         withTiming(1, { duration: PULSE_MS / 2 }),
       );
     }
-    // Mount-only: pulses once on entry, not on every `pulseOnMount` re-render.
+    // Mount-only: pulses once on entry, not on every prop change.
   }, []);
 
   const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
   return (
     <Animated.View style={[styles.card, style]}>
-      <View style={styles.badgeDot} accessibilityLabel={t('home.dailyBoard.badgeLabel')} />
+      {unplayed ? (
+        <BadgeDot label={t('home.dailyBoard.badgeLabel')} style={styles.badgeDot} />
+      ) : null}
       <Text style={styles.title}>{t('home.dailyBoard.title')}</Text>
-      <Text style={styles.subtitle}>{t('home.dailyBoard.subtitle')}</Text>
+      <Text style={styles.subtitle}>
+        {t(unplayed ? 'home.dailyBoard.subtitle' : 'home.dailyBoard.subtitleComplete')}
+      </Text>
+      {streak > 0 ? (
+        <View
+          style={styles.flameChip}
+          accessible
+          accessibilityLabel={t('home.dailyBoard.streakA11y', { n: streak })}
+        >
+          <Text style={styles.flameChipText}>{t('home.dailyBoard.streakChip', { n: streak })}</Text>
+        </View>
+      ) : null}
     </Animated.View>
   );
 }
@@ -70,17 +103,10 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(233,196,106,0.3)',
     alignSelf: 'stretch',
   },
-  badgeDot: {
-    position: 'absolute',
-    top: -6,
-    right: -5,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: colors.bad,
-    borderWidth: 2,
-    borderColor: colors.night,
-  },
+  // The dot pokes outside the card's own edge (see `BadgeDot`'s -6/-5
+  // offset), so its ring must match what's BEHIND the card there — the
+  // screen background — not the card's own translucent fill.
+  badgeDot: { borderColor: colors.night },
   title: {
     fontFamily: fontFamily.display,
     fontWeight: '700',
@@ -88,4 +114,18 @@ const styles = StyleSheet.create({
     color: colors.cream,
   },
   subtitle: { marginTop: 2, fontSize: fontSize.xs, fontWeight: '800', color: colors.muted },
+  flameChip: {
+    marginTop: spacing.sm,
+    alignSelf: 'flex-start',
+    borderRadius: radius.block + 6,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+  },
+  flameChipText: {
+    color: colors.gold,
+    fontSize: fontSize.xs,
+    fontWeight: '900',
+    fontVariant: ['tabular-nums'],
+  },
 });

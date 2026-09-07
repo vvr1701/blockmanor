@@ -196,15 +196,21 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   progressFill: { height: '100%', backgroundColor: 'rgba(220,226,238,0.45)' },
+  // §0 v1.21/qa-prd-auditor B-4: "never a second gold button" binds the
+  // COMPOSED screen — this card has exactly one live caller (`HomeScreen`),
+  // which always sits beside the real PLAY CTA, so there is no standalone
+  // context where gold would be correct. `colors.night2` is already this
+  // card's own lock-badge/badge token, not a new hex; cream text on it is
+  // >4.5:1 (verified in the render test).
   cta: {
     marginTop: spacing.sm,
     minHeight: MIN_TOUCH,
     borderRadius: radius.card,
-    backgroundColor: colors.gold,
+    backgroundColor: colors.night2,
     borderBottomWidth: 3,
-    borderBottomColor: colors.goldDeep,
+    borderBottomColor: 'rgba(220,226,238,0.35)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  ctaText: { color: colors.night, fontSize: fontSize.md, fontWeight: '800' },
+  ctaText: { color: colors.cream, fontSize: fontSize.md, fontWeight: '800' },
 });

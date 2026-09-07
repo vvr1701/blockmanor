@@ -44,7 +44,7 @@ beforeEach(() => {
 describe('HomeScreen Endless entry (PRD §7.6 / §7.11(e))', () => {
   it('flag_endless off: the card is not rendered at all (not even locked)', () => {
     setFlagEndless(false);
-    const renderer = render(<HomeScreen onPlay={() => {}} />);
+    const renderer = render(<HomeScreen onPlay={() => {}} onOpenMap={() => {}} />);
     expect(renderer.root.findAllByType(EndlessCard).length).toBe(0);
   });
 
@@ -54,7 +54,7 @@ describe('HomeScreen Endless entry (PRD §7.6 / §7.11(e))', () => {
     [11, true],
   ])('currentLevel %i -> unlocked=%s (below/at/above the Level-10 gate)', (level, unlocked) => {
     useMetaStore.setState({ currentLevel: level });
-    const renderer = render(<HomeScreen onPlay={() => {}} />);
+    const renderer = render(<HomeScreen onPlay={() => {}} onOpenMap={() => {}} />);
     const card = renderer.root.findByType(EndlessCard);
     expect(card.props.unlocked).toBe(unlocked);
   });
@@ -62,7 +62,9 @@ describe('HomeScreen Endless entry (PRD §7.6 / §7.11(e))', () => {
   it('tapping the unlocked card calls onPlayEndless', () => {
     useMetaStore.setState({ currentLevel: 11 });
     const onPlayEndless = vi.fn();
-    const renderer = render(<HomeScreen onPlay={() => {}} onPlayEndless={onPlayEndless} />);
+    const renderer = render(
+      <HomeScreen onPlay={() => {}} onPlayEndless={onPlayEndless} onOpenMap={() => {}} />,
+    );
     const pressable = renderer.root.findByType(EndlessCard).findByType('RNPressable' as never);
     act(() => {
       (pressable.props as { onPress: () => void }).onPress();
@@ -79,14 +81,16 @@ describe('HomeScreen Endless entry (PRD §7.6 / §7.11(e))', () => {
     useMetaStore.setState({ currentLevel: 4 });
     // Unlocked at 4 with the key at 3 — impossible against a hardcoded 10.
     expect(
-      render(<HomeScreen onPlay={() => {}} />).root.findByType(EndlessCard).props.unlocked,
+      render(<HomeScreen onPlay={() => {}} onOpenMap={() => {}} />).root.findByType(EndlessCard)
+        .props.unlocked,
     ).toBe(true);
 
     setUnlockLevel(30);
     useMetaStore.setState({ currentLevel: 12 });
     // Still locked at 12 with the key at 30 — impossible against a hardcoded 10.
     expect(
-      render(<HomeScreen onPlay={() => {}} />).root.findByType(EndlessCard).props.unlocked,
+      render(<HomeScreen onPlay={() => {}} onOpenMap={() => {}} />).root.findByType(EndlessCard)
+        .props.unlocked,
     ).toBe(false);
   });
 });

@@ -41,10 +41,9 @@ export default function App(): React.JSX.Element {
   // (real level, from `useMetaStore.currentLevel`); its own exit paths ("Level
   // map" ghost, ran past the last shipped level) come back to Home.
   const [playing, setPlaying] = useState(false);
-  // §7.10: the level map is reached from §7.5's FailScreen "Level map" ghost,
-  // the one route the PRD specs to it today. Home's own entry point to the
-  // map is §7.11's composition to add (its mockup panel 2.1 has one), not
-  // this section's to invent.
+  // §7.10: the level map is reached from §7.5's FailScreen "Level map" ghost
+  // AND, since §0 v1.18, Home's own HUD map affordance (§7.11(a)) — both
+  // routes share this one local-state seam.
   const [mapOpen, setMapOpen] = useState(false);
   // §7.6: Home → Endless entry has nowhere to navigate TO without a router
   // (none exists yet, same gap `devBoard` above already works around) — same
@@ -93,6 +92,7 @@ export default function App(): React.JSX.Element {
             <HomeScreen
               onPlay={() => setPlaying(true)}
               onPlayEndless={() => setShowEndless(true)}
+              onOpenMap={() => setMapOpen(true)}
             />
             {DEV_BOARD_ENABLED ? (
               <Pressable style={styles.devButton} onPress={() => setDevBoard(true)}>
