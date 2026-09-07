@@ -21,9 +21,18 @@ async function loadConfig(): Promise<{
   return mod.default;
 }
 
+// Point at paths that CANNOT exist rather than deleting the vars. Deleting
+// them makes `app.config.ts` fall back to `./google-services.json`, which is
+// gitignored and therefore ABSENT on CI and in a fresh worktree but PRESENT in
+// a checkout that has real credentials — so the "no credential file" case
+// passed everywhere it was written and failed on the one machine that matters.
+// An environment-dependent test is worse than no test: it is green where it is
+// wrong and red where it is right.
+const NO_SUCH = `${process.cwd()}/__no_such_credential__`;
+
 beforeEach(() => {
-  delete process.env['GOOGLE_SERVICES_JSON'];
-  delete process.env['GOOGLE_SERVICES_PLIST'];
+  process.env['GOOGLE_SERVICES_JSON'] = `${NO_SUCH}.json`;
+  process.env['GOOGLE_SERVICES_PLIST'] = `${NO_SUCH}.plist`;
 });
 
 describe('app.config.ts Firebase wiring', () => {
@@ -43,7 +52,7 @@ describe('app.config.ts Firebase wiring', () => {
   // This pins what actually happens rather than what we wish happened.
   it('android-only credentials: the plugin is wired and only android gets a file', async () => {
     process.env['GOOGLE_SERVICES_JSON'] = `${process.cwd()}/package.json`;
-    delete process.env['GOOGLE_SERVICES_PLIST'];
+    process.env['GOOGLE_SERVICES_PLIST'] = `${NO_SUCH}.plist`;
     const config = await loadConfig();
     expect(config.plugins).toEqual(
       expect.arrayContaining(['@react-native-firebase/app', '@react-native-firebase/crashlytics']),
