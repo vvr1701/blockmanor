@@ -43,6 +43,15 @@ import { z } from 'zod';
 export const DAILY_BOARDS_COLLECTION = 'dailyBoards';
 
 /**
+ * §8.3/§8.5: one player's attempt at one day's board lives at
+ * `users/{uid}/submissions/{date}`. §4.4 makes it server-authoritative —
+ * `firestore.rules` lets the owner READ it (the §8.3 gate screen needs to know
+ * the attempt is spent) and lets nobody write it.
+ */
+export const USERS_COLLECTION = 'users';
+export const DAILY_ATTEMPTS_SUBCOLLECTION = 'submissions';
+
+/**
  * §8.2 publication boundary. Day D's board is generated at D-1 23:45 UTC and
  * becomes live at D 00:00:00.000 UTC.
  *

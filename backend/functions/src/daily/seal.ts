@@ -95,8 +95,20 @@ export function sealSequence(attempt: string, sequence: readonly PieceId[]): Sea
  * producing a different board.
  */
 export function openSequence(attempt: string, sealed: SealedSequence): PieceId[] {
+  return openSequenceWithKey(sequenceKey(attempt), sealed);
+}
+
+/**
+ * The same open, keyed directly. This is the shape §8.3's play-start callable
+ * hands out: the client receives the KEY (never the salt, never the attempt
+ * seed it is derived from), so what the client can do with it is exactly what
+ * this function does. Having one implementation behind both entry points is
+ * what lets `playStart.emulator.test.ts` prove the returned key really opens
+ * the published sequence, rather than asserting it is 32 bytes and hoping.
+ */
+export function openSequenceWithKey(key: Buffer, sealed: SealedSequence): PieceId[] {
   if (sealed.alg !== 'AES-256-GCM') throw new Error(`Unknown seal alg "${sealed.alg}"`);
-  const decipher = createDecipheriv(CIPHER, sequenceKey(attempt), Buffer.from(sealed.iv, 'base64'));
+  const decipher = createDecipheriv(CIPHER, key, Buffer.from(sealed.iv, 'base64'));
   decipher.setAuthTag(Buffer.from(sealed.tag, 'base64'));
   const plain = Buffer.concat([
     decipher.update(Buffer.from(sealed.ct, 'base64')),
