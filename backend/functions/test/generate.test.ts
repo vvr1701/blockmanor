@@ -439,6 +439,12 @@ describe('§8.2 frozen engineConfig snapshot (PRD v1.7)', () => {
     // `submit.ts` is deliberately NOT on it: it is the file where an RC read
     // would do the most damage, which is why §8.6's streak logic was split into
     // `streak.ts` rather than exempting it.
+    //
+    // Measured honestly, this allowlist is one exemption WIDER than the
+    // `!== 'publish.ts'` filter it replaced — that form scanned new files too.
+    // What it buys is the canary below: the exemption is now enumerable, and
+    // `submit.ts` is asserted by name to still be scanned, so a future edit that
+    // quietly adds a third exempt file has to say so here.
     const allowed = new Set(['publish.ts', 'streak.ts']);
     const files = readdirSync(dir)
       .filter((f) => !allowed.has(f))

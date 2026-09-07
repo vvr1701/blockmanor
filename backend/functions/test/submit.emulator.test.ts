@@ -25,7 +25,13 @@ import {
   parseDailyBoardDoc,
   type DailyBoardDoc,
 } from '@blockmanor/shared';
-import { applyPlacement, createGame, getLegalPlacements, type Move } from '@blockmanor/engine';
+import {
+  applyPlacement,
+  createGame,
+  getLegalPlacements,
+  type Move,
+  type PieceId,
+} from '@blockmanor/engine';
 import { getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -49,9 +55,11 @@ vi.mock('firebase-admin/remote-config', () => ({
   }),
 }));
 
-const { publishDailyBoard, OPS_ALERTS_COLLECTION } = await import('../src/daily/publish');
+const publish = await import('../src/daily/publish');
+const { publishDailyBoard, OPS_ALERTS_COLLECTION } = publish;
 const { startDailyAttempt } = await import('../src/daily/playStart');
 const { submitDailyAttempt, ENGINE_DRIFT_ALERT } = await import('../src/daily/submit');
+const { attemptSeed, dailySeed, openSequence, sealSequence } = await import('../src/daily/seal');
 const { nextStreak, previousUtcDate } = await import('../src/daily/streak');
 
 /** Injected, never the deployed value — `DAILY_BOARD_SALT` is not provisioned. */
@@ -60,6 +68,8 @@ const DATE = '2026-08-09';
 const YESTERDAY = '2026-08-08';
 const ACTIVATES_AT = Date.UTC(2026, 7, 9);
 const NOON = ACTIVATES_AT + 12 * 3_600_000;
+/** Mid-day on any board's own UTC day — `honestRun` must work for any date. */
+const middayOf = (date: string): number => Date.parse(`${date}T12:00:00.000Z`);
 const UID = 'alice';
 /** §13 default `daily_streak_min_moves`. Never hardcoded in `src/`. */
 const MIN_MOVES = REMOTE_CONFIG_DEFAULTS.daily_streak_min_moves;
@@ -84,22 +94,44 @@ async function board(date = DATE): Promise<DailyBoardDoc> {
   );
 }
 
-/** One throwaway uid per helper call — play-start spends an attempt (§8.3). */
-let runnerSeq = 0;
+/**
+ * Re-publish `date`'s board as a §8.2 solvability RE-ROLL: identical content,
+ * re-sealed under the `-rN` attempt seed and carrying that `revision`.
+ *
+ * Built by re-sealing a really-generated board rather than hand-writing a
+ * document, so everything except `revision` is exactly what the generator
+ * produced. Forcing the generator itself to publish a `-rN` needs roll 0 to
+ * fail the solvability gate and roll 1 to pass it, which no Remote Config value
+ * arranges deterministically.
+ */
+async function republishAsRevision(date: string, revision: string): Promise<void> {
+  const doc = await board(date);
+  const seed = dailySeed(SALT, date);
+  const sequence = openSequence(attemptSeed(seed, doc.revision), doc.engineConfig.pieceSequence);
+  await db()
+    .collection(DAILY_BOARDS_COLLECTION)
+    .doc(date)
+    .update({
+      revision,
+      'engineConfig.pieceSequence': sealSequence(attemptSeed(seed, revision), sequence),
+    });
+}
 
 /**
- * Play the published board honestly, taking the first legal placement each
- * time, and return the move log plus the score the engine gives it. `limit`
- * stops early — that is §8.3's app-kill path, a legitimate partial log.
+ * Play a board honestly from a sequence already in hand, taking the first legal
+ * placement each time. `limit` stops early — that is §8.3's app-kill path, a
+ * legitimate partial log.
+ *
+ * Pure: no Firestore, no play-start. That is what lets a test build a SECOND
+ * log for a uid whose one attempt is already spent, which is exactly the
+ * position a duplicate-submission test needs to be in.
  */
-async function honestRun(
-  date = DATE,
+function playFrom(
+  doc: DailyBoardDoc,
+  sequence: readonly PieceId[],
+  date: string,
   limit = Number.POSITIVE_INFINITY,
-): Promise<{ moves: Move[]; score: number }> {
-  const doc = await board(date);
-  // Via the §8.3 callable, so this really is the sequence a player is handed —
-  // not one re-derived from the salt behind the callable's back.
-  const { sequence } = await startDailyAttempt(`runner-${date}-${runnerSeq++}`, date, SALT, NOON);
+): { moves: Move[]; score: number } {
   let state = createGame(dailyGameConfig(doc.engineConfig, sequence, date), dailyPlaySeed(date));
   const moves: Move[] = [];
   while (state.status === 'playing' && moves.length < limit) {
@@ -110,6 +142,27 @@ async function honestRun(
     state = applyPlacement(state, move).state;
   }
   return { moves, score: state.score };
+}
+
+/**
+ * §8.3 play-start under `uid`, then play. The sequence comes back through the
+ * callable, so this is the list a real player is handed — not one re-derived
+ * from the salt behind the callable's back.
+ *
+ * `uid` defaults to the uid these tests SUBMIT as, on purpose. An earlier
+ * version started under throwaway `runner-*` uids, which meant the suite was
+ * silently asserting that submission needs no started attempt — the exact
+ * contract the §8.6 back-fill blocker turned on. Start and submit are the same
+ * player here, as they are in the app.
+ */
+async function honestRun(
+  date = DATE,
+  limit = Number.POSITIVE_INFINITY,
+  uid = UID,
+): Promise<{ moves: Move[]; score: number; sequence: PieceId[]; doc: DailyBoardDoc }> {
+  const doc = await board(date);
+  const { sequence } = await startDailyAttempt(uid, date, SALT, middayOf(date));
+  return { sequence, doc, ...playFrom(doc, sequence, date, limit) };
 }
 
 beforeEach(async () => {
@@ -221,7 +274,10 @@ describe('§8.5 structural rejections', () => {
       SALT,
       NOON,
     );
-    const second = await honestRun(DATE, 4);
+    // Alice's one attempt is spent, so the second log is replayed from the
+    // sequence she already holds — which is exactly how a real double-submit
+    // would be built.
+    const second = playFrom(run.doc, run.sequence, DATE, 4);
     await expect(
       submitDailyAttempt(
         UID,
@@ -299,6 +355,73 @@ describe('§8.5 structural rejections', () => {
     ).rejects.toMatchObject({ details: { reason: 'not-published' } });
   });
 
+  it('refuses a submission with no started attempt — a missed day cannot be back-filled', async () => {
+    // §8.6 blocker. §8.1 makes the board "identical ... for every player", so
+    // the sequence is not a per-player secret: one player who started can share
+    // it with anyone. `leaker` stands for that.
+    const run = await honestRun(DATE, 12, 'leaker');
+
+    // Alice never opened the board. She MISSED the day.
+    await userRef().set({ streak: 5, lastStreakDate: YESTERDAY });
+    expect((await attemptRef().get()).exists).toBe(false);
+
+    // 30h in: past the board's own UTC day (24h), inside §8.5's stale window
+    // (36h). Play-start already refuses here (PRD v1.19(iv))…
+    const closed = ACTIVATES_AT + 30 * 3_600_000;
+    await expect(startDailyAttempt(UID, DATE, SALT, closed)).rejects.toMatchObject({
+      details: { reason: 'closed' },
+    });
+    // …and submit must not be the second door onto the same board.
+    await expect(
+      submitDailyAttempt(
+        UID,
+        { date: DATE, moves: run.moves, claimedScore: run.score },
+        SALT,
+        closed,
+      ),
+    ).rejects.toMatchObject({ details: { reason: 'not-started' } });
+
+    // "A missed UTC day resets to 0" survives: nothing moved.
+    const user = await userRef().get();
+    expect(user.get('streak')).toBe(5);
+    expect(user.get('lastStreakDate')).toBe(YESTERDAY);
+    expect((await attemptRef().get()).exists).toBe(false);
+  });
+
+  it('refuses it mid-day too — the requirement is a started attempt, not a closed day', async () => {
+    const run = await honestRun(DATE, 12, 'leaker');
+    await expect(
+      submitDailyAttempt(
+        UID,
+        { date: DATE, moves: run.moves, claimedScore: run.score },
+        SALT,
+        NOON,
+      ),
+    ).rejects.toMatchObject({ details: { reason: 'not-started' } });
+    expect((await userRef().get()).exists).toBe(false);
+  });
+
+  it('plays and submits end to end on a re-rolled (-rN) board', async () => {
+    // Every other test in this suite publishes a `revision: ''` board, so both
+    // seals key off the empty string and a regression that ignored `revision`
+    // would go unseen — while on a real re-roll day it would surface as
+    // `internal` for EVERY honest player, the "honest submissions fail
+    // together" mode §8.5 exists to prevent.
+    await republishAsRevision(DATE, '-r1');
+    expect((await board()).revision).toBe('-r1');
+
+    // Play-start keys the seal off `revision` too, so this covers both callables.
+    const run = await honestRun(DATE, 12);
+    await expect(
+      submitDailyAttempt(
+        UID,
+        { date: DATE, moves: run.moves, claimedScore: run.score },
+        SALT,
+        NOON,
+      ),
+    ).resolves.toMatchObject({ score: run.score, moves: 12 });
+  });
+
   it('rejects a malformed payload at the trust boundary', async () => {
     for (const bad of [
       {},
@@ -345,6 +468,47 @@ describe('§8.2 engineVersion drift (v1.12/v1.14, ruled for §8.5)', () => {
     expect(alert.get('boardEngineVersion')).toBe('daily-sim-v2+deadbeef');
     expect(alert.get('liveEngineVersion')).toBe(engineVersion());
     expect(typeof alert.get('raisedAt')).toBe('string');
+  });
+
+  it('re-raises after a failed durable write — the memo records success, not intent', async () => {
+    // A date of its own: `alerted` is module state that outlives a test, and the
+    // case above already spent DATE. That is the memo working, not a leak.
+    // `raiseOpsAlert` swallows persistence failures by design (an alert must
+    // never block a submission). If the drift memo were set BEFORE the write,
+    // one Firestore blip would turn a whole warm instance's drift day into log
+    // lines nobody queries later — losing exactly the durable half the alert
+    // exists for.
+    const own = '2026-08-10';
+    await publishDailyBoard(own, SALT, '2026-08-09T23:45:00.000Z');
+    await db()
+      .collection(DAILY_BOARDS_COLLECTION)
+      .doc(own)
+      .update({ engineVersion: 'daily-sim-v2+deadbeef' });
+
+    const raise = vi.spyOn(publish, 'raiseOpsAlert').mockResolvedValueOnce(false);
+    const first = await honestRun(own, MIN_MOVES, 'first');
+    await submitDailyAttempt(
+      'first',
+      { date: own, moves: first.moves, claimedScore: first.score },
+      SALT,
+      middayOf(own),
+    );
+    // The write "failed", so nothing was persisted and nothing was memoised.
+    expect((await db().collection(OPS_ALERTS_COLLECTION).get()).empty).toBe(true);
+
+    // Next submission on the same instance must try again, not skip.
+    raise.mockRestore();
+    const second = await honestRun(own, MIN_MOVES, 'second');
+    await submitDailyAttempt(
+      'second',
+      { date: own, moves: second.moves, claimedScore: second.score },
+      SALT,
+      middayOf(own),
+    );
+    expect(
+      (await db().collection(OPS_ALERTS_COLLECTION).doc(`${own}_${ENGINE_DRIFT_ALERT}`).get())
+        .exists,
+    ).toBe(true);
   });
 
   it('raises no alert when the fingerprints agree', async () => {
@@ -418,7 +582,7 @@ describe('§8.6 streak', () => {
     expect(user.get('lastStreakDate')).toBe(YESTERDAY);
     expect((await attemptRef().get()).get('status')).toBe('submitted');
     // …and the day is spent: no second try at the streak.
-    const better = await honestRun(DATE, MIN_MOVES + 2);
+    const better = playFrom(run.doc, run.sequence, DATE, MIN_MOVES + 2);
     await expect(
       submitDailyAttempt(
         UID,
@@ -457,47 +621,65 @@ describe('§8.6 streak', () => {
     expect(result.streakGranted).toBe(false);
   });
 
-  it('falls back to the §13 default when the template never set the key', async () => {
-    // The exact shape this bites in: the RC console is empty, so the admin SDK
-    // resolves the key from `defaultConfig` and `asNumber()` reads back 0. Trust
-    // that blind and a 0-move run — opening the board and quitting — earns the
-    // streak, which is precisely what §8.6's threshold exists to refuse.
+  it('falls back to the §13 default on a value the template never SET (provenance)', async () => {
+    // Pins `getSource() !== 'remote'` on its own. 50 is a perfectly valid,
+    // in-bounds integer — nothing else in the check can reject it. The only
+    // thing wrong with it is that the admin SDK resolved it from
+    // `defaultConfig`, not from the console, and `getSource()` is the only
+    // thing that says so. (The empty-console case where `asNumber()` reads 0 is
+    // caught by the lower bound below, which is exactly why it cannot pin this.)
     mocks.getSource.mockImplementation((key) =>
       key === 'daily_streak_min_moves' ? 'default' : 'remote',
     );
     mocks.getNumber.mockImplementation((key) =>
       key === 'daily_streak_min_moves'
-        ? 0
+        ? 50
         : ((REMOTE_CONFIG_DEFAULTS[key as keyof typeof REMOTE_CONFIG_DEFAULTS] as number) ?? 0),
     );
-    const result = await submitDailyAttempt(
-      UID,
-      { date: DATE, moves: [], claimedScore: 0 },
-      SALT,
-      NOON,
-    );
-    expect(result.streakGranted).toBe(false);
-    expect((await attemptRef().get()).get('status')).toBe('submitted');
+    const run = await honestRun(DATE, MIN_MOVES);
+    await expect(
+      submitDailyAttempt(
+        UID,
+        { date: DATE, moves: run.moves, claimedScore: run.score },
+        SALT,
+        NOON,
+      ),
+      // The §13 default (3) was used, so a 3-move run earns the day. Had the
+      // unsourced 50 been trusted, it would not have.
+    ).resolves.toMatchObject({ streakGranted: true });
   });
 
   it('falls back to the §13 default on an out-of-bounds live value', async () => {
-    // An operator typo. `asNumber()` renders it as 0 or something nonsensical;
-    // either way the §13 default is what gets used, not the bad number.
-    for (const bad of [0, -5, 2.5, 10_000]) {
+    // One case per CLAUSE of the bounds check, each chosen so that only its own
+    // clause can reject it. `n < 1` alone catches the first two and nothing
+    // else — which is how the other three clauses survived a mutation sweep
+    // once already.
+    const cases = [
+      {
+        bad: 0,
+        moves: MIN_MOVES - 1,
+        granted: false,
+        pins: 'lower bound — asNumber() renders a typo as 0',
+      },
+      { bad: -5, moves: MIN_MOVES - 1, granted: false, pins: 'lower bound — negative' },
+      { bad: 3.5, moves: MIN_MOVES, granted: true, pins: 'Number.isInteger' },
+      { bad: 5_000, moves: MIN_MOVES, granted: true, pins: 'upper bound' },
+    ];
+    for (const { bad, moves, granted, pins } of cases) {
       await db().recursiveDelete(db().collection(USERS_COLLECTION));
       mocks.getNumber.mockImplementation((key) =>
         key === 'daily_streak_min_moves'
           ? bad
           : ((REMOTE_CONFIG_DEFAULTS[key as keyof typeof REMOTE_CONFIG_DEFAULTS] as number) ?? 0),
       );
-      const run = await honestRun(DATE, MIN_MOVES - 1);
+      const run = await honestRun(DATE, moves);
       const result = await submitDailyAttempt(
         UID,
         { date: DATE, moves: run.moves, claimedScore: run.score },
         SALT,
         NOON,
       );
-      expect(result.streakGranted, `daily_streak_min_moves=${bad}`).toBe(false);
+      expect(result.streakGranted, `daily_streak_min_moves=${bad} pins ${pins}`).toBe(granted);
     }
   });
 

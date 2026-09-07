@@ -63,6 +63,7 @@ export type SubmitRejection =
   | 'not-yet-live'
   | 'stale-date'
   | 'too-many-moves'
+  | 'not-started'
   | 'already-submitted'
   | 'illegal-move'
   | 'score-mismatch';
@@ -111,11 +112,15 @@ const alerted = new Set<string>();
 async function checkEngineDrift(board: DailyBoardDoc): Promise<void> {
   const live = engineVersion();
   if (board.engineVersion === live || alerted.has(board.date)) return;
-  alerted.add(board.date);
-  await raiseOpsAlert(ENGINE_DRIFT_ALERT, board.date, {
+  // Memoised only AFTER the durable write lands. Marking first would let a
+  // single Firestore blip turn a whole instance's drift day into log lines
+  // nobody queries later, which is exactly the failure the durable half exists
+  // to prevent.
+  const persisted = await raiseOpsAlert(ENGINE_DRIFT_ALERT, board.date, {
     boardEngineVersion: board.engineVersion,
     liveEngineVersion: live,
   });
+  if (persisted) alerted.add(board.date);
 }
 
 /**
@@ -215,13 +220,11 @@ export async function submitDailyAttempt(
     .collection(DAILY_ATTEMPTS_SUBCOLLECTION)
     .doc(payload.date);
 
-  // Cheap pre-check so a duplicate costs one read instead of a re-simulation.
-  // NOT the guard — the guard is re-run inside the transaction below, which is
-  // what actually closes the two-submissions-at-once race.
-  if ((await attemptRef.get()).get('status') === 'submitted') {
-    logger.info('daily_submit: duplicate submission', { uid, date: payload.date });
-    throw reject('already-submitted', 'You have already submitted for this board');
-  }
+  // No pre-transaction duplicate/started check. There was one, as a "cheap
+  // reject before re-simulating", and it made BOTH guards below individually
+  // unprovable: each mutation was masked by the other layer. It also cost an
+  // extra Firestore read on every submission to save ~1ms of CPU on a rare one.
+  // One guard, in the transaction, where the race is actually closed.
 
   // §4.3 determinism: same builder, same engine, same frozen inputs.
   const sequence = openSequence(
@@ -267,8 +270,30 @@ export async function submitDailyAttempt(
     // day"). Firestore aborts and retries the loser, which then sees
     // `'submitted'`.
     const attempt = await tx.get(attemptRef);
-    if (attempt.get('status') === 'submitted') {
+    const status = attempt.get('status');
+
+    // §8.5 ">1 submission/user/day". Inside the transaction and nowhere else:
+    // two submissions racing outside one would both read "not submitted".
+    if (status === 'submitted') {
+      logger.info('daily_submit: duplicate submission', { uid, date: payload.date });
       throw reject('already-submitted', 'You have already submitted for this board');
+    }
+
+    // §8.3 is the only door onto the board, and this is what makes it the ONLY
+    // one. Without it, §8.6's "a missed UTC day resets to 0" is unenforceable
+    // for the 12 hours between the board's day closing (24h) and the §8.5 stale
+    // cutoff (36h): play-start correctly refuses a closed board (PRD v1.19(iv)),
+    // but a player who never opened it could still submit a log for it and
+    // collect the day.
+    //
+    // The sequence is NOT the gate. §8.1 makes the board "identical ... for
+    // every player", so the moment the day opens every player who started holds
+    // it and can share it — it is a pre-computation secret (§8.2), never a
+    // per-player one. The started-attempt document is the per-player fact, and
+    // it is the only thing here that is.
+    if (status !== 'started') {
+      logCheatRejected('not-started', uid, board, payload, { attemptStatus: status ?? null });
+      throw reject('not-started', 'No attempt was started for this board');
     }
     const user = await tx.get(userRef);
     const streak = typeof user.get('streak') === 'number' ? (user.get('streak') as number) : 0;
@@ -279,26 +304,21 @@ export async function submitDailyAttempt(
       typeof last === 'string' ? { streak, lastStreakDate: last } : { streak };
     const after = earnsStreak ? nextStreak(before, payload.date) : before;
 
-    tx.set(
-      attemptRef,
-      {
-        date: payload.date,
-        status: 'submitted',
-        submittedAt: new Date(now).toISOString(),
-        // The RE-SIMULATED score. §8.4's histogram (WP-4b) reads this field, so
-        // a claimed number must never reach it.
-        score: result.score,
-        engineStatus: result.status,
-        moveCount: payload.moves.length,
-        boardHash: result.boardHash,
-        streakGranted: earnsStreak && after.streak !== before.streak,
-        engineVersionAtSubmit: engineVersion(),
-      },
-      // Merge, so a submission whose §8.3 start doc is missing still records.
-      // The real gate on playing at all is the sequence key, not this document:
-      // without the key there is no legal move log to submit.
-      { merge: true },
-    );
+    // `update`, not `set(..., {merge: true})`: the guard above proves a
+    // `'started'` document is there, so an update that finds nothing is a bug
+    // worth failing on rather than a document worth conjuring.
+    tx.update(attemptRef, {
+      status: 'submitted',
+      submittedAt: new Date(now).toISOString(),
+      // The RE-SIMULATED score. §8.4's histogram (WP-4b) reads this field, so
+      // a claimed number must never reach it.
+      score: result.score,
+      engineStatus: result.status,
+      moveCount: payload.moves.length,
+      boardHash: result.boardHash,
+      streakGranted: earnsStreak && after.streak !== before.streak,
+      engineVersionAtSubmit: engineVersion(),
+    });
     tx.set(userRef, after, { merge: true });
     return { before, after };
   });

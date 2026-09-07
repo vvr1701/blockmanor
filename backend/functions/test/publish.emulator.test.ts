@@ -38,7 +38,7 @@ vi.mock('firebase-admin/remote-config', () => ({
   }),
 }));
 
-const { OPS_ALERTS_COLLECTION, SOLVABILITY_ALERT, publishDailyBoard } =
+const { OPS_ALERTS_COLLECTION, SOLVABILITY_ALERT, publishDailyBoard, raiseOpsAlert } =
   await import('../src/daily/publish');
 const { openSequence, attemptSeed, dailySeed } = await import('../src/daily/seal');
 
@@ -152,6 +152,19 @@ describe('§8.2 solvability exhausted (PRD v1.12)', () => {
     expect(alert.get('medians')).toHaveLength(6);
     expect(alert.get('publishedMedian')).toBe(Math.max(...(alert.get('medians') as number[])));
     expect(typeof alert.get('raisedAt')).toBe('string');
+  });
+
+  it('reports whether the DURABLE half landed, and never throws', async () => {
+    // §8.5's drift memo skips re-alerting only on a success, so this return
+    // value is load-bearing, not decoration. A `/` in the id is simply how a
+    // real Firestore write is made to fail without mocking Firestore: the
+    // contract under test is "persistence failed -> false, and the caller is
+    // not taken down with it".
+    await expect(raiseOpsAlert('probe', 'a/b', {})).resolves.toBe(false);
+    await expect(raiseOpsAlert('probe', DATE, { note: 'ok' })).resolves.toBe(true);
+    expect(
+      (await getFirestore().collection(OPS_ALERTS_COLLECTION).doc(`${DATE}_probe`).get()).exists,
+    ).toBe(true);
   });
 
   it('raises no alert when the gate passes', async () => {
