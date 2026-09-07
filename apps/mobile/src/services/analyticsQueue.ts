@@ -1,8 +1,10 @@
+import { logEvent } from '@react-native-firebase/analytics';
 import { AppState } from 'react-native';
 import { MMKV } from 'react-native-mmkv';
 import { REMOTE_CONFIG_DEFAULTS } from '@blockmanor/shared';
 import { useConfigStore } from '../state/useConfigStore';
 import { installId, newId, sessionId } from './analyticsIdentity';
+import { getFirebaseAnalytics } from './firebase';
 
 /**
  * §14 analytics-infra runtime queue — apps/mobile side of the on-device
@@ -42,22 +44,26 @@ export function isAnalyticsConsentGranted(): boolean {
 }
 
 /**
- * §14 "transport — explicitly NOT in this pass." `@react-native-firebase/*`
- * is operator-approved but `google-services.json` isn't provisioned yet, so
- * there is no reachable transport. This REJECTS rather than resolving, so
- * the queue's normal failure path (stop draining, leave events queued,
- * retry next flush) is exercised honestly — a stub that resolved would make
- * the debug overlay lie about delivery. The next transport pass replaces
- * only this function's body — NOT with a bare
- * `@react-native-firebase/analytics().logEvent(event.name, event.params)`,
- * which would silently drop `event.installId`, `event.sessionId`, and the
- * idempotency `event.id` (requirements 3 and 4). Carry all three through,
- * e.g. `logEvent(event.name, { ...event.params, installId: event.installId,
- * sessionId: event.sessionId, id: event.id })`. The queue, identity, and
- * overlay are all transport-agnostic and need no change for that pass.
+ * §14 transport — `@react-native-firebase/analytics` (operator-approved; the
+ * `firebase` JS SDK cannot do Analytics on React Native). Carries
+ * `installId`, `sessionId` and the idempotency `id` through as params
+ * (requirements 3 and 4): a bare `logEvent(event.name, event.params)` would
+ * silently drop all three. Rejects — never resolves falsely — when no native
+ * Firebase app is present, so the queue's normal failure path (stop draining,
+ * leave events queued, retry next flush) still runs honestly offline (§12.4)
+ * and the debug overlay never lies about delivery. The queue, identity, and
+ * overlay stay transport-agnostic.
  */
-export const defaultSender: AnalyticsSender = () =>
-  Promise.reject(new Error('analytics transport not configured — no Firebase provider wired yet'));
+export const defaultSender: AnalyticsSender = async (event) => {
+  const analytics = getFirebaseAnalytics();
+  if (!analytics) throw new Error('analytics transport not configured — no native Firebase app');
+  await logEvent(analytics, event.name, {
+    ...event.params,
+    installId: event.installId,
+    sessionId: event.sessionId,
+    id: event.id,
+  });
+};
 
 interface PersistedQueueV1 {
   events: QueuedEvent[];
@@ -275,7 +281,7 @@ export class AnalyticsQueue {
 }
 
 /** App-wide singleton. Real MMKV namespace, live [RC] cap, background flush
- * on. No real transport yet (see `defaultSender` above). */
+ * on, Firebase Analytics transport (see `defaultSender` above). */
 export const analyticsQueue = new AnalyticsQueue({
   sender: defaultSender,
   getCap: () => useConfigStore.getState().value('analytics_queue_cap'),

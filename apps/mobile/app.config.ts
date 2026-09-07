@@ -1,9 +1,11 @@
 import type { ExpoConfig } from 'expo/config';
 
 /**
- * Expo app config (PRD §4.1). Firebase credentials come from the environment —
- * PRD §16: secrets live in EAS/Firebase env config, never in the repo.
- * Copy .env.example to .env for local dev; CI/EAS inject the same names.
+ * Expo app config (PRD §4.1). Firebase is `@react-native-firebase/*`, whose
+ * config plugin bakes `google-services.json` into the native project at build
+ * time — the file is git-ignored (PRD §16: credentials never in the repo), so
+ * fetch it from the Firebase console before a build. No EXPO_PUBLIC_FIREBASE_*
+ * env vars any more: the native SDK reads the plist/json, not `extra`.
  */
 const config: ExpoConfig = {
   name: 'Block Manor',
@@ -17,8 +19,15 @@ const config: ExpoConfig = {
   // §15 --night. A themed splash needs the expo-splash-screen plugin; it lands
   // with the design system in Stage 1, not for a placeholder screen.
   backgroundColor: '#131830',
+  plugins: [
+    '@react-native-firebase/app',
+    '@react-native-firebase/crashlytics',
+    // RNFB's iOS pods are static frameworks; use_frameworks! is required.
+    ['expo-build-properties', { ios: { useFrameworks: 'static' } }],
+  ],
   android: {
     package: 'com.vvr1701.blockmanor',
+    googleServicesFile: './google-services.json',
     adaptiveIcon: {
       foregroundImage: './assets/android-icon-foreground.png',
       backgroundImage: './assets/android-icon-background.png',
@@ -33,14 +42,6 @@ const config: ExpoConfig = {
   owner: 'vvr1701',
   extra: {
     eas: { projectId: '38d85265-4670-4f6b-95c2-76c1efebd319' },
-    firebase: {
-      apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
-      authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
-      projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
-      storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
-      messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-      appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
-    },
   },
 };
 
