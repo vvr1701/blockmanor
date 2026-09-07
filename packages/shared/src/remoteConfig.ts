@@ -22,6 +22,9 @@ export const REMOTE_CONFIG_DEFAULTS = {
   flag_iap: false,
   flag_manor: false,
   flag_events: false,
+  /** §7.11(g) Team tab (S4). Its own key, not `flag_events` — sharing one
+   * would make enabling Events silently unhide Team (§0 v1.20). */
+  flag_team: false,
 
   // --- Modes (§7.6) ---
   /** §7.6 Endless gate. "Unlocked after Level 10" means `currentLevel > 10`
