@@ -35,6 +35,27 @@ describe('app.config.ts Firebase wiring', () => {
     expect(config.ios?.googleServicesFile).toBeUndefined();
   });
 
+  // The MIXED case — the realistic Stage-1 one, since the iOS plist needs an
+  // Apple Developer account CLAUDE.md records as deferred. A QA audit found
+  // only the neither/both cases tested, while the docblock promised a clean
+  // offline fallback "when a file is absent" — which is false here: one plugin
+  // entry registers both platforms' mods, so the plist-less iOS mod throws.
+  // This pins what actually happens rather than what we wish happened.
+  it('android-only credentials: the plugin is wired and only android gets a file', async () => {
+    process.env['GOOGLE_SERVICES_JSON'] = `${process.cwd()}/package.json`;
+    delete process.env['GOOGLE_SERVICES_PLIST'];
+    const config = await loadConfig();
+    expect(config.plugins).toEqual(
+      expect.arrayContaining(['@react-native-firebase/app', '@react-native-firebase/crashlytics']),
+    );
+    expect(config.android?.googleServicesFile).toBe(`${process.cwd()}/package.json`);
+    // Left unset ON PURPOSE: setting it would point the iOS mod at a file that
+    // is not a plist. `eas build -p android` runs android mods only and is
+    // fine; `-p ios` throws until the real plist lands, which is the same
+    // thing already blocking iOS.
+    expect(config.ios?.googleServicesFile).toBeUndefined();
+  });
+
   it('wires each platform from its EAS file secret when the file is there', async () => {
     // Stand-ins for the real credential files, which are git-ignored and never
     // present in CI — any existing readable path proves the wiring.

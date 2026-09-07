@@ -52,6 +52,29 @@ export function isAnalyticsConsentGranted(): boolean {
 export class PermanentSendError extends Error {}
 
 /**
+ * The three non-§14 fields every dispatched event carries (§14 requirements 3
+ * and 4). Exported as a named helper ONLY so the compile-time collision guard
+ * in `firebase.test.ts` can derive its param names from `TransportField`
+ * rather than restating them: a hand-written union drifts, and an audit
+ * proved it — a fourth field named `step` (a real `ftue_step` param) passed
+ * both `tsc` and all 370 tests.
+ *
+ * The idempotency id ships as `event_id`, never `id`: four §14 Core events
+ * declare `id` as the LEVEL id, and sending it as `id` put a random UUID in
+ * the column the §14 level funnel is built on.
+ */
+export function transportFields(event: QueuedEvent): {
+  installId: string;
+  sessionId: string;
+  event_id: string;
+} {
+  return { installId: event.installId, sessionId: event.sessionId, event_id: event.id };
+}
+
+/** The param names `transportFields` occupies — the collision guard's input. */
+export type TransportField = keyof ReturnType<typeof transportFields>;
+
+/**
  * §14 transport — `@react-native-firebase/analytics` (operator-approved; the
  * `firebase` JS SDK cannot do Analytics on React Native).
  *
@@ -82,14 +105,27 @@ export const defaultSender: AnalyticsSender = async (event) => {
   let sent: Promise<void>;
   try {
     sent = analytics.logEvent(event.name, {
-      installId: event.installId,
-      sessionId: event.sessionId,
-      event_id: event.id,
+      ...transportFields(event),
+      // LAST, always. `transportFields` names the §14 collision guard's whole
+      // input, but ordering is the second, independent protection: even a
+      // field the guard has not yet learned about cannot clobber a §14 param
+      // from here. The two cover each other's gaps — see the tests pinning
+      // both, added after an audit found each individually reversible.
       ...event.params,
     });
   } catch (error) {
     // Name/param validation throws synchronously and will never pass on a
     // retry — surface it as permanent so one bad event can't wedge the queue.
+    //
+    // NIT-C, named because it is a SILENT total-loss shape: RNFB also throws
+    // synchronously here when the Analytics native module is not linked (an
+    // app registered without the pod/Gradle plugin). Every event is then
+    // classified permanent and dropped, and `dropped_count` never reaches
+    // BigQuery because nothing ever dispatches — so the funnel is empty rather
+    // than visibly broken. Dropping still beats wedging (it IS permanent for
+    // the process), and the honest fix is not a code change: a preview APK
+    // shows it immediately in the debug overlay, which is why CLAUDE.md's
+    // "analytics events verified in debug view" DoD is a device gate.
     throw new PermanentSendError(error instanceof Error ? error.message : String(error));
   }
   await sent;

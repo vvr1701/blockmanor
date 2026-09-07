@@ -18,8 +18,21 @@ import type { ExpoConfig } from 'expo/config';
  * The plugin THROWS if it is enabled and its platform's file is missing, which
  * would break `eas build -p android --profile preview` on any machine without
  * the credentials. So Firebase is wired only when a credential file is
- * actually present; without one the app builds and boots into the §12.4
+ * actually present; with NEITHER file the app builds and boots into the §12.4
  * offline path (Home shows "not configured"), exactly as it does today.
+ *
+ * MIXED CASE, stated exactly (a QA audit found the previous wording promised
+ * more than this delivers). ONE `@react-native-firebase/app` plugin entry
+ * registers BOTH platforms' mods, so with only ONE file present the OTHER
+ * platform's prebuild still throws. The condition below is `||` rather than
+ * `&&` deliberately: `&&` would make an Android-only credential set disable
+ * Firebase on Android too, and Android-only is the REAL Stage-1 state —
+ * `GoogleService-Info.plist` needs an Apple Developer account, which CLAUDE.md
+ * records as deferred. So `eas build -p android` (the documented device gate)
+ * works with just `GOOGLE_SERVICES_JSON`, while `eas build -p ios` and a bare
+ * `expo prebuild` throw until the plist lands — which is the same thing that
+ * blocks iOS anyway. Pinned by the mixed-case test in `appConfig.test.ts`; if
+ * that behaviour ever needs to change, change the test first.
  */
 // Expo evaluates this config with the project dir as cwd; so does vitest.
 const localPath = (file: string): string => (isAbsolute(file) ? file : join(process.cwd(), file));

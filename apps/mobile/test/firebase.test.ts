@@ -6,7 +6,12 @@ import {
   type AnalyticsEventName,
   type AnalyticsEvents,
 } from '@blockmanor/shared';
-import { AnalyticsQueue, analyticsQueue, defaultSender } from '../src/services/analyticsQueue';
+import {
+  AnalyticsQueue,
+  analyticsQueue,
+  defaultSender,
+  type TransportField,
+} from '../src/services/analyticsQueue';
 import { installId, sessionId } from '../src/services/analyticsIdentity';
 import { initFirebase, isFirebaseConfigured, syncRemoteConfig } from '../src/services/firebase';
 import { useConfigStore } from '../src/state/useConfigStore';
@@ -51,7 +56,11 @@ beforeEach(() => {
  * typecheck` fails here rather than the param being silently overwritten in
  * BigQuery.
  */
-type TransportParamName = 'installId' | 'sessionId' | 'event_id';
+// Derived from the payload builder itself (NIT-B): a hand-written union here
+// drifted invisibly — an audit added a FOURTH transport field named `step`, a
+// real `ftue_step` param, and both `tsc` and all 370 tests passed. Importing
+// `TransportField` makes the guard's input and the payload one declaration.
+type TransportParamName = TransportField;
 type AnalyticsParamName = {
   [K in AnalyticsEventName]: keyof AnalyticsEvents[K] & string;
 }[AnalyticsEventName];
@@ -98,6 +107,31 @@ describe('§14 analytics transport', () => {
     expect(sent?.params['attempt']).toBe(2);
     expect(sent?.params['event_id']).not.toBe(7);
     expect(typeof sent?.params['event_id']).toBe('string');
+  });
+
+  // NIT-A: the ordering (`...transportFields(event)` first, `...event.params`
+  // last) is the SECOND, independent protection against a §14 param being
+  // clobbered — the compile guard above is the first. An audit reversed the
+  // spread and all 370 tests passed, because the guard proves no collision
+  // exists TODAY, so there was nothing for the reversal to lose. This drives a
+  // real collision through the untyped `track(name: string, params)` seam,
+  // which the taxonomy cannot police, so the ordering is pinned on its own.
+  it('a §14 param wins over a transport field of the same name (spread order)', async () => {
+    firebaseMock.configured = true;
+    const queue = new AnalyticsQueue({
+      sender: defaultSender,
+      getCap: () => 500,
+      mmkvId: freshMmkvId(),
+    });
+    (queue as unknown as { track: (n: string, p: Record<string, unknown>) => void }).track(
+      'ftue_complete',
+      { installId: 'from-the-event', event_id: 'also-from-the-event' },
+    );
+    await drained(queue);
+
+    const sent = firebaseMock.logged[0];
+    expect(sent?.params['installId']).toBe('from-the-event');
+    expect(sent?.params['event_id']).toBe('also-from-the-event');
   });
 
   it('a native send failure keeps the event queued (at-least-once past the JS boundary)', async () => {
