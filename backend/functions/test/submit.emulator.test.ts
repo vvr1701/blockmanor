@@ -1,0 +1,511 @@
+/**
+ * §8.5 anti-cheat submission + §8.6 streak, against the Firestore emulator.
+ *
+ * Emulator, not mocks, because every claim here is a claim about persisted
+ * state: "one submission per user per day" is what the database refuses on the
+ * second call, and "server-authoritative streak" is what is actually written to
+ * `users/{uid}`. A mocked Firestore would prove the mock.
+ *
+ * The move logs are not fixtures. Each test PLAYS the published board with the
+ * engine — the same `dailyGameConfig` + `simulate` the callable uses — and
+ * submits the log it produced. So an honest submission is honest by
+ * construction, and a rejection is a rejection of something the engine itself
+ * says is wrong. Nothing under `packages/engine` is touched: no golden replay,
+ * no determinism corpus.
+ */
+
+import {
+  DAILY_ATTEMPTS_SUBCOLLECTION,
+  DAILY_BOARDS_COLLECTION,
+  REMOTE_CONFIG_DEFAULTS,
+  USERS_COLLECTION,
+  dailyGameConfig,
+  dailyPlaySeed,
+  parseDailyBoardDoc,
+  type DailyBoardDoc,
+} from '@blockmanor/shared';
+import { applyPlacement, createGame, getLegalPlacements, type Move } from '@blockmanor/engine';
+import { getApps, initializeApp } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+const mocks = vi.hoisted(() => ({
+  getNumber: vi.fn<(key: string) => number>(),
+  /** Per-key Remote Config provenance, so the `!== 'remote'` branch is reachable. */
+  getSource: vi.fn<(key: string) => string>(),
+}));
+
+vi.mock('firebase-admin/remote-config', () => ({
+  getRemoteConfig: () => ({
+    getServerTemplate: async () => ({
+      evaluate: () => ({
+        getValue: (key: string) => ({
+          asNumber: () => mocks.getNumber(key),
+          getSource: () => mocks.getSource(key),
+        }),
+      }),
+    }),
+  }),
+}));
+
+const { publishDailyBoard } = await import('../src/daily/publish');
+const { startDailyAttempt } = await import('../src/daily/playStart');
+const { submitDailyAttempt } = await import('../src/daily/submit');
+const { nextStreak, previousUtcDate } = await import('../src/daily/streak');
+const { openSequenceWithKey } = await import('../src/daily/seal');
+
+/** Injected, never the deployed value — `DAILY_BOARD_SALT` is not provisioned. */
+const SALT = 'test-salt-not-the-real-one';
+const DATE = '2026-08-09';
+const YESTERDAY = '2026-08-08';
+const ACTIVATES_AT = Date.UTC(2026, 7, 9);
+const NOON = ACTIVATES_AT + 12 * 3_600_000;
+const UID = 'alice';
+/** §13 default `daily_streak_min_moves`. Never hardcoded in `src/`. */
+const MIN_MOVES = REMOTE_CONFIG_DEFAULTS.daily_streak_min_moves;
+
+beforeAll(() => {
+  if (!process.env.FIRESTORE_EMULATOR_HOST) {
+    throw new Error(
+      'FIRESTORE_EMULATOR_HOST is unset — run via `firebase emulators:exec --only firestore`',
+    );
+  }
+  if (getApps().length === 0) initializeApp({ projectId: 'demo-blockmanor' });
+});
+
+const db = () => getFirestore();
+const attemptRef = (date = DATE, uid = UID) =>
+  db().collection(USERS_COLLECTION).doc(uid).collection(DAILY_ATTEMPTS_SUBCOLLECTION).doc(date);
+const userRef = (uid = UID) => db().collection(USERS_COLLECTION).doc(uid);
+
+async function board(date = DATE): Promise<DailyBoardDoc> {
+  return parseDailyBoardDoc(
+    (await db().collection(DAILY_BOARDS_COLLECTION).doc(date).get()).data(),
+  );
+}
+
+/** One throwaway uid per helper call — play-start spends an attempt (§8.3). */
+let runnerSeq = 0;
+
+/**
+ * Play the published board honestly, taking the first legal placement each
+ * time, and return the move log plus the score the engine gives it. `limit`
+ * stops early — that is §8.3's app-kill path, a legitimate partial log.
+ */
+async function honestRun(
+  date = DATE,
+  limit = Number.POSITIVE_INFINITY,
+): Promise<{ moves: Move[]; score: number }> {
+  const doc = await board(date);
+  // Via the §8.3 callable's own key, so this really is the sequence a player
+  // can see — not one re-derived from the salt behind the callable's back.
+  const key = await startDailyAttempt(`runner-${date}-${runnerSeq++}`, date, SALT, NOON);
+  const sequence = openSequenceWithKey(
+    Buffer.from(key.sequenceKey, 'base64'),
+    doc.engineConfig.pieceSequence,
+  );
+  let state = createGame(dailyGameConfig(doc.engineConfig, sequence, date), dailyPlaySeed(date));
+  const moves: Move[] = [];
+  while (state.status === 'playing' && moves.length < limit) {
+    let move: Move | undefined;
+    for (let i = 0; i < state.tray.length && !move; i++) [move] = getLegalPlacements(state, i);
+    if (!move) break;
+    moves.push(move);
+    state = applyPlacement(state, move).state;
+  }
+  return { moves, score: state.score };
+}
+
+beforeEach(async () => {
+  mocks.getNumber.mockImplementation((key) => {
+    const fallback = REMOTE_CONFIG_DEFAULTS[key as keyof typeof REMOTE_CONFIG_DEFAULTS];
+    return typeof fallback === 'number' ? fallback : 0;
+  });
+  mocks.getSource.mockImplementation(() => 'remote');
+  await db().recursiveDelete(db().collection(DAILY_BOARDS_COLLECTION));
+  await db().recursiveDelete(db().collection(USERS_COLLECTION));
+  await publishDailyBoard(DATE, SALT, '2026-08-08T23:45:00.000Z');
+});
+
+describe('§8.5 re-simulation', () => {
+  it('accepts an honest run and stores the RE-SIMULATED score', async () => {
+    const run = await honestRun();
+    const result = await submitDailyAttempt(
+      UID,
+      { date: DATE, moves: run.moves, claimedScore: run.score },
+      SALT,
+      NOON,
+    );
+    expect(result.score).toBe(run.score);
+    expect(result.moves).toBe(run.moves.length);
+
+    const stored = await attemptRef().get();
+    expect(stored.get('status')).toBe('submitted');
+    expect(stored.get('score')).toBe(run.score);
+    expect(stored.get('moveCount')).toBe(run.moves.length);
+    expect(typeof stored.get('boardHash')).toBe('string');
+  });
+
+  it('accepts a PARTIAL log — §8.3 app kill is normal, not an attack', async () => {
+    const run = await honestRun(DATE, 5);
+    expect(run.moves).toHaveLength(5);
+    const result = await submitDailyAttempt(
+      UID,
+      { date: DATE, moves: run.moves, claimedScore: run.score },
+      SALT,
+      NOON,
+    );
+    // The run never ended, so the engine still calls it `playing`. Accepted.
+    expect(result.status).toBe('playing');
+    expect(result.score).toBe(run.score);
+  });
+
+  it('rejects an EDITED claimedScore (§8.8 acceptance criterion)', async () => {
+    const run = await honestRun();
+    await expect(
+      submitDailyAttempt(
+        UID,
+        { date: DATE, moves: run.moves, claimedScore: run.score + 1 },
+        SALT,
+        NOON,
+      ),
+    ).rejects.toMatchObject({ details: { reason: 'score-mismatch' } });
+    // Rejected means nothing was written: no score, no submission, no streak.
+    expect((await attemptRef().get()).get('status')).not.toBe('submitted');
+    expect((await userRef().get()).exists).toBe(false);
+  });
+
+  it('logs daily_cheat_rejected on a score mismatch (§8.5)', async () => {
+    const { logger } = await import('firebase-functions/v2');
+    const warn = vi.spyOn(logger, 'warn');
+    const run = await honestRun(DATE, 10);
+    await expect(
+      submitDailyAttempt(UID, { date: DATE, moves: run.moves, claimedScore: 999_999 }, SALT, NOON),
+    ).rejects.toThrow();
+    expect(warn).toHaveBeenCalledWith(
+      'daily_cheat_rejected',
+      expect.objectContaining({ reason: 'score-mismatch', simulatedScore: run.score }),
+    );
+    warn.mockRestore();
+  });
+
+  it('rejects a move log that does not replay on this board', async () => {
+    const run = await honestRun(DATE, 10);
+    // Legal shape (the zod bounds pass), illegal on this board: overlay the
+    // first move on top of itself.
+    const moves = [...run.moves, run.moves[0] as Move];
+    await expect(
+      submitDailyAttempt(UID, { date: DATE, moves, claimedScore: run.score }, SALT, NOON),
+    ).rejects.toMatchObject({ details: { reason: 'illegal-move' } });
+  });
+
+  it('re-simulates from the FROZEN snapshot, not live Remote Config (§8.2 v1.7)', async () => {
+    const run = await honestRun();
+    // A LiveOps push lands between play and submit. The frozen scoring constants
+    // are what the run was played under, so the honest score must still verify.
+    mocks.getNumber.mockImplementation((key) => (key === 'score_clear_base' ? 9_999 : 1));
+    await expect(
+      submitDailyAttempt(
+        UID,
+        { date: DATE, moves: run.moves, claimedScore: run.score },
+        SALT,
+        NOON,
+      ),
+    ).resolves.toMatchObject({ score: run.score });
+  });
+});
+
+describe('§8.5 structural rejections', () => {
+  it('rejects a second submission for the same day', async () => {
+    const run = await honestRun(DATE, 8);
+    await submitDailyAttempt(
+      UID,
+      { date: DATE, moves: run.moves, claimedScore: run.score },
+      SALT,
+      NOON,
+    );
+    const second = await honestRun(DATE, 4);
+    await expect(
+      submitDailyAttempt(
+        UID,
+        { date: DATE, moves: second.moves, claimedScore: second.score },
+        SALT,
+        NOON,
+      ),
+    ).rejects.toMatchObject({ details: { reason: 'already-submitted' } });
+    // The first submission is still the one on record.
+    expect((await attemptRef().get()).get('moveCount')).toBe(run.moves.length);
+  });
+
+  it('rejects concurrent submissions — only one lands', async () => {
+    const run = await honestRun(DATE, 8);
+    const payload = { date: DATE, moves: run.moves, claimedScore: run.score };
+    const results = await Promise.allSettled(
+      Array.from({ length: 4 }, () => submitDailyAttempt(UID, payload, SALT, NOON)),
+    );
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    expect((await userRef().get()).get('streak')).toBe(1);
+  });
+
+  it('rejects more moves than the board has pieces (§8.5, frozen daily_piece_count)', async () => {
+    const doc = await board();
+    const run = await honestRun(DATE, 4);
+    const moves = Array.from(
+      { length: doc.engineConfig.pieceCount + 1 },
+      () => run.moves[0] as Move,
+    );
+    await expect(
+      submitDailyAttempt(UID, { date: DATE, moves, claimedScore: 0 }, SALT, NOON),
+    ).rejects.toMatchObject({ details: { reason: 'too-many-moves' } });
+  });
+
+  it('reads the ceiling from the SNAPSHOT, so an RC push cannot move it', async () => {
+    const doc = await board();
+    const run = await honestRun(DATE, 4);
+    const overLong = Array.from(
+      { length: doc.engineConfig.pieceCount + 1 },
+      () => run.moves[0] as Move,
+    );
+    // Live RC now says the limit is huge. The snapshot still says 60.
+    mocks.getNumber.mockImplementation((key) => (key === 'daily_piece_count' ? 900 : 1));
+    await expect(
+      submitDailyAttempt(UID, { date: DATE, moves: overLong, claimedScore: 0 }, SALT, NOON),
+    ).rejects.toMatchObject({ details: { reason: 'too-many-moves' } });
+  });
+
+  it('rejects a submission for a date more than 36h old', async () => {
+    const run = await honestRun(DATE, 8);
+    const payload = { date: DATE, moves: run.moves, claimedScore: run.score };
+    // 35h59m after the board went live: still inside the window.
+    await expect(
+      submitDailyAttempt(UID, payload, SALT, ACTIVATES_AT + 36 * 3_600_000 - 60_000),
+    ).resolves.toMatchObject({ date: DATE });
+
+    await db().recursiveDelete(db().collection(USERS_COLLECTION));
+    await expect(
+      submitDailyAttempt(UID, payload, SALT, ACTIVATES_AT + 36 * 3_600_000 + 1),
+    ).rejects.toMatchObject({ details: { reason: 'stale-date' } });
+  });
+
+  it('rejects a submission before the board is live, and one for no board at all', async () => {
+    const run = await honestRun(DATE, 8);
+    await expect(
+      submitDailyAttempt(
+        UID,
+        { date: DATE, moves: run.moves, claimedScore: run.score },
+        SALT,
+        ACTIVATES_AT - 1,
+      ),
+    ).rejects.toMatchObject({ details: { reason: 'not-yet-live' } });
+    await expect(
+      submitDailyAttempt(UID, { date: '2026-08-20', moves: [], claimedScore: 0 }, SALT, NOON),
+    ).rejects.toMatchObject({ details: { reason: 'not-published' } });
+  });
+
+  it('rejects a malformed payload at the trust boundary', async () => {
+    for (const bad of [
+      {},
+      { date: 'today', moves: [], claimedScore: 0 },
+      { date: DATE, moves: [{ pieceIndex: 9, r: 0, c: 0 }], claimedScore: 0 },
+      { date: DATE, moves: [{ pieceIndex: 0, r: 99, c: 0 }], claimedScore: 0 },
+      { date: DATE, moves: [{ pieceIndex: 0, r: 0, c: 0 }], claimedScore: -1 },
+      { date: DATE, moves: 'lots', claimedScore: 0 },
+    ]) {
+      await expect(submitDailyAttempt(UID, bad, SALT, NOON)).rejects.toMatchObject({
+        code: 'invalid-argument',
+      });
+    }
+  });
+});
+
+describe('§8.6 streak', () => {
+  it('grants +1 for playing, regardless of score', async () => {
+    const run = await honestRun(DATE, MIN_MOVES);
+    await submitDailyAttempt(
+      UID,
+      { date: DATE, moves: run.moves, claimedScore: run.score },
+      SALT,
+      NOON,
+    );
+    const user = await userRef().get();
+    expect(user.get('streak')).toBe(1);
+    expect(user.get('lastStreakDate')).toBe(DATE);
+    expect((await attemptRef().get()).get('streakGranted')).toBe(true);
+  });
+
+  it('extends a streak whose last credited day is yesterday', async () => {
+    await userRef().set({ streak: 6, lastStreakDate: YESTERDAY });
+    const run = await honestRun(DATE, MIN_MOVES);
+    const result = await submitDailyAttempt(
+      UID,
+      { date: DATE, moves: run.moves, claimedScore: run.score },
+      SALT,
+      NOON,
+    );
+    expect(result.streak).toBe(7);
+    expect((await userRef().get()).get('streak')).toBe(7);
+  });
+
+  it('resets to 1 after a missed UTC day', async () => {
+    await userRef().set({ streak: 42, lastStreakDate: '2026-08-06' });
+    const run = await honestRun(DATE, MIN_MOVES);
+    const result = await submitDailyAttempt(
+      UID,
+      { date: DATE, moves: run.moves, claimedScore: run.score },
+      SALT,
+      NOON,
+    );
+    expect(result.streak).toBe(1);
+  });
+
+  it('consumes the attempt but grants NO streak below daily_streak_min_moves', async () => {
+    const run = await honestRun(DATE, MIN_MOVES - 1);
+    expect(run.moves).toHaveLength(MIN_MOVES - 1);
+    await userRef().set({ streak: 4, lastStreakDate: YESTERDAY });
+
+    const result = await submitDailyAttempt(
+      UID,
+      { date: DATE, moves: run.moves, claimedScore: run.score },
+      SALT,
+      NOON,
+    );
+    expect(result.streakGranted).toBe(false);
+    // §8.6: "the attempt is still consumed but no streak is granted."
+    expect(result.streak).toBe(4);
+    const user = await userRef().get();
+    expect(user.get('streak')).toBe(4);
+    expect(user.get('lastStreakDate')).toBe(YESTERDAY);
+    expect((await attemptRef().get()).get('status')).toBe('submitted');
+    // …and the day is spent: no second try at the streak.
+    const better = await honestRun(DATE, MIN_MOVES + 2);
+    await expect(
+      submitDailyAttempt(
+        UID,
+        { date: DATE, moves: better.moves, claimedScore: better.score },
+        SALT,
+        NOON,
+      ),
+    ).rejects.toMatchObject({ details: { reason: 'already-submitted' } });
+    expect((await userRef().get()).get('streak')).toBe(4);
+  });
+
+  it('grants exactly AT the threshold', async () => {
+    const run = await honestRun(DATE, MIN_MOVES);
+    const result = await submitDailyAttempt(
+      UID,
+      { date: DATE, moves: run.moves, claimedScore: run.score },
+      SALT,
+      NOON,
+    );
+    expect(result.streakGranted).toBe(true);
+  });
+
+  it('honours a Remote-Config-raised daily_streak_min_moves', async () => {
+    mocks.getNumber.mockImplementation((key) =>
+      key === 'daily_streak_min_moves'
+        ? 20
+        : ((REMOTE_CONFIG_DEFAULTS[key as keyof typeof REMOTE_CONFIG_DEFAULTS] as number) ?? 0),
+    );
+    const run = await honestRun(DATE, 5);
+    const result = await submitDailyAttempt(
+      UID,
+      { date: DATE, moves: run.moves, claimedScore: run.score },
+      SALT,
+      NOON,
+    );
+    expect(result.streakGranted).toBe(false);
+  });
+
+  it('falls back to the §13 default when the template never set the key', async () => {
+    // The exact shape this bites in: the RC console is empty, so the admin SDK
+    // resolves the key from `defaultConfig` and `asNumber()` reads back 0. Trust
+    // that blind and a 0-move run — opening the board and quitting — earns the
+    // streak, which is precisely what §8.6's threshold exists to refuse.
+    mocks.getSource.mockImplementation((key) =>
+      key === 'daily_streak_min_moves' ? 'default' : 'remote',
+    );
+    mocks.getNumber.mockImplementation((key) =>
+      key === 'daily_streak_min_moves'
+        ? 0
+        : ((REMOTE_CONFIG_DEFAULTS[key as keyof typeof REMOTE_CONFIG_DEFAULTS] as number) ?? 0),
+    );
+    const result = await submitDailyAttempt(
+      UID,
+      { date: DATE, moves: [], claimedScore: 0 },
+      SALT,
+      NOON,
+    );
+    expect(result.streakGranted).toBe(false);
+    expect((await attemptRef().get()).get('status')).toBe('submitted');
+  });
+
+  it('falls back to the §13 default on an out-of-bounds live value', async () => {
+    // An operator typo. `asNumber()` renders it as 0 or something nonsensical;
+    // either way the §13 default is what gets used, not the bad number.
+    for (const bad of [0, -5, 2.5, 10_000]) {
+      await db().recursiveDelete(db().collection(USERS_COLLECTION));
+      mocks.getNumber.mockImplementation((key) =>
+        key === 'daily_streak_min_moves'
+          ? bad
+          : ((REMOTE_CONFIG_DEFAULTS[key as keyof typeof REMOTE_CONFIG_DEFAULTS] as number) ?? 0),
+      );
+      const run = await honestRun(DATE, MIN_MOVES - 1);
+      const result = await submitDailyAttempt(
+        UID,
+        { date: DATE, moves: run.moves, claimedScore: run.score },
+        SALT,
+        NOON,
+      );
+      expect(result.streakGranted, `daily_streak_min_moves=${bad}`).toBe(false);
+    }
+  });
+
+  it('credits the BOARD day, not the submission day, across the UTC boundary (§8.8)', async () => {
+    // Played at 23:59 UTC on D, app-killed, submitted at 00:30 on D+1. A device
+    // clock skewed ±3h changes neither: the credited day comes from the board.
+    await userRef().set({ streak: 2, lastStreakDate: YESTERDAY });
+    const run = await honestRun(DATE, MIN_MOVES);
+    const result = await submitDailyAttempt(
+      UID,
+      { date: DATE, moves: run.moves, claimedScore: run.score },
+      SALT,
+      ACTIVATES_AT + 86_400_000 + 30 * 60_000,
+    );
+    expect(result.streak).toBe(3);
+    expect((await userRef().get()).get('lastStreakDate')).toBe(DATE);
+  });
+});
+
+describe('§8.6 nextStreak (pure)', () => {
+  it('covers every branch', () => {
+    expect(previousUtcDate('2026-01-01')).toBe('2025-12-31');
+    expect(previousUtcDate('2026-03-01')).toBe('2026-02-28');
+    // No history: today is day 1.
+    expect(nextStreak({ streak: 0 }, DATE)).toStrictEqual({ streak: 1, lastStreakDate: DATE });
+    expect(nextStreak({ streak: 9 }, DATE)).toStrictEqual({ streak: 1, lastStreakDate: DATE });
+    // Yesterday: extend.
+    expect(nextStreak({ streak: 9, lastStreakDate: YESTERDAY }, DATE)).toStrictEqual({
+      streak: 10,
+      lastStreakDate: DATE,
+    });
+    // A gap: reset, and today still counts as 1.
+    expect(nextStreak({ streak: 9, lastStreakDate: '2026-08-01' }, DATE)).toStrictEqual({
+      streak: 1,
+      lastStreakDate: DATE,
+    });
+    // Already credited, or a late arrival for an older day: unchanged.
+    expect(nextStreak({ streak: 9, lastStreakDate: DATE }, DATE)).toStrictEqual({
+      streak: 9,
+      lastStreakDate: DATE,
+    });
+    expect(nextStreak({ streak: 9, lastStreakDate: '2026-08-10' }, DATE)).toStrictEqual({
+      streak: 9,
+      lastStreakDate: '2026-08-10',
+    });
+    // Across a month boundary.
+    expect(nextStreak({ streak: 3, lastStreakDate: '2026-07-31' }, '2026-08-01')).toStrictEqual({
+      streak: 4,
+      lastStreakDate: '2026-08-01',
+    });
+  });
+});

@@ -7,14 +7,15 @@
  *  - `regenerateDailyBoard` — §8.2 admin-only manual re-trigger (self-heal).
  *  - `dailyPlayStart` — §8.3 play-start: consumes the one attempt and hands the
  *    client the key to the sealed piece sequence.
+ *  - `dailySubmit` — §8.5 anti-cheat submission: re-simulates the move log from
+ *    the frozen `engineConfig` snapshot, and awards the §8.6 streak.
  *
- * Still to come: §8.5's submission/anti-cheat callable, which re-simulates from
- * the frozen `engineConfig` snapshot generation publishes, and §8.4's percentile
- * histogram.
+ * Still to come: §8.4's percentile histogram.
  */
 
 export { generateDailyBoardScheduled, regenerateDailyBoard } from './daily/publish';
 export { dailyPlayStart } from './daily/playStart';
+export { dailySubmit } from './daily/submit';
 
 // The SECRET half of the §8.2 seam: seed derivation and sequence sealing. These
 // stay server-side forever (§16 — the salt lives only in Functions config), and
