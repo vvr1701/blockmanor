@@ -144,9 +144,7 @@ export function collectTextContrast(node: ReactTestInstance, backdrop: string): 
     const style = flattenStyle((n.props as { style?: unknown }).style);
     const alpha = typeof style.opacity === 'number' ? opacity * style.opacity : opacity;
     const own =
-      typeof style.backgroundColor === 'string'
-        ? composite(style.backgroundColor, bg, alpha)
-        : bg;
+      typeof style.backgroundColor === 'string' ? composite(style.backgroundColor, bg, alpha) : bg;
     if (String(n.type) === 'RNText' && typeof style.color === 'string') {
       const color = composite(style.color, own, alpha);
       out.push({ text: textOf(n), color, background: own, ratio: contrastRatio(color, own) });
