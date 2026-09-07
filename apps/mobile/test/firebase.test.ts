@@ -56,13 +56,13 @@ type AnalyticsParamName = {
   [K in AnalyticsEventName]: keyof AnalyticsEvents[K] & string;
 }[AnalyticsEventName];
 type TransportCollision = Extract<AnalyticsParamName, TransportParamName>;
-const noTransportCollision: TransportCollision[] = [];
+/** `AssertNever` fails to satisfy its constraint the moment the collision set
+ * is non-empty, so `pnpm typecheck` is the guard — an empty-array runtime
+ * assertion would accept any collision and prove nothing. */
+type AssertNever<T extends never> = T;
+export type TransportCollisionGuard = AssertNever<TransportCollision>;
 
 describe('§14 analytics transport', () => {
-  it('no §14 param name collides with a transport field (compile-time)', () => {
-    expect(noTransportCollision).toEqual([]);
-  });
-
   it('a track() call reaches Firebase with installId, sessionId and the idempotency id intact', async () => {
     firebaseMock.configured = true;
     const queue = new AnalyticsQueue({

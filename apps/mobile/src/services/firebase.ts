@@ -93,6 +93,10 @@ function coerceSnapshot(
       out[key] = raw;
     }
   }
+  // NIT-4: the one cast. Each branch above writes the type its own key
+  // declares, but TS can't correlate `key`'s union with the value type it
+  // implies (correlated-union limitation), so the per-key soundness is the
+  // `typeof fallback` branching, not the compiler.
   return out as Partial<RemoteConfigSnapshot>;
 }
 
