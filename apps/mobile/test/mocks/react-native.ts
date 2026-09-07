@@ -73,6 +73,44 @@ export const AppState = {
 };
 
 /**
+ * Minimal `BackHandler` stand-in — §12.2's pause needs Android hardware back
+ * to be a subscription tests can actually fire. Mirrors the real RN semantics
+ * the code depends on: handlers run in REVERSE registration order (most
+ * recently mounted screen first) and the first one returning `true` consumes
+ * the press. `__press` is test-only and returns whether it was consumed
+ * (`false` = real Android would exit the app). `__count` is the leak check:
+ * a screen that subscribes and never removes shows up as a survivor after
+ * unmount.
+ *
+ * Lifted unchanged from `feat/7.6-endless`, where `EndlessScreen`'s mid-run
+ * exit needed exactly this and §12.2 did not exist yet.
+ */
+type BackHandlerListener = () => boolean;
+const backListeners: BackHandlerListener[] = [];
+export const BackHandler = {
+  addEventListener(_event: 'hardwareBackPress', cb: BackHandlerListener): { remove: () => void } {
+    backListeners.push(cb);
+    return {
+      remove: () => {
+        const i = backListeners.indexOf(cb);
+        if (i >= 0) backListeners.splice(i, 1);
+      },
+    };
+  },
+  /** Test-only: simulate a hardware back press. */
+  __press(): boolean {
+    for (let i = backListeners.length - 1; i >= 0; i -= 1) {
+      if (backListeners[i]!()) return true;
+    }
+    return false;
+  },
+  /** Test-only: how many handlers are currently subscribed (leak check). */
+  __count(): number {
+    return backListeners.length;
+  },
+};
+
+/**
  * Minimal `FlatList` stand-in — §7.10's `LevelMapScreen` is the first screen
  * to use one. Real `FlatList` windows its rows; this renders every item, on
  * purpose: a render-tree test needs to be able to FIND a row (the L60 chest,

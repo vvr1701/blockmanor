@@ -143,6 +143,12 @@ export interface DragLayerProps {
    * component reaches outside its own canvas to style a sibling). */
   boardShakeX: SharedValue<number>;
   reducedMotion: boolean;
+  /** §12.2: a sheet rendered ABOVE this overlay does not stop a gesture that
+   * is already active — releasing mid-drag would commit a placement behind
+   * the scrim and desync §14 `level_quit.moves`. Disabling the recognizer
+   * cancels the in-flight pan (`.onFinalize` with `success: false`, i.e. the
+   * §7.3 silent return-to-tray) and refuses new ones. */
+  paused: boolean;
 }
 
 export function DragLayer({
@@ -157,6 +163,7 @@ export function DragLayer({
   onDragIndexChange,
   boardShakeX,
   reducedMotion,
+  paused,
 }: DragLayerProps): React.JSX.Element {
   const [dragging, setDragging] = useState<{ index: number; pieceId: PieceId } | null>(null);
 
@@ -230,6 +237,7 @@ export function DragLayer({
       }));
 
       const pan = Gesture.Pan()
+        .enabled(!paused)
         .minDistance(0)
         .shouldCancelWhenOutside(false)
         .onBegin((e) => {
@@ -360,7 +368,7 @@ export function DragLayer({
     });
     // `state` covers board+tray together (both drive legality/origins); the
     // shared values and JS callbacks above are stable across renders.
-  }, [state, boardLayout, boardOffsetX, trayRow, trayOffsetY, headroom]);
+  }, [state, boardLayout, boardOffsetX, trayRow, trayOffsetY, headroom, paused]);
 
   const cellRects = useMemo(() => {
     if (!dragging) return [];

@@ -63,6 +63,24 @@ export interface LevelFailParams {
   fill_ratio: number;
 }
 
+/**
+ * §12.2's quit-to-map — the player abandoned a run from the pause sheet.
+ * `moves` is the engine's own `GameState.placements` (exactly what
+ * `finalResult().moves` reports), i.e. placements committed before leaving;
+ * a quit taken before touching a piece is `moves: 0`, never omitted.
+ *
+ * Count semantics, so the funnel reads straight: §0 v1.17 (i) makes the
+ * `attempt` counter advance once per run STARTED, explicitly including an
+ * abandoned one, so every `level_quit` here has a matching `level_start` with
+ * its own `attempt` and no `level_complete`/`level_fail`. That is what makes
+ * §3's per-level quit rate a real ratio (`level_quit` / `level_start`) rather
+ * than an undercount.
+ */
+export interface LevelQuitParams {
+  id: number;
+  moves: number;
+}
+
 /** Keyed by §14 event name; extend per-section as each PRD subsection lands. */
 export interface AnalyticsEvents {
   ftue_step: FtueStepParams;
@@ -70,6 +88,7 @@ export interface AnalyticsEvents {
   level_start: LevelStartParams;
   level_complete: LevelCompleteParams;
   level_fail: LevelFailParams;
+  level_quit: LevelQuitParams;
 }
 
 export type AnalyticsEventName = keyof AnalyticsEvents;

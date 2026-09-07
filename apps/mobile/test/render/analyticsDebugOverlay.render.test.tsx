@@ -82,6 +82,35 @@ describe('AnalyticsDebugOverlay — DEV_BOARD_ENABLED true (preview APK opt-in)'
     expect(texts.some((t) => t.includes('foo') && t.includes('bar'))).toBe(true);
   });
 
+  /**
+   * CLAUDE.md DoD: "Analytics events verified in debug view". No device is
+   * available to this session, so this is that verification executed — the
+   * REAL `track()` (no module mock), through the real clamp + queue, rendered
+   * by the real overlay the operator reads on a preview APK. §12.2's only
+   * §14 event is `level_quit{id,moves}`.
+   */
+  it('§12.2: a real `track("level_quit")` shows up in the debug view with both typed params', async () => {
+    const { track } = await import('../../src/services/analytics');
+    track('level_quit', { id: 24, moves: 18 });
+
+    const { AnalyticsDebugOverlay } = await import('../../src/components/AnalyticsDebugOverlay');
+    const renderer = render(<AnalyticsDebugOverlay />);
+    const toggle = renderer.root.findAll(
+      (n) => n.props.accessibilityLabel === 'Toggle analytics debug overlay',
+    )[0];
+    act(() => {
+      (toggle!.props as { onPress: () => void }).onPress();
+    });
+
+    const texts = renderer.root.findAllByType(Text).map(textOf);
+    const row = texts.find((t) => t.includes('level_quit'));
+    expect(row, `no level_quit row in the overlay; saw ${JSON.stringify(texts)}`).toBeDefined();
+    expect(row).toContain('id');
+    expect(row).toContain('24');
+    expect(row).toContain('moves');
+    expect(row).toContain('18');
+  });
+
   it('does not poll while collapsed — only starts a timer once expanded', async () => {
     const { AnalyticsDebugOverlay } = await import('../../src/components/AnalyticsDebugOverlay');
     const renderer = render(<AnalyticsDebugOverlay />);

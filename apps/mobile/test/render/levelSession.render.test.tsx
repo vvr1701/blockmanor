@@ -203,6 +203,7 @@ vi.mock('@blockmanor/content', async (importOriginal) => {
 import { MAX_LEVEL_ID } from '@blockmanor/content';
 import { LevelSession, levelRunSeed } from '../../src/game/LevelSession';
 import { track } from '../../src/services/analytics';
+import en from '../../src/i18n/en.json';
 
 const trackMock = vi.mocked(track);
 
@@ -237,6 +238,16 @@ function place(renderer: ReactTestRenderer, pieceIndex: number, r: number, c: nu
 function advance(ms: number): void {
   act(() => {
     vi.advanceTimersByTime(ms);
+  });
+}
+
+/** Press the one node carrying `label` — §12.2's affordances are reached the
+ * way a player reaches them, not by calling props on a component type. */
+function pressLabel(renderer: ReactTestRenderer, label: string): void {
+  const found = renderer.root.findAll((n) => n.props.accessibilityLabel === label);
+  expect(found, `no node labelled "${label}"`).toHaveLength(1);
+  act(() => {
+    (found[0]!.props as { onPress: () => void }).onPress();
   });
 }
 
@@ -591,5 +602,184 @@ describe('LevelSession (PRD §7.5 progression loop)', () => {
       (bare.root.findByType(FailScreen).props as { onLevelMap: () => void }).onLevelMap();
     });
     expect(onExit).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * PRD §12.2 — the pause sheet's two destructive actions, at the coordinator
+ * level: what restart does to §0 v1.17's `attempt` counter, and that
+ * quit-to-map fires §14's `level_quit{id,moves}` exactly once with the
+ * engine's own placement count.
+ *
+ * `GameplayScreen` owns the sheet itself (`pauseSheet.render.test.tsx` covers
+ * the sheet, the confirm boundary and the back handler); this file reaches the
+ * two callbacks through the `pause` prop, which is the seam `LevelSession`
+ * actually supplies.
+ */
+describe('LevelSession — PRD §12.2 pause', () => {
+  function pauseOf(renderer: ReactTestRenderer): {
+    onRestart: () => void;
+    onQuit: (moves: number) => void;
+  } {
+    const { pause } = renderer.root.findByType(GameplayScreen).props as {
+      pause?: { onRestart: () => void; onQuit: (moves: number) => void };
+    };
+    expect(pause, 'LevelSession must hand GameplayScreen its §12.2 pause controls').toBeDefined();
+    return pause!;
+  }
+
+  /**
+   * The claim: restart-from-pause and retry-from-fail advance `attempt`
+   * IDENTICALLY, because §0 v1.17 (i) defines the counter by runs STARTED and
+   * both start a run. Proved two ways so neither can rot alone: they are the
+   * same function object, and they produce the same counter.
+   */
+  it('restart-from-pause IS retry-from-fail — literally the same callback', () => {
+    useMetaStore.setState({ currentLevel: 11, attempts: {} });
+    const renderer = render(<LevelSession onExit={vi.fn()} />);
+    const restart = pauseOf(renderer).onRestart;
+
+    place(renderer, 0, 0, 0);
+    advance(FAIL_HOLD_MS);
+    const retry = (renderer.root.findByType(FailScreen).props as { onRetry: () => void }).onRetry;
+
+    expect(restart).toBe(retry);
+  });
+
+  it('restart-from-pause advances `attempt` by exactly one and persists it (§0 v1.17)', () => {
+    useMetaStore.setState({ currentLevel: 11, attempts: {} });
+    const renderer = render(<LevelSession onExit={vi.fn()} />);
+    expect(trackMock).toHaveBeenCalledWith('level_start', { id: 11, attempt: 1 });
+    expect(useMetaStore.getState().attempts).toEqual({ '11': 1 });
+
+    act(() => {
+      pauseOf(renderer).onRestart();
+    });
+
+    expect(trackMock).toHaveBeenCalledWith('level_start', { id: 11, attempt: 2 });
+    expect(useMetaStore.getState().attempts).toEqual({ '11': 2 });
+    // Exactly one new run started, not two (a restart is one run, and the
+    // counter must not double-step through the retry path as well).
+    expect(trackMock.mock.calls.filter(([name]) => name === 'level_start')).toHaveLength(2);
+  });
+
+  it('retry-from-fail lands on the SAME counter value, from the same starting state', () => {
+    useMetaStore.setState({ currentLevel: 11, attempts: {} });
+    const renderer = render(<LevelSession onExit={vi.fn()} />);
+    place(renderer, 0, 0, 0);
+    advance(FAIL_HOLD_MS);
+    act(() => {
+      (renderer.root.findByType(FailScreen).props as { onRetry: () => void }).onRetry();
+    });
+    expect(trackMock).toHaveBeenCalledWith('level_start', { id: 11, attempt: 2 });
+    expect(useMetaStore.getState().attempts).toEqual({ '11': 2 });
+  });
+
+  /**
+   * §0 v1.17 (ii) reaches restart-from-pause too: the new run is re-seeded,
+   * so the player who restarts gets a fresh piece stream rather than the
+   * board they just walked away from. `RESEED` is the only fixture without a
+   * pinned `pieceSequence`, so it is the only one where the seed is
+   * observable at all.
+   */
+  it('restart-from-pause DEALS A FRESH TRAY, same as Retry (§0 v1.17 (ii))', () => {
+    useMetaStore.setState({ currentLevel: 13, attempts: {} });
+    const renderer = render(<LevelSession onExit={vi.fn()} />);
+    const trayOf = (): string =>
+      (
+        renderer.root.findByType(GameplayScreen).props as { initialState: GameState }
+      ).initialState.tray
+        .map((slot) => slot.pieceId)
+        .join(',');
+    const before = trayOf();
+
+    act(() => {
+      pauseOf(renderer).onRestart();
+    });
+
+    expect(trackMock).toHaveBeenCalledWith('level_start', { id: 13, attempt: 2 });
+    expect(trayOf()).not.toBe(before);
+  });
+
+  /**
+   * End to end through the REAL affordances — two placements, the HUD pause
+   * button, the sheet's own exit link — so `moves` is the number the engine
+   * actually counted rather than one this test handed in. `RESEED` is
+   * goal-less, so §12.2's >50% gate is not tripped and the exit is immediate
+   * (the confirm boundary itself lives in `pauseSheet.render.test.tsx`).
+   */
+  it("quit-to-map fires `level_quit{id,moves}` with the engine's own placement count and routes to the map", () => {
+    useMetaStore.setState({ currentLevel: 13, attempts: {} });
+    const onExit = vi.fn();
+    const onLevelMap = vi.fn();
+    const renderer = render(<LevelSession onExit={onExit} onLevelMap={onLevelMap} />);
+
+    place(renderer, 0, 0, 0);
+    place(renderer, 1, 4, 4);
+
+    pressLabel(renderer, en['pause.openLabel']);
+    pressLabel(renderer, en['pause.quit']);
+
+    expect(trackMock).toHaveBeenCalledWith('level_quit', { id: 13, moves: 2 });
+    expect(onLevelMap).toHaveBeenCalledTimes(1);
+    expect(onExit).not.toHaveBeenCalled();
+  });
+
+  it('fires `level_quit` EXACTLY once even if the control is hit twice before navigation', () => {
+    useMetaStore.setState({ currentLevel: 13, attempts: {} });
+    const renderer = render(<LevelSession onExit={vi.fn()} onLevelMap={vi.fn()} />);
+    const { onQuit } = pauseOf(renderer);
+    act(() => {
+      onQuit(0);
+      onQuit(0);
+    });
+    expect(trackMock.mock.calls.filter(([name]) => name === 'level_quit')).toHaveLength(1);
+  });
+
+  it('re-arms after a restart, so quitting the SECOND run still reports', () => {
+    useMetaStore.setState({ currentLevel: 13, attempts: {} });
+    const onLevelMap = vi.fn();
+    const renderer = render(<LevelSession onExit={vi.fn()} onLevelMap={onLevelMap} />);
+    act(() => {
+      pauseOf(renderer).onQuit(1);
+    });
+    act(() => {
+      pauseOf(renderer).onRestart();
+    });
+    act(() => {
+      pauseOf(renderer).onQuit(4);
+    });
+    const quits = trackMock.mock.calls.filter(([name]) => name === 'level_quit');
+    expect(quits).toHaveLength(2);
+    expect(quits[1]).toEqual(['level_quit', { id: 13, moves: 4 }]);
+  });
+
+  it('falls back to `onExit` when the mount point supplies no map route', () => {
+    useMetaStore.setState({ currentLevel: 13, attempts: {} });
+    const onExit = vi.fn();
+    const renderer = render(<LevelSession onExit={onExit} />);
+    act(() => {
+      pauseOf(renderer).onQuit(0);
+    });
+    expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
+  /**
+   * §0 v1.17 (i), verbatim: "an ABANDONED run still counts". The counter is
+   * written at run start, so quitting must leave it standing — that is what
+   * makes §3's per-level quit rate a ratio with a real denominator.
+   */
+  it('an abandoned run still counts against `attempt` (§0 v1.17 (i))', () => {
+    useMetaStore.setState({ currentLevel: 13, attempts: {} });
+    const renderer = render(<LevelSession onExit={vi.fn()} onLevelMap={vi.fn()} />);
+    act(() => {
+      pauseOf(renderer).onQuit(3);
+    });
+    expect(useMetaStore.getState().attempts).toEqual({ '13': 1 });
+    expect(trackMock).toHaveBeenCalledWith('level_start', { id: 13, attempt: 1 });
+    expect(trackMock).toHaveBeenCalledWith('level_quit', { id: 13, moves: 3 });
+    // No win/fail was reported for it — a quit is its own funnel shape.
+    expect(trackMock.mock.calls.map(([name]) => name)).not.toContain('level_complete');
+    expect(trackMock.mock.calls.map(([name]) => name)).not.toContain('level_fail');
   });
 });

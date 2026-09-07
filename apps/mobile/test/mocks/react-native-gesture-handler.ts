@@ -16,12 +16,21 @@ import { createElement, type ReactElement } from 'react';
 export const GestureHandlerRootView = 'GHRootView';
 
 export interface ChainableGesture {
+  /** §12.2: recorded, not ignored — `DragLayer` disables the pan while the
+   * pause sheet is up, and a mock that swallowed the value could not prove
+   * it. RNGH's real `.enabled(false)` also CANCELS an in-flight gesture
+   * (state -> FAILED/CANCELLED), which is the part that stops a placement
+   * committing behind the scrim. */
+  enabled: (value: boolean) => ChainableGesture;
   minDistance: (value: number) => ChainableGesture;
   shouldCancelWhenOutside: (value: boolean) => ChainableGesture;
   onBegin: (cb: (e: PanEventMock) => void) => ChainableGesture;
   onUpdate: (cb: (e: PanEventMock) => void) => ChainableGesture;
   onEnd: (cb: (e: PanEventMock, success: boolean) => void) => ChainableGesture;
   onFinalize: (cb: (e: PanEventMock, success: boolean) => void) => ChainableGesture;
+  /** Test-only: the last value passed to `.enabled()`, defaulting to RNGH's
+   * own default of `true` when the chain never calls it. */
+  __enabled: boolean;
   /** Test-only: every callback registered via the chain above, in call order. */
   __handlers: {
     onBegin: ((e: PanEventMock) => void)[];
@@ -54,6 +63,11 @@ function chainable(): ChainableGesture {
     onFinalize: [],
   };
   const gesture: ChainableGesture = {
+    enabled: (value) => {
+      gesture.__enabled = value;
+      return gesture;
+    },
+    __enabled: true,
     minDistance: () => gesture,
     shouldCancelWhenOutside: () => gesture,
     onBegin: (cb) => {
