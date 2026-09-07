@@ -90,6 +90,10 @@ BLOCKED ON OPERATOR:
 
 ## Environment gotchas — do not rediscover
 
+- **The session scratchpad is cleared between sessions.** Anything cached there
+  — a portable Temurin JRE for the Firestore emulator, mutation backups — is
+  gone next session and must be re-fetched. This box has no system `java`.
+
 - **After merging any branch that changed dependencies, run `pnpm install` in
   EVERY worktree before trusting `pnpm typecheck`.** A stale install fails with
   `TS2307: Cannot find module '<dep>'`, which reads like a code error and is
@@ -1138,6 +1142,40 @@ than hiding it.**
 
 `main` now: **658 tests** (mobile 429, engine 100, functions 55, shared 41,
 content 33). All five CI jobs green.
+
+### S13 — §8.3 MERGED; §8.5 back-fill fixed (2026-09-07)
+
+**`feat/8.3-playstart-callable` -> `main` (7d69e5c).** PASS. The auditor fired
+eight genuinely concurrent play-starts and asserted on the collection itself:
+exactly one document. `create()` is the load-bearing primitive, and
+consumption BEFORE the response is the other half — the reverse order lets an
+app-kill immediately after the response mint a fresh attempt.
+
+**§8.5 fix pass — the engineering call is the part worth keeping.** Requiring a
+started attempt was the obvious fix. What was not obvious: the agent first
+implemented it in TWO layers (a pre-transaction check plus one inside the
+transaction), then found that **M25 (drop only the transaction layer) and M26
+(drop only the pre-check) BOTH came back GREEN — each masked the other.**
+Rather than adding a test per layer it **deleted the pre-check**. Two layers
+neither of which can be individually proven are worse than one that can, and
+it saved a Firestore read per submission. That is the guard-that-guards-
+nothing shape recognised in its own work, unprompted.
+
+It also caught its own bad test: the NIT-6 case **spied on the function under
+test**, so the `catch` it existed to cover never executed. Replaced with an
+induced REAL Firestore failure (a `/` in the alert doc id) — no mocking, and
+it tests the actual contract.
+
+**The back-fill in one line, for the record:** submission never required that
+play-start happened, justified as "the sequence key is the real gate" — but
+§8.1 makes the board globally identical, so the sequence is a
+**pre-computation** secret, not a per-player one. Every player who started
+holds it and can share it. The started-attempt document is the only per-player
+fact in the whole flow.
+
+**§12.5 + §12.1 dispatched** as two sequential branches to ONE agent. Running
+two mobile agents in parallel is what produced the nine-conflict §7.6 rebase;
+sequential branches satisfy CLAUDE.md rule 4 without that cost.
 
 ## Follow-ups (tracked, not blocking)
 
