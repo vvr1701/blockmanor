@@ -246,7 +246,8 @@ async function raiseOpsAlert(
 }
 
 type AlreadyExists = { code?: number | string };
-const isAlreadyExists = (error: unknown): boolean =>
+/** Shared with §8.3's play-start, whose attempt-consumption is also a `create()`. */
+export const isAlreadyExists = (error: unknown): boolean =>
   typeof error === 'object' &&
   error !== null &&
   // Firestore/gRPC ALREADY_EXISTS.
