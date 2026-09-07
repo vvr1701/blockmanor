@@ -228,8 +228,11 @@ export const SOLVABILITY_ALERT = 'daily_solvability_exhausted';
  * deterministic, so a scheduler retry updates one alert instead of fanning out.
  *
  * Alerting never blocks publication: a board with no alert beats no board.
+ *
+ * Shared with §8.5, which raises `daily_engine_drift` through the same seam —
+ * one alerting mechanism, not two shapes an operator has to learn.
  */
-async function raiseOpsAlert(
+export async function raiseOpsAlert(
   kind: string,
   date: string,
   detail: Record<string, unknown>,

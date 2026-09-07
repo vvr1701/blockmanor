@@ -21,6 +21,7 @@ import {
   USERS_COLLECTION,
   dailyGameConfig,
   dailyPlaySeed,
+  engineVersion,
   parseDailyBoardDoc,
   type DailyBoardDoc,
 } from '@blockmanor/shared';
@@ -48,11 +49,10 @@ vi.mock('firebase-admin/remote-config', () => ({
   }),
 }));
 
-const { publishDailyBoard } = await import('../src/daily/publish');
+const { publishDailyBoard, OPS_ALERTS_COLLECTION } = await import('../src/daily/publish');
 const { startDailyAttempt } = await import('../src/daily/playStart');
-const { submitDailyAttempt } = await import('../src/daily/submit');
+const { submitDailyAttempt, ENGINE_DRIFT_ALERT } = await import('../src/daily/submit');
 const { nextStreak, previousUtcDate } = await import('../src/daily/streak');
-const { openSequenceWithKey } = await import('../src/daily/seal');
 
 /** Injected, never the deployed value — `DAILY_BOARD_SALT` is not provisioned. */
 const SALT = 'test-salt-not-the-real-one';
@@ -97,13 +97,9 @@ async function honestRun(
   limit = Number.POSITIVE_INFINITY,
 ): Promise<{ moves: Move[]; score: number }> {
   const doc = await board(date);
-  // Via the §8.3 callable's own key, so this really is the sequence a player
-  // can see — not one re-derived from the salt behind the callable's back.
-  const key = await startDailyAttempt(`runner-${date}-${runnerSeq++}`, date, SALT, NOON);
-  const sequence = openSequenceWithKey(
-    Buffer.from(key.sequenceKey, 'base64'),
-    doc.engineConfig.pieceSequence,
-  );
+  // Via the §8.3 callable, so this really is the sequence a player is handed —
+  // not one re-derived from the salt behind the callable's back.
+  const { sequence } = await startDailyAttempt(`runner-${date}-${runnerSeq++}`, date, SALT, NOON);
   let state = createGame(dailyGameConfig(doc.engineConfig, sequence, date), dailyPlaySeed(date));
   const moves: Move[] = [];
   while (state.status === 'playing' && moves.length < limit) {
@@ -124,6 +120,7 @@ beforeEach(async () => {
   mocks.getSource.mockImplementation(() => 'remote');
   await db().recursiveDelete(db().collection(DAILY_BOARDS_COLLECTION));
   await db().recursiveDelete(db().collection(USERS_COLLECTION));
+  await db().recursiveDelete(db().collection(OPS_ALERTS_COLLECTION));
   await publishDailyBoard(DATE, SALT, '2026-08-08T23:45:00.000Z');
 });
 
@@ -315,6 +312,50 @@ describe('§8.5 structural rejections', () => {
         code: 'invalid-argument',
       });
     }
+  });
+});
+
+describe('§8.2 engineVersion drift (v1.12/v1.14, ruled for §8.5)', () => {
+  const driftDate = '2026-08-09';
+
+  it('raises a durable ops alert and changes NOTHING about the submission', async () => {
+    const run = await honestRun();
+    // The board says it was generated under a different engine than this deploy.
+    await db()
+      .collection(DAILY_BOARDS_COLLECTION)
+      .doc(driftDate)
+      .update({ engineVersion: 'daily-sim-v2+deadbeef' });
+
+    // The honest submission is still accepted, on its own merits. A mismatch is
+    // an ops signal, never a player verdict: we deployed under them.
+    await expect(
+      submitDailyAttempt(
+        UID,
+        { date: driftDate, moves: run.moves, claimedScore: run.score },
+        SALT,
+        NOON,
+      ),
+    ).resolves.toMatchObject({ score: run.score, streakGranted: true });
+
+    const alert = await db()
+      .collection(OPS_ALERTS_COLLECTION)
+      .doc(`${driftDate}_${ENGINE_DRIFT_ALERT}`)
+      .get();
+    expect(alert.exists).toBe(true);
+    expect(alert.get('boardEngineVersion')).toBe('daily-sim-v2+deadbeef');
+    expect(alert.get('liveEngineVersion')).toBe(engineVersion());
+    expect(typeof alert.get('raisedAt')).toBe('string');
+  });
+
+  it('raises no alert when the fingerprints agree', async () => {
+    const run = await honestRun(DATE, MIN_MOVES);
+    await submitDailyAttempt(
+      UID,
+      { date: DATE, moves: run.moves, claimedScore: run.score },
+      SALT,
+      NOON,
+    );
+    expect((await db().collection(OPS_ALERTS_COLLECTION).get()).empty).toBe(true);
   });
 });
 

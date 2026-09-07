@@ -44,7 +44,7 @@ import { getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions/v2';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
-import { DAILY_BOARD_SALT } from './publish';
+import { DAILY_BOARD_SALT, raiseOpsAlert } from './publish';
 import { attemptSeed, dailySeed, openSequence } from './seal';
 import { nextStreak, streakMinMoves, type StreakState } from './streak';
 
@@ -82,6 +82,40 @@ export interface SubmitResult {
   /** §8.6, server-authoritative. */
   streak: number;
   streakGranted: boolean;
+}
+
+/** §8.2 v1.12/v1.14: the published board was generated under a different engine. */
+export const ENGINE_DRIFT_ALERT = 'daily_engine_drift';
+
+/**
+ * ponytail: per-instance memo, so a drift day costs one alert write per warm
+ * instance instead of one per submission. Swap for a `create()`-guarded write
+ * if instance churn ever makes that too noisy.
+ */
+const alerted = new Set<string>();
+
+/**
+ * §8.2 (PRD v1.12/v1.14), ruled for §8.5: a mismatch between the board's
+ * `engineVersion` and this deploy's changes NOTHING about the submission, and
+ * is never `daily_cheat_rejected`. The frozen snapshot freezes *config*, not
+ * engine *code*, so a mismatch means we deployed under the player — blaming
+ * them for our deploy is the one thing this design must not do.
+ *
+ * If the engine change was not replay-affecting (the common case) the
+ * re-simulation still matches and nothing happens. If it was, honest
+ * submissions start failing together, and this is the signal that surfaces it —
+ * a durable `opsAlerts` document, not only a log line, for the same reason
+ * §8.2's solvability alert is one: logs age out, and the question an operator
+ * asks later is "which days ran under a drifted engine?".
+ */
+async function checkEngineDrift(board: DailyBoardDoc): Promise<void> {
+  const live = engineVersion();
+  if (board.engineVersion === live || alerted.has(board.date)) return;
+  alerted.add(board.date);
+  await raiseOpsAlert(ENGINE_DRIFT_ALERT, board.date, {
+    boardEngineVersion: board.engineVersion,
+    liveEngineVersion: live,
+  });
 }
 
 /**
@@ -148,6 +182,10 @@ export async function submitDailyAttempt(
     logger.error('daily_submit: board document did not parse', { date: payload.date, error });
     throw new HttpsError('internal', 'Board document is unreadable');
   }
+
+  // Before any verdict, and regardless of which one follows: an ops signal, not
+  // a player one.
+  await checkEngineDrift(board);
 
   // Server time, always (§8.8): the payload carries a date, never a timestamp,
   // so a skewed device clock cannot move either edge of this window.
