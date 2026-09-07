@@ -29,18 +29,15 @@ import { formatScore } from '../../i18n/format';
 /** §15 a11y: every interactive element ≥44dp regardless of visual size. */
 const MIN_TOUCH = 44;
 
-/**
- * §7.6 "Unlocked after Level 10" — a fixed narrative gate, not a `[RC]` key
- * (§7.6 carries no `[RC]` marker on this number, unlike e.g.
- * `mercy_threshold`; the §13 registry-completeness rule only binds marked
- * values). Same order as the §7.10 chest-at-L10 milestone.
- */
-export const ENDLESS_UNLOCK_LEVEL = 10;
-
 export interface EndlessCardProps {
-  /** True once `currentLevel > ENDLESS_UNLOCK_LEVEL` — see `HomeScreen` for
-   * why "after Level 10" reads as strictly-greater-than. */
+  /** True once `currentLevel > unlockLevel` — see `HomeScreen` for why
+   * "after Level 10" reads as strictly-greater-than. */
   unlocked: boolean;
+  /** `[RC] endless_unlock_level` (§13 Modes, default 10), resolved by
+   * `HomeScreen` off the live snapshot. A prop rather than a module constant
+   * so this number is never read from a call site (CLAUDE.md rule 3) — it was
+   * a literal here until §0 v1.18 promoted it to the registry. */
+  unlockLevel: number;
   /** The player's current progression pointer, for the locked subtitle's
    * "you're on N" and progress fill. */
   currentLevel: number;
@@ -51,6 +48,7 @@ export interface EndlessCardProps {
 
 export function EndlessCard({
   unlocked,
+  unlockLevel,
   currentLevel,
   best,
   onPress,
@@ -59,9 +57,9 @@ export function EndlessCard({
     // Progress toward the gate, which opens at `currentLevel > 10` (see
     // `HomeScreen`) — i.e. the LEVELS CLEARED, not the level number. Dividing
     // the raw pointer would paint a full bar next to a padlock on level 10.
-    const pct = Math.max(0, Math.min(1, (currentLevel - 1) / ENDLESS_UNLOCK_LEVEL));
+    const pct = Math.max(0, Math.min(1, (currentLevel - 1) / unlockLevel));
     const status = t('home.endless.locked.subtitle', {
-      unlockLevel: ENDLESS_UNLOCK_LEVEL,
+      unlockLevel,
       level: currentLevel,
     });
     return (

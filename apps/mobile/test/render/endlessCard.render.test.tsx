@@ -16,7 +16,12 @@ import TestRenderer, { act, type ReactTestRenderer } from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
 import { colors } from '../../src/components/tokens';
 import { collectTextContrast, composite, contrastRatio, flattenStyle } from '../contrast';
-import { EndlessCard, ENDLESS_UNLOCK_LEVEL } from '../../src/screens/HomeScreen/EndlessCard';
+import { REMOTE_CONFIG_DEFAULTS } from '@blockmanor/shared';
+import { EndlessCard } from '../../src/screens/HomeScreen/EndlessCard';
+
+/** §13 Modes default. Read from the registry, not re-typed, so a retune of
+ * `endless_unlock_level` moves these cases with it. */
+const ENDLESS_UNLOCK_LEVEL = REMOTE_CONFIG_DEFAULTS.endless_unlock_level;
 
 function render(el: React.ReactElement): ReactTestRenderer {
   let renderer!: ReactTestRenderer;
@@ -38,7 +43,13 @@ const NON_TEXT_MIN = 3;
 describe('EndlessCard (PRD §7.6 / §7.11(e))', () => {
   it('unlocked: shows the CTA and the persisted best score', () => {
     const renderer = render(
-      <EndlessCard unlocked currentLevel={12} best={4200} onPress={vi.fn()} />,
+      <EndlessCard
+        unlocked
+        unlockLevel={ENDLESS_UNLOCK_LEVEL}
+        currentLevel={12}
+        best={4200}
+        onPress={vi.fn()}
+      />,
     );
     const texts = renderer.root.findAllByType('RNText' as never).map((n) => n.children.join(''));
     // Grouped, as the mockup renders every score (§15 / NIT 9).
@@ -47,7 +58,15 @@ describe('EndlessCard (PRD §7.6 / §7.11(e))', () => {
   });
 
   it('§12.9 empty state: no best yet renders "Set your first record", never "0"', () => {
-    const renderer = render(<EndlessCard unlocked currentLevel={12} best={0} onPress={vi.fn()} />);
+    const renderer = render(
+      <EndlessCard
+        unlocked
+        unlockLevel={ENDLESS_UNLOCK_LEVEL}
+        currentLevel={12}
+        best={0}
+        onPress={vi.fn()}
+      />,
+    );
     const texts = renderer.root.findAllByType('RNText' as never).map((n) => n.children.join(''));
     expect(texts).toContain('Set your first record');
     expect(texts).not.toContain('0');
@@ -55,7 +74,15 @@ describe('EndlessCard (PRD §7.6 / §7.11(e))', () => {
 
   it("unlocked card is a single pressable that fires onPress (the empty state's one action, §12.9)", () => {
     const onPress = vi.fn();
-    const renderer = render(<EndlessCard unlocked currentLevel={12} best={0} onPress={onPress} />);
+    const renderer = render(
+      <EndlessCard
+        unlocked
+        unlockLevel={ENDLESS_UNLOCK_LEVEL}
+        currentLevel={12}
+        best={0}
+        onPress={onPress}
+      />,
+    );
     const pressables = renderer.root.findAllByType('RNPressable' as never);
     expect(pressables.length).toBe(1);
     act(() => {
@@ -66,7 +93,13 @@ describe('EndlessCard (PRD §7.6 / §7.11(e))', () => {
 
   it(`locked (currentLevel <= ${ENDLESS_UNLOCK_LEVEL}): shows the unlock copy and is NOT pressable`, () => {
     const renderer = render(
-      <EndlessCard unlocked={false} currentLevel={7} best={0} onPress={vi.fn()} />,
+      <EndlessCard
+        unlocked={false}
+        unlockLevel={ENDLESS_UNLOCK_LEVEL}
+        currentLevel={7}
+        best={0}
+        onPress={vi.fn()}
+      />,
     );
     const texts = renderer.root.findAllByType('RNText' as never).map((n) => n.children.join(''));
     expect(texts.some((s) => s.includes("Unlocks after Level 10 — you're on 7"))).toBe(true);
@@ -77,6 +110,7 @@ describe('EndlessCard (PRD §7.6 / §7.11(e))', () => {
     const renderer = render(
       <EndlessCard
         unlocked={false}
+        unlockLevel={ENDLESS_UNLOCK_LEVEL}
         currentLevel={ENDLESS_UNLOCK_LEVEL}
         best={0}
         onPress={vi.fn()}
@@ -92,7 +126,13 @@ describe('EndlessCard (PRD §7.6 / §7.11(e))', () => {
   it('the locked progress bar never reads 100% while the padlock is up, and hits 100% exactly when it lifts', () => {
     const fillWidth = (currentLevel: number): string => {
       const renderer = render(
-        <EndlessCard unlocked={false} currentLevel={currentLevel} best={0} onPress={vi.fn()} />,
+        <EndlessCard
+          unlocked={false}
+          unlockLevel={ENDLESS_UNLOCK_LEVEL}
+          currentLevel={currentLevel}
+          best={0}
+          onPress={vi.fn()}
+        />,
       );
       const track = renderer.root.findAll(
         (n) => typeof n.type === 'string' && flattenStyle(n.props.style).overflow === 'hidden',
@@ -111,7 +151,13 @@ describe('EndlessCard (PRD §7.6 / §7.11(e))', () => {
 
   it('a11y: the locked label announces the unlock status, not just "locked" (§15)', () => {
     const renderer = render(
-      <EndlessCard unlocked={false} currentLevel={7} best={0} onPress={vi.fn()} />,
+      <EndlessCard
+        unlocked={false}
+        unlockLevel={ENDLESS_UNLOCK_LEVEL}
+        currentLevel={7}
+        best={0}
+        onPress={vi.fn()}
+      />,
     );
     // `accessible` collapses the card into ONE node, so the subtitle text is
     // NOT independently announced — the label has to carry it.
@@ -124,13 +170,27 @@ describe('EndlessCard (PRD §7.6 / §7.11(e))', () => {
 
   it('a11y: the unlocked label announces the personal best — the one thing §7.6 tracks', () => {
     const withBest = render(
-      <EndlessCard unlocked currentLevel={12} best={12480} onPress={vi.fn()} />,
+      <EndlessCard
+        unlocked
+        unlockLevel={ENDLESS_UNLOCK_LEVEL}
+        currentLevel={12}
+        best={12480}
+        onPress={vi.fn()}
+      />,
     );
     expect(String(withBest.root.findByType('RNPressable' as never).props.accessibilityLabel)).toBe(
       'Play Endless. Your best 12,480',
     );
 
-    const empty = render(<EndlessCard unlocked currentLevel={12} best={0} onPress={vi.fn()} />);
+    const empty = render(
+      <EndlessCard
+        unlocked
+        unlockLevel={ENDLESS_UNLOCK_LEVEL}
+        currentLevel={12}
+        best={0}
+        onPress={vi.fn()}
+      />,
+    );
     expect(String(empty.root.findByType('RNPressable' as never).props.accessibilityLabel)).toBe(
       'Play Endless. Set your first record',
     );
@@ -138,7 +198,13 @@ describe('EndlessCard (PRD §7.6 / §7.11(e))', () => {
 
   it('every text on the LOCKED card clears the 4.5:1 floor against its real composited background', () => {
     const renderer = render(
-      <EndlessCard unlocked={false} currentLevel={7} best={0} onPress={vi.fn()} />,
+      <EndlessCard
+        unlocked={false}
+        unlockLevel={ENDLESS_UNLOCK_LEVEL}
+        currentLevel={7}
+        best={0}
+        onPress={vi.fn()}
+      />,
     );
     const measured = collectTextContrast(renderer.root, SCREEN);
     // Title + subtitle: if either stops rendering, this test must not quietly
@@ -154,7 +220,13 @@ describe('EndlessCard (PRD §7.6 / §7.11(e))', () => {
 
   it('every text on the UNLOCKED card clears the 4.5:1 floor (incl. the CTA on gold and the best row on its inset)', () => {
     const renderer = render(
-      <EndlessCard unlocked currentLevel={12} best={12480} onPress={vi.fn()} />,
+      <EndlessCard
+        unlocked
+        unlockLevel={ENDLESS_UNLOCK_LEVEL}
+        currentLevel={12}
+        best={12480}
+        onPress={vi.fn()}
+      />,
     );
     const measured = collectTextContrast(renderer.root, SCREEN);
     expect(measured.length).toBeGreaterThanOrEqual(5);
@@ -168,7 +240,13 @@ describe('EndlessCard (PRD §7.6 / §7.11(e))', () => {
 
   it("the locked progress bar's fill clears the 3:1 non-text floor against its own track", () => {
     const renderer = render(
-      <EndlessCard unlocked={false} currentLevel={7} best={0} onPress={vi.fn()} />,
+      <EndlessCard
+        unlocked={false}
+        unlockLevel={ENDLESS_UNLOCK_LEVEL}
+        currentLevel={7}
+        best={0}
+        onPress={vi.fn()}
+      />,
     );
     // Walk down to the bar off the tree: the card surface, then the only
     // clipped track inside it, then the fill it contains.

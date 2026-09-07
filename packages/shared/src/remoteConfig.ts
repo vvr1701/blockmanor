@@ -23,6 +23,11 @@ export const REMOTE_CONFIG_DEFAULTS = {
   flag_manor: false,
   flag_events: false,
 
+  // --- Modes (§7.6) ---
+  /** §7.6 Endless gate. "Unlocked after Level 10" means `currentLevel > 10`
+   * — completed and moved on, not mid-attempt on 10 (§0 v1.18). */
+  endless_unlock_level: 10,
+
   // --- Engine & scoring (§6.4, §6.6) ---
   mercy_threshold: 0.55,
   mercy_small_prob: 0.65,
