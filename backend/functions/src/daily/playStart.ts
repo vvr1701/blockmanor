@@ -1,6 +1,6 @@
 /**
- * §8.3's play-start callable — the only way a client ever gets the key to the
- * §8.2 sealed piece sequence.
+ * §8.3's play-start callable — the only way a client ever gets today's §8.2
+ * piece sequence out of its seal.
  *
  * Two jobs, in this order, and the order is the feature:
  *  1. **Consume the attempt.** §8.3: "Abandoning mid-run (app kill) = attempt
@@ -9,22 +9,23 @@
  *     idempotency primitive §8.2's publication uses, chosen for the same reason:
  *     a read-then-write would let two concurrent calls both see "not started"
  *     and both hand out a key. `create()` cannot.
- *  2. **Hand over the key**, and only then. A crash between the two leaves the
- *     attempt spent and the player without a key, which is the correct side to
+ *  2. **Hand over the piece sequence**, and only then. A crash between the two leaves the
+ *     attempt spent and the player without a sequence, the correct side to
  *     fail on: the opposite order lets an app-kill-after-response mint a fresh
  *     attempt, and that is precisely what §8.3 forbids. It is also
  *     indistinguishable, server-side, from the app-kill §8.3 already rules on.
  *
- * What does NOT leave this process: `DAILY_BOARD_SALT`, the day seed, and the
- * attempt seed (§16 — "daily-board salt only in Functions config"). The client
- * gets one derived 32-byte key that opens exactly one day's sequence and says
- * nothing about any other day's, because `sequenceKey` is an HMAC of a
- * salt-derived seed (§8.2, PRD v1.14).
+ * What does NOT leave this process: `DAILY_BOARD_SALT`, the day seed, the
+ * attempt seed, and the derived `sequenceKey` (§16 — "daily-board salt only in
+ * Functions config"). The client gets one day's piece list and nothing that
+ * would let it open any other day's, because every day's key is an independent
+ * HMAC of a salt-derived seed (§8.2, PRD v1.14).
  *
  * Remote Config is not read here. The daily path plays from the frozen snapshot
  * only (§8.2 / PRD v1.7).
  */
 
+import { type PieceId } from '@blockmanor/engine';
 import {
   DAILY_ATTEMPTS_SUBCOLLECTION,
   DAILY_BOARDS_COLLECTION,
@@ -36,7 +37,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions/v2';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
 import { DAILY_BOARD_SALT, isAlreadyExists } from './publish';
-import { attemptSeed, dailySeed, sequenceKey } from './seal';
+import { attemptSeed, dailySeed, openSequence } from './seal';
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -51,8 +52,23 @@ const DAY_MS = 86_400_000;
  */
 export interface PlayStartResult {
   date: string;
-  /** Base64 of the raw 32-byte `sequenceKey` (§8.2). AES-256-GCM, per `alg`. */
-  sequenceKey: string;
+  /**
+   * The OPENED §8.2 piece sequence, not the key that opens it.
+   *
+   * The security property §8.2/§8.3 buys is that the sequence is unreadable
+   * before `activatesAt` and that the attempt is consumed before anything is
+   * handed over. Both hold identically either way: once this call has consumed
+   * the attempt and responded, plaintext discloses exactly what the key
+   * discloses. The key's only remaining advantage was payload size, and
+   * `daily_piece_count` is 60 three-character ids.
+   *
+   * Against that, handing over the key forces an AES-256-GCM implementation
+   * into React Native, where `node:crypto` does not exist — a native crypto
+   * dependency, permanently in the build, to decrypt something the server can
+   * simply send. The seal still does its whole job: it is what keeps the
+   * sequence unreadable in `dailyBoards/{date}` until this callable opens it.
+   */
+  sequence: PieceId[];
   /** Echoed so the client's countdown/attempt badge runs off server time. */
   startedAt: string;
 }
@@ -142,8 +158,11 @@ export async function startDailyAttempt(
   logger.info('daily_play_start: attempt opened', { date, uid, revision: board.revision });
   return {
     date,
-    sequenceKey: sequenceKey(attemptSeed(dailySeed(secretSalt, date), board.revision)).toString(
-      'base64',
+    // The salt, the day seed and the attempt seed all stay inside this call —
+    // only the plaintext they authorise comes out (§16).
+    sequence: openSequence(
+      attemptSeed(dailySeed(secretSalt, date), board.revision),
+      board.engineConfig.pieceSequence,
     ),
     startedAt: new Date(now).toISOString(),
   };

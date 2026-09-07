@@ -20,6 +20,7 @@ import {
   REMOTE_CONFIG_DEFAULTS,
   USERS_COLLECTION,
   parseDailyBoardDoc,
+  type DailyBoardDoc,
 } from '@blockmanor/shared';
 import { getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
@@ -42,7 +43,8 @@ vi.mock('firebase-admin/remote-config', () => ({
 
 const { publishDailyBoard } = await import('../src/daily/publish');
 const { startDailyAttempt } = await import('../src/daily/playStart');
-const { openSequenceWithKey } = await import('../src/daily/seal');
+const { attemptSeed, dailySeed, openSequenceWithKey, sequenceKey } =
+  await import('../src/daily/seal');
 
 /** Injected, never the deployed value — `DAILY_BOARD_SALT` is not provisioned. */
 const SALT = 'test-salt-not-the-real-one';
@@ -79,31 +81,46 @@ beforeEach(async () => {
   await publishDailyBoard(DATE, SALT, '2026-08-08T23:45:00.000Z');
 });
 
+async function board(date = DATE): Promise<DailyBoardDoc> {
+  return parseDailyBoardDoc(
+    (await getFirestore().collection(DAILY_BOARDS_COLLECTION).doc(date).get()).data(),
+  );
+}
+
 /** Mid-day on D, well inside the board's live window. */
 const middayOf = (activatesAt: number): number => activatesAt + 12 * 3_600_000;
 
-describe('§8.3 play-start — the key', () => {
-  it('returns a key that actually opens the published sequence, and nothing else', async () => {
-    const result = await startDailyAttempt(UID, DATE, SALT, middayOf(ACTIVATES_AT));
+/** The §8.2 key for a board, derived the way generation derived it. */
+const keyFor = (board: DailyBoardDoc): Buffer =>
+  sequenceKey(attemptSeed(dailySeed(SALT, board.date), board.revision));
 
-    const board = parseDailyBoardDoc(
-      (await getFirestore().collection(DAILY_BOARDS_COLLECTION).doc(DATE).get()).data(),
+describe('§8.3 play-start — the sequence', () => {
+  it('returns the plaintext the published seal opens to, and nothing else', async () => {
+    const result = await startDailyAttempt(UID, DATE, SALT, middayOf(ACTIVATES_AT));
+    const doc = await board();
+
+    // The seam that makes this a real assertion rather than "60 strings came
+    // back": the sequence is opened independently, from the sealed blob in the
+    // published document under the key generation derived, and must be the very
+    // same list. A callable that invented, reordered or truncated a sequence
+    // fails here.
+    expect(result.sequence).toStrictEqual(
+      openSequenceWithKey(keyFor(doc), doc.engineConfig.pieceSequence),
     );
-    const sequence = openSequenceWithKey(
-      Buffer.from(result.sequenceKey, 'base64'),
-      board.engineConfig.pieceSequence,
-    );
-    expect(sequence).toHaveLength(PIECE_COUNT);
-    expect(board.engineConfig.pieceCount).toBe(PIECE_COUNT);
+    expect(result.sequence).toHaveLength(PIECE_COUNT);
+    expect(doc.engineConfig.pieceCount).toBe(PIECE_COUNT);
 
     // §16: the salt never leaves the server, and neither does anything it can be
-    // derived from. The response is exactly the three specced fields.
-    expect(Object.keys(result).sort()).toStrictEqual(['date', 'sequenceKey', 'startedAt']);
-    expect(JSON.stringify(result)).not.toContain(SALT);
-    expect(Buffer.from(result.sequenceKey, 'base64')).toHaveLength(32);
+    // derived from — including the key itself. The response is exactly the
+    // three specced fields.
+    expect(Object.keys(result).sort()).toStrictEqual(['date', 'sequence', 'startedAt']);
+    const wire = JSON.stringify(result);
+    expect(wire).not.toContain(SALT);
+    expect(wire).not.toContain(keyFor(doc).toString('base64'));
+    expect(wire).not.toContain(doc.engineConfig.pieceSequence.ct);
   });
 
-  it("gives a different day's key nothing to say about this day's", async () => {
+  it("hands out this day's sequence, not another day's", async () => {
     await publishDailyBoard('2026-08-10', SALT, '2026-08-09T23:45:00.000Z');
     const today = await startDailyAttempt(UID, DATE, SALT, middayOf(ACTIVATES_AT));
     const tomorrow = await startDailyAttempt(
@@ -112,17 +129,13 @@ describe('§8.3 play-start — the key', () => {
       SALT,
       middayOf(Date.UTC(2026, 7, 10)),
     );
-    expect(tomorrow.sequenceKey).not.toBe(today.sequenceKey);
+    expect(tomorrow.sequence).not.toStrictEqual(today.sequence);
 
-    const board = parseDailyBoardDoc(
-      (await getFirestore().collection(DAILY_BOARDS_COLLECTION).doc(DATE).get()).data(),
-    );
-    expect(() =>
-      openSequenceWithKey(
-        Buffer.from(tomorrow.sequenceKey, 'base64'),
-        board.engineConfig.pieceSequence,
-      ),
-    ).toThrow();
+    // And the two seals stay independent (§8.2 v1.14): one day's key is useless
+    // against another day's blob, which is what the two-HMAC derivation buys.
+    const doc = await board();
+    const tomorrowKey = keyFor(await board('2026-08-10'));
+    expect(() => openSequenceWithKey(tomorrowKey, doc.engineConfig.pieceSequence)).toThrow();
   });
 });
 
