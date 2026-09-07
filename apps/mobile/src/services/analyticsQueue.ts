@@ -3,6 +3,7 @@ import { MMKV } from 'react-native-mmkv';
 import { REMOTE_CONFIG_DEFAULTS } from '@blockmanor/shared';
 import { useConfigStore } from '../state/useConfigStore';
 import { installId, newId, sessionId } from './analyticsIdentity';
+import { getFirebaseAnalytics } from './firebase';
 
 /**
  * §14 analytics-infra runtime queue — apps/mobile side of the on-device
@@ -42,22 +43,93 @@ export function isAnalyticsConsentGranted(): boolean {
 }
 
 /**
- * §14 "transport — explicitly NOT in this pass." `@react-native-firebase/*`
- * is operator-approved but `google-services.json` isn't provisioned yet, so
- * there is no reachable transport. This REJECTS rather than resolving, so
- * the queue's normal failure path (stop draining, leave events queued,
- * retry next flush) is exercised honestly — a stub that resolved would make
- * the debug overlay lie about delivery. The next transport pass replaces
- * only this function's body — NOT with a bare
- * `@react-native-firebase/analytics().logEvent(event.name, event.params)`,
- * which would silently drop `event.installId`, `event.sessionId`, and the
- * idempotency `event.id` (requirements 3 and 4). Carry all three through,
- * e.g. `logEvent(event.name, { ...event.params, installId: event.installId,
- * sessionId: event.sessionId, id: event.id })`. The queue, identity, and
- * overlay are all transport-agnostic and need no change for that pass.
+ * A send that will NEVER succeed on a retry — Firebase rejects the event name
+ * itself (reserved name, reserved prefix, or a name failing its
+ * `/^[a-zA-Z][a-zA-Z0-9_]{0,39}$/` rule), which it reports by throwing
+ * synchronously before any native call. `flush()` drops these instead of
+ * retrying the head forever; anything else is treated as transient.
  */
-export const defaultSender: AnalyticsSender = () =>
-  Promise.reject(new Error('analytics transport not configured — no Firebase provider wired yet'));
+export class PermanentSendError extends Error {}
+
+/**
+ * The three non-§14 fields every dispatched event carries (§14 requirements 3
+ * and 4). Exported as a named helper ONLY so the compile-time collision guard
+ * in `firebase.test.ts` can derive its param names from `TransportField`
+ * rather than restating them: a hand-written union drifts, and an audit
+ * proved it — a fourth field named `step` (a real `ftue_step` param) passed
+ * both `tsc` and all 370 tests.
+ *
+ * The idempotency id ships as `event_id`, never `id`: four §14 Core events
+ * declare `id` as the LEVEL id, and sending it as `id` put a random UUID in
+ * the column the §14 level funnel is built on.
+ */
+export function transportFields(event: QueuedEvent): {
+  installId: string;
+  sessionId: string;
+  event_id: string;
+} {
+  return { installId: event.installId, sessionId: event.sessionId, event_id: event.id };
+}
+
+/** The param names `transportFields` occupies — the collision guard's input. */
+export type TransportField = keyof ReturnType<typeof transportFields>;
+
+/**
+ * §14 transport — `@react-native-firebase/analytics` (operator-approved; the
+ * `firebase` JS SDK cannot do Analytics on React Native).
+ *
+ * Uses the Analytics INSTANCE method, not the modular `logEvent()` free
+ * function: the latter is typed `void` and does `void analytics.logEvent(...)`
+ * internally (RNFB 26.4.0 `analytics/lib/index.ts`), discarding the promise —
+ * awaiting it would resolve instantly and the queue would delete an event that
+ * never reached Firebase, breaking the §14 at-least-once guarantee. The
+ * instance method returns the real promise.
+ *
+ * Carries `installId`, `sessionId` and the idempotency id (as `event_id`)
+ * through as params (§14 requirements 3 and 4): a bare
+ * `logEvent(event.name, event.params)` would silently drop all three. The
+ * transport fields go FIRST and `...event.params` LAST so a §14 param can
+ * never be clobbered by transport metadata — four §14 Core events already
+ * declare `id` as the LEVEL id, which is why the idempotency key is NOT sent
+ * as `id`. `firebase.test.ts` carries a compile-time guard that reds if any
+ * §14 param name ever collides with one of these three.
+ *
+ * Rejects — never resolves falsely — when no native Firebase app is present,
+ * so the queue's normal failure path (stop draining, leave events queued,
+ * retry next flush) still runs honestly offline (§12.4) and the debug overlay
+ * never lies about delivery.
+ */
+export const defaultSender: AnalyticsSender = async (event) => {
+  const analytics = getFirebaseAnalytics();
+  if (!analytics) throw new Error('analytics transport not configured — no native Firebase app');
+  let sent: Promise<void>;
+  try {
+    sent = analytics.logEvent(event.name, {
+      ...transportFields(event),
+      // LAST, always. `transportFields` names the §14 collision guard's whole
+      // input, but ordering is the second, independent protection: even a
+      // field the guard has not yet learned about cannot clobber a §14 param
+      // from here. The two cover each other's gaps — see the tests pinning
+      // both, added after an audit found each individually reversible.
+      ...event.params,
+    });
+  } catch (error) {
+    // Name/param validation throws synchronously and will never pass on a
+    // retry — surface it as permanent so one bad event can't wedge the queue.
+    //
+    // NIT-C, named because it is a SILENT total-loss shape: RNFB also throws
+    // synchronously here when the Analytics native module is not linked (an
+    // app registered without the pod/Gradle plugin). Every event is then
+    // classified permanent and dropped, and `dropped_count` never reaches
+    // BigQuery because nothing ever dispatches — so the funnel is empty rather
+    // than visibly broken. Dropping still beats wedging (it IS permanent for
+    // the process), and the honest fix is not a code change: a preview APK
+    // shows it immediately in the debug overlay, which is why CLAUDE.md's
+    // "analytics events verified in debug view" DoD is a device gate.
+    throw new PermanentSendError(error instanceof Error ? error.message : String(error));
+  }
+  await sent;
+};
 
 interface PersistedQueueV1 {
   events: QueuedEvent[];
@@ -187,16 +259,29 @@ export class AnalyticsQueue {
         // event's to clear.
         const attached = outgoing !== head ? this.pendingDroppedCount : 0;
         this.inFlightId = head.id;
+        let permanentlyUnsendable = false;
         try {
           await this.sender(outgoing);
-        } catch {
-          break; // no transport / send failed — leave it queued, try later
+        } catch (error) {
+          // Transient (offline, native error): leave it queued, try later.
+          if (!(error instanceof PermanentSendError)) break;
+          // Permanent (Firebase rejects the event name itself): retrying can
+          // only fail again, and `flush()` is strict head-of-line, so keeping
+          // it would block every later event on this install forever. Drop it.
+          permanentlyUnsendable = true;
         } finally {
           this.inFlightId = null;
         }
         // Per-event removal (requirement 4): only this id, only after ITS
         // own send resolved — never a batch-wide clear.
         this.events = this.events.filter((e) => e.id !== head.id);
+        if (permanentlyUnsendable) {
+          // Counted like a cap eviction so the loss still reaches BigQuery as
+          // `dropped_count` on the next event that does dispatch (§14 v1.15).
+          // `attached` is deliberately NOT cleared: this event never landed.
+          this.pendingDroppedCount += 1;
+          continue;
+        }
         // Subtract, never zero — a drop attached to a LATER event (from
         // in-flight overflow) must survive this delivery.
         if (attached > 0)
@@ -275,7 +360,7 @@ export class AnalyticsQueue {
 }
 
 /** App-wide singleton. Real MMKV namespace, live [RC] cap, background flush
- * on. No real transport yet (see `defaultSender` above). */
+ * on, Firebase Analytics transport (see `defaultSender` above). */
 export const analyticsQueue = new AnalyticsQueue({
   sender: defaultSender,
   getCap: () => useConfigStore.getState().value('analytics_queue_cap'),

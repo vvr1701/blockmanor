@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -7,6 +7,7 @@ import { colors } from './components/tokens';
 import { DEV_BOARD_ENABLED, FTUE_FORCE_REPLAY } from './game/devFlag';
 import { createDemoGameState } from './game/demoGameState';
 import { LevelSession } from './game/LevelSession';
+import { initFirebase } from './services/firebase';
 import { EndlessScreen } from './screens/EndlessScreen';
 import { FtueScreen } from './screens/FtueScreen';
 import { GameplayScreen } from './screens/GameplayScreen';
@@ -29,6 +30,12 @@ import { useMetaStore } from './state/useMetaStore';
  * harmless everywhere else, `HomeScreen` has no gestures yet.
  */
 export default function App(): React.JSX.Element {
+  // §4.1/§13 cold-start bootstrap: anonymous auth + the Remote Config fetch.
+  // In an effect and never awaited, so first paint doesn't wait on the network
+  // (§7.11); a no-op when Firebase is absent (§12.4).
+  useEffect(() => {
+    initFirebase();
+  }, []);
   const [devBoard, setDevBoard] = useState(false);
   // §7.5 progression loop: Home's "PLAY — Level N" CTA mounts `LevelSession`
   // (real level, from `useMetaStore.currentLevel`); its own exit paths ("Level

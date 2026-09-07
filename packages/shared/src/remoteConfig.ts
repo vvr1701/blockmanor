@@ -108,7 +108,20 @@ export const REMOTE_CONFIG_DEFAULTS = {
 } as const satisfies Record<string, RemoteConfigValue>;
 
 export type RemoteConfigKey = keyof typeof REMOTE_CONFIG_DEFAULTS;
-export type RemoteConfigSnapshot = { [K in RemoteConfigKey]: (typeof REMOTE_CONFIG_DEFAULTS)[K] };
+/**
+ * The snapshot `useConfigStore` holds. Keys stay exact (the registry is the
+ * contract, PRD §13), but each value widens to its PRIMITIVE type: the
+ * defaults object is `as const`, so without this a fetched override like
+ * `applySnapshot({ mercy_threshold: 0.91 })` fails to typecheck against the
+ * literal type `0.55`.
+ */
+export type RemoteConfigSnapshot = {
+  [K in RemoteConfigKey]: (typeof REMOTE_CONFIG_DEFAULTS)[K] extends boolean
+    ? boolean
+    : (typeof REMOTE_CONFIG_DEFAULTS)[K] extends number
+      ? number
+      : string;
+};
 
 /** PRD §13: RC fetch TTL — cold start plus this interval. */
 export const REMOTE_CONFIG_TTL_MS = 6 * 60 * 60 * 1000;

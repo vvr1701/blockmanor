@@ -33,6 +33,11 @@ export default defineConfig({
       'expo-status-bar': path.resolve(mocks, 'expo-status-bar.ts'),
       'expo-constants': path.resolve(mocks, 'expo-constants.ts'),
       'react-native-mmkv': path.resolve(mocks, 'react-native-mmkv.ts'),
+      // The RNFB entry points share one stand-in (test/mocks/react-native-firebase.ts).
+      '@react-native-firebase/app': path.resolve(mocks, 'react-native-firebase.ts'),
+      '@react-native-firebase/auth': path.resolve(mocks, 'react-native-firebase.ts'),
+      '@react-native-firebase/analytics': path.resolve(mocks, 'react-native-firebase.ts'),
+      '@react-native-firebase/remote-config': path.resolve(mocks, 'react-native-firebase.ts'),
     },
   },
 });
