@@ -244,24 +244,26 @@ export function LevelSession({ onExit, onLevelMap }: LevelSessionProps): React.J
   );
 
   const handleNext = useCallback(() => {
-    // §7.5 audit M-1: `MAX_LEVEL_ID` is the last shipped level — advancing
-    // past it persists a `currentLevel` `getLevel` can never resolve, which
-    // bricks Home's "PLAY — Level N" CTA forever (§12.9 dead end).
-    // §7.10's `LevelMapScreen` (the honest "what's next past L60" screen) is
-    // a later session; until it exists, the one real action at the content
-    // ceiling is the same one every other "nothing honest to play" path in
-    // this file already takes — back to the real, already-built Home.
-    if (currentLevel >= MAX_LEVEL_ID) {
-      onExit();
-      return;
-    }
+    // §7.10 defect fix (qa-prd-auditor M-7, raised via §7.11's chest badge):
+    // this used to stop `currentLevel` AT `MAX_LEVEL_ID` forever on a win,
+    // reasoning (§7.5 audit M-1, when this file predated `LevelMapScreen`)
+    // that advancing past it left `getLevel` unable to resolve a level and
+    // bricked Home's CTA. `LevelMapScreen` exists now, and BOTH it and
+    // `selectBadges.mapChestReady` read the L60 chest as claimable only once
+    // `currentLevel > MAX_LEVEL_ID` — clamping here meant `courtyard_crest`
+    // (§7.10's L60 chest reward) could never be granted to anyone.
+    // Always advance. The run-start effect above already resets `phase` off
+    // `json`, and the separate "past the shipped range — exit rather than
+    // render a dead end" effect already bounces to Home the moment `getLevel`
+    // returns `undefined` for the new `currentLevel` — the exact same "nothing
+    // honest to play" case this special-case used to handle by hand.
     setCurrentLevel(currentLevel + 1);
     // Not `1`: a level reached a second time (today only via a corrected or
     // rolled-back save — §7.10's map specs medallions, chests and
     // scroll-to-current, no replay affordance) resumes its own persisted
     // count rather than faking a first attempt. §0 v1.17 (i).
     setAttempt(nextAttempt(currentLevel + 1));
-  }, [currentLevel, setCurrentLevel, onExit]);
+  }, [currentLevel, setCurrentLevel]);
 
   const handleRetry = useCallback(() => {
     // The same persisted read `handleNext` uses, not `a + 1` off session

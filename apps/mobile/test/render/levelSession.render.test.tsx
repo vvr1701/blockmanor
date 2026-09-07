@@ -36,7 +36,7 @@ import { GameplayScreen } from '../../src/screens/GameplayScreen';
 import { WinScreen } from '../../src/screens/WinScreen';
 import { FailScreen } from '../../src/screens/FailScreen';
 import { mmkvStorage } from '../../src/state/persist';
-import { useMetaStore } from '../../src/state/useMetaStore';
+import { selectBadges, useMetaStore } from '../../src/state/useMetaStore';
 
 vi.mock('../../src/services/analytics', () => ({ track: vi.fn() }));
 
@@ -256,7 +256,7 @@ beforeEach(() => {
   trackMock.mockClear();
   // `attempts` is persisted per level id (§0 v1.17) — reset it too, or one
   // test's retries become the next test's starting attempt number.
-  useMetaStore.setState({ currentLevel: 10, attempts: {}, stars: {} });
+  useMetaStore.setState({ currentLevel: 10, attempts: {}, stars: {}, chestsClaimed: {} });
 });
 
 afterEach(() => {
@@ -535,7 +535,15 @@ describe('LevelSession (PRD §7.5 progression loop)', () => {
     },
   );
 
-  it('winning AT MAX_LEVEL_ID exits instead of persisting an unreachable currentLevel — §7.5 audit M-1', () => {
+  it('winning AT MAX_LEVEL_ID advances currentLevel past it, then exits (§7.10 defect fix, qa-prd-auditor M-7)', () => {
+    // Was §7.5 audit M-1's "clamp at MAX_LEVEL_ID forever" — that clamp is
+    // what made the §7.10 L60 chest (`selectBadges.mapChestReady` /
+    // `LevelMapScreen`'s `buildMapNodes`, both gated on `currentLevel >
+    // MAX_LEVEL_ID`) permanently unclaimable. `LevelMapScreen` and its "past
+    // the content ceiling" state exist now, so advancing is safe: `getLevel`
+    // returning `undefined` for the new level is what actually triggers the
+    // exit, via the same "nothing honest to play" effect every other
+    // unreachable-level path in `LevelSession` already uses.
     useMetaStore.setState({ currentLevel: MAX_LEVEL_ID });
     const onExit = vi.fn();
     const renderer = render(<LevelSession onExit={onExit} />);
@@ -547,10 +555,13 @@ describe('LevelSession (PRD §7.5 progression loop)', () => {
       (win.props as { onNext: () => void }).onNext();
     });
 
-    // Real action (Home), not a silent no-op, and `currentLevel` never
-    // advances past what `getLevel` can resolve.
     expect(onExit).toHaveBeenCalledTimes(1);
-    expect(useMetaStore.getState().currentLevel).toBe(MAX_LEVEL_ID);
+    expect(useMetaStore.getState().currentLevel).toBe(MAX_LEVEL_ID + 1);
+    // The whole point of the fix, asserted directly (qa-prd-auditor M-7's
+    // own ask): L60's chest — `courtyard_crest`, previously unreachable by
+    // anyone — is now claimable via the SAME `selectBadges` §7.11 already
+    // reads for the HUD map dot.
+    expect(selectBadges(useMetaStore.getState()).mapChestReady).toBe(true);
   });
 
   /**
