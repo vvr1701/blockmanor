@@ -997,6 +997,50 @@ turbo dispatches into each package's own directory. The `Expected 'from', got
 'typeOf'` rollup failure afflicts only `pnpm exec vitest run <path>` from the
 root. The gotchas section overstated it.
 
+### S11 — WP-1 fix pass, WP-4a payload ruling, §15.1 guard (2026-09-07)
+
+**WP-1 `chore/rnfirebase-transport` 38b7f73 — all 3 BLOCKERs + 5 MAJORs
+fixed, 23 mutations all red (four were green before).** The two that mattered
+are fixed structurally, not patched:
+- B-1: transport fields now go FIRST and `...event.params` LAST, so a §14
+  param wins any future collision by construction; the idempotency key ships
+  as `event_id`. Plus a compile-time collision guard — **whose first version
+  was itself tautological** (`const x: Collision[] = []`; an empty array is
+  assignable to any element type, so a real collision passed). The agent
+  caught that itself and replaced it with the constraint form. That is the
+  discipline this repo has been missing.
+- M-1: switched off the modular `logEvent` free function (typed `void`,
+  discards its promise internally) to the Analytics INSTANCE method typed
+  `Promise<void>`. The queue's at-least-once guarantee now actually holds past
+  the JS boundary instead of dequeuing on false success.
+- B-3: RNFB plugins are wired only when a credential file is present, so a
+  build without them degrades to the §12.4 offline path instead of throwing.
+  **OPERATOR ACTION — see AWAITING HUMAN:** two EAS file secrets.
+Re-audit dispatched. Rule stands: if it fails twice, HARD STOP to the operator
+rather than a third iteration.
+
+**WP-4a `feat/8.3-playstart-callable` 545bb13 · `feat/8.5-submit-callable`
+b9599ab.** Play-start now returns the OPENED sequence per v1.19 (ii), and the
+test is stronger for it: it derives the key independently and asserts the
+callable's sequence is exactly what the published seal opens to, plus that the
+response leaks neither salt, key, nor ciphertext. Mutating the key to the
+wrong day reddens **9 of 14** tests — the seam is load-bearing, not
+decorative. Engine-drift alert added via the existing `raiseOpsAlert`, and
+**M23 pins the half of the ruling most likely to rot**: an honest submission
+against a drifted board is still accepted WITH its streak. Audit dispatched
+(CLAUDE.md mandates it for daily-board work).
+
+**§15.1 partial-drop guard merged (`chore/15.1-audio-manifest` -> 6adb375).**
+`docs/AUDIO_DROP.md` and `playCue`'s no-op are both correct and were not
+second-guessed. What neither covered is the state BETWEEN them. §15.1's rule —
+"every named cue MUST exist before its screen ships" — is not about an empty
+`assets/audio/`; that is today, loudly, and every cue is equally silent. It is
+about **seven of eight files present**, where the eighth moment goes quiet and
+nothing says so. The guard is green while the directory is absent, arms itself
+on the first file, and then fails by name. Mutation-verified 7-of-14 / 14-of-14
+/ invented-cue. **This closes the CODE half of §15.1** — the cue files stay an
+operator action and cannot be fabricated (§15.1 forbids placeholder sounds).
+
 ## Follow-ups (tracked, not blocking)
 
 - Wire `PauseSheet`'s settings row to `SettingsScreen` when §12.1 lands. It currently renders
