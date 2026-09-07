@@ -831,6 +831,71 @@ functions 55, mobile 353). typecheck, lint, format, test, balance all green.
 under audit) · WP-4a `feat/8.3-playstart-callable` + §8.5 (backend) · WP-2
 `feat/7.11-home`.
 
+### S8 — WP-1 audit: **FAIL** (3 BLOCKER, 5 MAJOR, 6 NIT) — 2026-09-07
+
+`chore/rnfirebase-transport` @ 099bd3a. The auditor rebuilt the mutation table
+from scratch (21 mutations, not the implementer's 12) and found **four that
+pass where they must red**, plus three defects the test mock actively hid.
+
+**B-1 — the transport clobbers §14's level id.** `{...event.params, id:
+event.id}` overwrites the LEVEL id with the queue's idempotency UUID on
+`level_start`/`level_complete`/`level_fail`/`level_quit`. §14 names the level
+funnel as a required Stage-1-beta dashboard; it would be built on a column of
+100% distinct values. **Root cause is the docblock at `analyticsQueue.ts:47-51`,
+whose worked example contains the bug — and my fix brief quoted it verbatim.**
+A spec'd example is not a spec. Invisible to the suite because the only
+transport test uses `ftue_step`, the one Core-adjacent event with no `id`.
+
+**B-2 — §13's 6h TTL is a no-op.** `remoteConfig.settings.minimumFetchInterval
+Millis = X` hits a **getter that returns a fresh object literal every call**
+(RNFB `lib/index.ts:167-173`), so the write lands on a temporary. Native
+default 12h stands. `tsc` cannot see it — the exported interface declares
+`settings` as a plain property. The MOCK cannot either — it returns a live
+shared reference, so the nested write persists there. **Two independent
+verification layers both blind to the same defect.**
+
+**B-3 — both platform builds hard-fail at prebuild.** The RNFB config plugin
+throws UNCONDITIONALLY, not when-configured: iOS because `ios.googleServices
+File` is unset; Android because `google-services.json` is gitignored and
+`eas.json` supplies no file secret. CLAUDE.md's documented
+`eas build -p android --profile preview` — the operator's only device check —
+fails. Runtime degrades offline correctly (§12.4); the BUILD does not.
+
+**M-1** `await logEvent(...)` cannot detect failure: the modular export returns
+`void` and discards the promise, so the queue dequeues and clears MMKV on a
+**false success**. The at-least-once guarantee does not hold past the JS
+boundary. **M-2** a reserved/malformed event name is now a permanent poison
+pill — strict head-of-line flush + synchronous RNFB throw + drop-oldest that
+never evicts the head. Inert before this branch (the sender always rejected);
+this branch arms it. **M-3** deleting the cold-start `useEffect` passes all 362
+tests. **M-4** hardcoding the singleton's `getCap` passes all 362 tests — so
+there is no tested path from a fetched RC value to any production call site.
+**M-5** `recordError` is dead code (my brief asked for the seam; the auditor is
+right that it should land with §12.8).
+
+**Confirmed sound, do not churn:** coercion/registry-iteration guards all red
+correctly · engine byte-untouched, corpus `538e3dea`, coverage 99.54% · secrets
+clean · reserved-name compile guard load-bearing · trial merge onto `main`
+@ ad1f5f5 is clean (disjoint hunks in `remoteConfig.ts`).
+
+**The lesson worth keeping:** a hand-written mock plus `tsc` is not
+verification of a native SDK — it verifies the code's shape against itself.
+B-2 and M-1 were only found by reading the SHIPPED RNFB SOURCE. Any future
+native-module work must include that step, and the mock must model the real
+semantics (getter copies, void returns), not the convenient ones.
+
+**One fix pass dispatched** per the standing rule. If it does not come back
+clean, HARD STOP to the operator rather than iterating.
+
+**Still unverifiable without hardware — drawn explicitly:** whether module-scope
+RNFB imports throw when the native module is absent (would be a hard boot
+crash; `analyticsQueue` is transitively imported by nearly every screen) ·
+whether the corrected TTL reaches native · whether anonymous auth persists
+across relaunch · **whether any event reaches the Firebase DebugView at all —
+CLAUDE.md's "analytics events verified in debug view" DoD is NOT met and cannot
+be met from CI** · `use_frameworks!: static` against Skia/Reanimated/gesture-
+handler pods · whether RNFB 26.4.0 compiles against RN 0.86.2 / Expo 57.
+
 ## Follow-ups (tracked, not blocking)
 
 - Wire `PauseSheet`'s settings row to `SettingsScreen` when §12.1 lands. It currently renders
