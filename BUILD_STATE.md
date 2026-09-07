@@ -1177,6 +1177,34 @@ fact in the whole flow.
 two mobile agents in parallel is what produced the nine-conflict §7.6 rebase;
 sequential branches satisfy CLAUDE.md rule 4 without that cost.
 
+### PRACTICE CHANGE — audit bar scoped (operator ruling, 2026-09-07)
+
+**Operator stopped the loop and chose this explicitly.** Full
+audit -> fix -> re-audit cycles run ONLY on what CLAUDE.md mandates:
+**engine, wallet, daily board, IAP, ads.** Everything else — UI screens,
+system screens, docs — is build + mutation-test + merge, with no separate
+auditor agent.
+
+**Why:** I had been applying the full cycle uniformly. On the mandated paths it
+earned its keep — it found the §8.5 streak back-fill, the Remote Config TTL
+that silently did nothing, the §14 `id` collision that would have built the
+level funnel on a random UUID, and a test with zero assertions. On UI branches
+it cost ~30 minutes of wall-clock each for findings a mutation test in the
+build pass would have caught. That is a bad trade and the operator was right
+to call it.
+
+**What does NOT change: mutation testing everywhere.** That is the cheap part
+and it is what actually catches guards-that-guard-nothing — seven consecutive
+audits here found one. Dropping the auditor agent is not dropping the standard
+of proof.
+
+**Also ruled: do not rabbit-hole on audit NITs.** I spent minutes pulling npm
+packages to verify an eas-cli version floor (an audit NIT) that turned out
+already correct. Fix BLOCKERs and MAJORs; defer NITs to a follow-up list.
+
+Applies from the §12.1 branch onward. The §8.5 re-audit already in flight
+stands — it is daily-board, i.e. mandated.
+
 ## Follow-ups (tracked, not blocking)
 
 - Wire `PauseSheet`'s settings row to `SettingsScreen` when §12.1 lands. It currently renders
