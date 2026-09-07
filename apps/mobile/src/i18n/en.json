@@ -27,5 +27,17 @@
   "ftue.nameAvatar.inputLabel": "Your name",
   "ftue.nameAvatar.avatarLabel": "Avatar {{n}}",
   "ftue.nameAvatar.cta": "Claim the manor",
-  "ftue.nameAvatar.guest": "or continue as Guest"
+  "ftue.nameAvatar.guest": "or continue as Guest",
+  "win.title": "Level Complete!",
+  "win.starsLabel": "{{stars}} of 3 stars",
+  "win.scoreLabel": "Score",
+  "win.next": "Next level",
+  "win.allShipped": "Back to Home",
+  "win.allShippedLine": "You've cleared every level shipped so far — nicely done!",
+  "fail.title": "Out of space!",
+  "fail.subtitle": "Level {{id}}",
+  "fail.goalLine": "{{label}} {{done}}/{{total}}",
+  "fail.soClose": "So close!",
+  "fail.retry": "Retry",
+  "fail.levelMap": "Level map"
 }

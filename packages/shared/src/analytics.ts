@@ -28,10 +28,48 @@ export interface FtueCompleteParams {
   guest: boolean;
 }
 
+/**
+ * §7.5 win/fail + the level-start beat that precedes them (§14: "level_start
+ * {id,attempt} · level_complete{...} · level_fail{...}"). `attempt` is §7.5's
+ * PERSISTED per-level counter (§0 v1.17, never a per-session one): 1-based,
+ * stored per level id in the §4.4 MMKV meta store, advanced once per run
+ * STARTED — including an abandoned run and the first run after an app
+ * relaunch, so `attempt: 1` means the genuine first run of that level on that
+ * install. §7.5's free/unlimited Stage-1 Retry bumps it. `continues`/
+ * `boosters_used` are named as permanent §14 API ahead of their Stage-2
+ * mechanics (§9.4/§9.3) — always `0` until those land, never omitted.
+ */
+export interface LevelStartParams {
+  id: number;
+  attempt: number;
+}
+
+export interface LevelCompleteParams {
+  id: number;
+  score: number;
+  /** 1-3, §7.5: star 1 = win, stars 2/3 = the level's `s2`/`s3` score thresholds. */
+  stars: number;
+  duration_s: number;
+  /** Stage-2 §9.4 continue count — always 0 in Stage 1 (no continue behavior yet). */
+  continues: number;
+  /** Stage-2 §9.3 booster count — always 0 in Stage 1 (no boosters yet). */
+  boosters_used: number;
+}
+
+export interface LevelFailParams {
+  id: number;
+  /** 0-100, rounded: aggregate goal completion at the moment the board died. */
+  goal_progress_pct: number;
+  fill_ratio: number;
+}
+
 /** Keyed by §14 event name; extend per-section as each PRD subsection lands. */
 export interface AnalyticsEvents {
   ftue_step: FtueStepParams;
   ftue_complete: FtueCompleteParams;
+  level_start: LevelStartParams;
+  level_complete: LevelCompleteParams;
+  level_fail: LevelFailParams;
 }
 
 export type AnalyticsEventName = keyof AnalyticsEvents;

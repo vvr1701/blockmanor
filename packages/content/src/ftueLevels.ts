@@ -19,3 +19,10 @@ import { levelSchema, type LevelJson } from './schema';
 export const FTUE_LEVELS: readonly LevelJson[] = [l1, l2, l3, l4, l5].map(
   (json) => levelSchema.parse(json) as LevelJson,
 );
+
+/** The first campaign level past FTUE (§7.1 v1.11: `FtueScreen` sets
+ * `currentLevel` to this on completion). Exported so anything that needs to
+ * know "where does a through-FTUE player start" — `FtueScreen` itself and
+ * `useMetaStore`'s persisted-save migration (§7.5 audit B-1) — reads the
+ * same number instead of each re-deriving `FTUE_LEVELS.length + 1`. */
+export const FIRST_POST_FTUE_LEVEL = FTUE_LEVELS.length + 1;

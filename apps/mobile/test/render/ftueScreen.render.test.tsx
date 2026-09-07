@@ -12,6 +12,7 @@
 import React from 'react';
 import TestRenderer, { act, type ReactTestRenderer } from 'react-test-renderer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { FIRST_POST_FTUE_LEVEL } from '@blockmanor/content';
 import { DragLayer } from '../../src/game/DragLayer';
 import { FtueCallout, FtueHandCursor } from '../../src/screens/FtueScreen/FtueOverlay';
 import { GameplayScreen } from '../../src/screens/GameplayScreen';
@@ -120,6 +121,10 @@ describe('FtueScreen (PRD §7.1 v1.11)', () => {
 
     expect(useMetaStore.getState().ftueComplete).toBe(true);
     expect(useMetaStore.getState().playerName).toBeNull();
+    // §7.5 re-audit item 7 — the L5->post-FTUE handoff this migration exists
+    // to patch: `currentLevel` must land on `FIRST_POST_FTUE_LEVEL`, not
+    // stay wherever L5's own play left it.
+    expect(useMetaStore.getState().currentLevel).toBe(FIRST_POST_FTUE_LEVEL);
 
     const steps = trackMock.mock.calls
       .filter(([name]) => name === 'ftue_step')

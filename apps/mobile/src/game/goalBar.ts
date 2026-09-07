@@ -10,6 +10,16 @@
 import type { GameState } from '@blockmanor/engine';
 import { spriteForObstacle, type MotifShape } from './obstacleSprites';
 
+/** i18n key per §7.8 goal type — shared by every screen that lists goal
+ * progress (`GameplayScreen`'s HUD goal bar, `FailScreen`'s §7.5 "Crates
+ * 9/12" line), so the type->label mapping lives in exactly one place. */
+export const GOAL_LABEL_KEY = {
+  crate: 'gameplay.goal.crate',
+  chain: 'gameplay.goal.chain',
+  ivy: 'gameplay.goal.ivy',
+  heirloom: 'gameplay.goal.heirloom',
+} as const;
+
 export interface GoalBarEntry {
   type: GameState['goals'][number]['type'];
   remaining: number;
@@ -29,4 +39,15 @@ export function deriveGoalBar(state: Pick<GameState, 'goals' | 'config'>): GoalB
     total: originals[i]?.count ?? goal.remaining,
     icon: spriteForObstacle(goal.type).motif,
   }));
+}
+
+/** Overall goal completion, 0-100 — one place for the calc both
+ * `LevelSession` (the §14 `level_fail.goal_progress_pct` param) and
+ * `FailScreen` (the §7.5 "so close" gate, audit mn-3) need, instead of two
+ * copies drifting apart. 0 for a goal-less config (nothing to be "close" to). */
+export function goalProgressPct(goals: readonly GoalBarEntry[]): number {
+  const total = goals.reduce((sum, g) => sum + g.total, 0);
+  if (total === 0) return 0;
+  const done = goals.reduce((sum, g) => sum + (g.total - g.remaining), 0);
+  return Math.round((100 * done) / total);
 }

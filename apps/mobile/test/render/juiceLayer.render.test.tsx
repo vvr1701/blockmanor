@@ -344,6 +344,12 @@ describe('JuiceLayer — PRD §7.4', () => {
       render(<JuiceLayer {...baseProps({ fill: 0.85 })} />);
       const repeat = mockAnimationCalls.find((c) => c.fn === 'withRepeat');
       expect(repeat).toBeDefined();
+      // §7.4 says "1.2s LOOP", so the rep count is load-bearing: asserting
+      // only that `withRepeat` was called lets `-1` mutate to any finite
+      // count and the pulse silently stop after N cycles (§12.2 audit NIT-5).
+      // -1 = infinite; `reverse` is what makes one rep a there-and-back cycle.
+      expect((repeat!.config as { numberOfReps?: number }).numberOfReps).toBe(-1);
+      expect((repeat!.config as { reverse?: boolean }).reverse).toBe(true);
       const halfCycles = mockAnimationCalls.filter(
         (c) =>
           c.fn === 'withTiming' &&

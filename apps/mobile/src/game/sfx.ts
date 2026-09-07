@@ -14,9 +14,10 @@
  * in `JuiceLayer.tsx`/`DragLayer.tsx` moves.
  */
 
-/** The §15.1 "Gameplay (from §7.4)" cue inventory — exactly the 8 names this
- * session's juice table calls, spelled exactly as §15.1 requires (file names
- * are permanent). */
+/** The §15.1 cue names this session's call sites reach: the "Gameplay (from
+ * §7.4)" 8 (`JuiceLayer`/`DragLayer`), plus the §7.5 audit mn-4 UI/reward
+ * cues (`GoldButton`, `GhostButton`, `WinScreen`) — spelled exactly as §15.1
+ * requires (file names are permanent). */
 export type SfxCue =
   | 'piece_pick'
   | 'snap_thock'
@@ -25,7 +26,10 @@ export type SfxCue =
   | 'perfect_gliss'
   | 'near_death_amb'
   | 'win_fanfare'
-  | 'fail_thud';
+  | 'fail_thud'
+  | 'btn_tap'
+  | 'btn_gold'
+  | 'star_slam';
 
 /**
  * No-op: blocked on audio assets (see header). `semitones` is accepted now
