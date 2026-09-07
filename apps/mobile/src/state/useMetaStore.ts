@@ -1,4 +1,4 @@
-import { FIRST_POST_FTUE_LEVEL } from '@blockmanor/content';
+import { CHEST_LEVELS, FIRST_POST_FTUE_LEVEL } from '@blockmanor/content';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { mmkvStorage } from './persist';
@@ -173,3 +173,24 @@ export const useMetaStore = create<MetaState>()(
     },
   ),
 );
+
+/**
+ * §7.11 "badge-dot logic centralized in `useMetaStore.badges`" — the ONE
+ * badge-computation surface every consumer reads, so the §0 v1.18 map
+ * affordance doesn't grow a second, independently-drifting dot mechanism.
+ * `dailyUnplayed` is the persisted flag §8.3 will eventually own; `mapChestReady`
+ * is deliberately NOT a persisted field — `chestsClaimed`/`currentLevel` are
+ * already the source of truth (`LevelMapScreen`'s own `buildMapNodes` derives
+ * the same "claimable" state from them), so storing a second boolean would
+ * only ever be a copy that can go stale. True the moment any L10/20/30…
+ * chest is past its unlock level and not yet claimed.
+ */
+export function selectBadges(state: MetaState): { dailyUnplayed: boolean; mapChestReady: boolean } {
+  const claimed = state.chestsClaimed ?? {};
+  return {
+    dailyUnplayed: state.badges.dailyUnplayed,
+    mapChestReady: CHEST_LEVELS.some(
+      (level) => state.currentLevel > level && !claimed[String(level)],
+    ),
+  };
+}
