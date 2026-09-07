@@ -7,12 +7,16 @@ import { colors } from './components/tokens';
 import { DEV_BOARD_ENABLED, FTUE_FORCE_REPLAY } from './game/devFlag';
 import { createDemoGameState } from './game/demoGameState';
 import { LevelSession } from './game/LevelSession';
-import { initFirebase } from './services/firebase';
+import { getInstalledVersion, isBelowMinVersion } from './services/appInfo';
+import { initFirebase, syncRemoteConfig } from './services/firebase';
 import { EndlessScreen } from './screens/EndlessScreen';
+import { ForceUpdateScreen } from './screens/ForceUpdateScreen';
 import { FtueScreen } from './screens/FtueScreen';
 import { GameplayScreen } from './screens/GameplayScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { LevelMapScreen } from './screens/LevelMapScreen';
+import { MaintenanceScreen } from './screens/MaintenanceScreen';
+import { useConfigStore } from './state/useConfigStore';
 import { useMetaStore } from './state/useMetaStore';
 
 /**
@@ -62,10 +66,35 @@ export default function App(): React.JSX.Element {
   const isReturningUser = ftueComplete || currentLevel > 1;
   const showFtue = FTUE_FORCE_REPLAY || !isReturningUser;
 
+  // §12.5 remote kill switch. Read directly off `useConfigStore` (which
+  // always holds at least the compiled §13 default, live-fetched values
+  // overlaid on top — never a network wait) and off the LOCAL installed
+  // version (`app.config.ts`'s baked-in `version`, not itself remote or
+  // network-dependent) — "must not depend on anything that could itself be
+  // the thing that is broken" (task brief). `useConfigStore` is a Zustand
+  // hook, so a live RC push that lands after cold start (§13's 6h TTL, or a
+  // manual `syncRemoteConfig()` retry from `MaintenanceScreen`) re-renders
+  // this exact check, which is what makes it a genuinely LIVE gate and not
+  // a cold-start-only snapshot.
+  const minSupportedVersion = useConfigStore((s) => s.value('min_supported_version'));
+  const maintenanceMode = useConfigStore((s) => s.value('maintenance_mode'));
+  const belowMinVersion = isBelowMinVersion(getInstalledVersion(), minSupportedVersion);
+
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
-        {DEV_BOARD_ENABLED && devBoard && demoState ? (
+        {/* §12.5 gates BEFORE every other branch below — including the dev
+            board escape hatch — so a below-minimum or maintenance build can
+            never reach FTUE, Home or gameplay by any route this file knows
+            about. `ForceUpdateScreen` takes no dismiss callback and nothing
+            else is mounted alongside it, so there is no sibling screen for a
+            stray callback or a back-press to reveal (see that screen's own
+            doc comment). */}
+        {belowMinVersion ? (
+          <ForceUpdateScreen minSupportedVersion={minSupportedVersion} />
+        ) : maintenanceMode ? (
+          <MaintenanceScreen onRetry={syncRemoteConfig} />
+        ) : DEV_BOARD_ENABLED && devBoard && demoState ? (
           <GameplayScreen initialState={demoState} />
         ) : showFtue ? (
           <FtueScreen />
