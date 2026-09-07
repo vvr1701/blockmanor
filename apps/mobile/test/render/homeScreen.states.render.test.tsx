@@ -9,13 +9,20 @@
  * other `*.render.test.tsx` file).
  */
 import React from 'react';
-import TestRenderer, { act, type ReactTestRenderer } from 'react-test-renderer';
+import TestRenderer, {
+  act,
+  type ReactTestInstance,
+  type ReactTestRenderer,
+} from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { colors as contrastColors } from '../../src/components/tokens';
-import { collectTextContrast } from '../contrast';
+import { collectTextContrast, flattenStyle } from '../contrast';
 import { HomeScreen } from '../../src/screens/HomeScreen';
 import { HudBar } from '../../src/screens/HomeScreen/HudBar';
 import { BottomNav } from '../../src/screens/HomeScreen/BottomNav';
+import { EventBannerSlot } from '../../src/screens/HomeScreen/EventBannerSlot';
+import { DailyBoardTile } from '../../src/screens/HomeScreen/DailyBoardTile';
+import { HUD_ECONOMY_SLOT_WIDTH, HUD_ICON_SIZE } from '../../src/screens/HomeScreen/homeTokens';
 import { useConfigStore } from '../../src/state/useConfigStore';
 import { useMetaStore } from '../../src/state/useMetaStore';
 import { resetDailyPulseForTest } from '../../src/screens/HomeScreen/homeSession';
@@ -81,32 +88,70 @@ afterEach(() => {
   });
 });
 
-describe('HomeScreen cold start (§4.5 / §7.11 Acceptance: "renders from cache instantly")', () => {
-  it('the PLAY CTA is present on the FIRST synchronous render pass — no loading gate, no await', () => {
+// Deliberately NOT "cold start" — that's §4.5's ≤3.0s device-timing clause
+// (qa-prd-auditor B-1), which no host/vitest render can measure and which
+// the PRD now marks `[device]` (the EAS device gate covers it, not this
+// suite). This describes ONLY §7.11's "renders from cache instantly, no
+// network wait" clause, which IS host-testable: no async gate before the
+// first paint.
+describe('HomeScreen renders from cache — no network wait (§7.11 Acceptance)', () => {
+  it('the PLAY CTA, with the correct level number, is present on the FIRST synchronous render pass', () => {
     // No `waitFor`, no async `act`: if HomeScreen ever grew an effect that
     // awaited a fetch before showing content, this render would come back
     // empty and the label lookup below would fail on the very first pass.
     const renderer = render(<HomeScreen onPlay={noop} onOpenMap={noop} />);
-    const label = renderer.root.findAll(
-      (n) =>
-        typeof n.props.accessibilityLabel === 'string' &&
-        n.props.accessibilityLabel.startsWith('PLAY'),
-    );
+    // Exact match, not `.startsWith('PLAY')` (qa-prd-auditor B-3): a prefix
+    // check alone lets the level NUMBER drift (e.g. `currentLevel + 1`) with
+    // the suite green — `currentLevel` is 12 in `beforeEach`.
+    const label = renderer.root.findAll((n) => n.props.accessibilityLabel === 'PLAY — Level 12');
     expect(label.length).toBe(1);
   });
 });
 
+/** Any host node painting `colors.gold` — the exact "second gold button"
+ * shape qa-prd-auditor B-4 found: `EndlessCard`'s own inner CTA pill, once
+ * Endless unlocks, was a second one next to (d)'s real PLAY CTA. */
+function goldFillCount(root: ReactTestInstance): number {
+  return root.findAll((n) => {
+    if (typeof n.type !== 'string') return false;
+    const style = flattenStyle((n.props as { style?: unknown }).style);
+    return style.backgroundColor === contrastColors.gold;
+  }).length;
+}
+
+describe('HomeScreen — exactly ONE gold button (mockup: "never a second gold button", qa-prd-auditor B-4)', () => {
+  it.each([1, 5, 9, 10, 11, 25, 60])(
+    'currentLevel %i: exactly 1 gold-filled node on the whole screen',
+    (level) => {
+      setMeta({ currentLevel: level });
+      const renderer = render(<HomeScreen onPlay={noop} onOpenMap={noop} />);
+      expect(goldFillCount(renderer.root)).toBe(1);
+    },
+  );
+});
+
 describe('HomeScreen (a) HUD bar', () => {
-  it('reserves two empty S2 economy slots — no coin/life text or Stage-2 store read', () => {
+  it('reserves two TRUE-LEAF S2 economy slots — zero children, zero a11y payload (qa-prd-auditor M-8)', () => {
+    // Stronger than a bare-digit text filter (which a mutation filling the
+    // slot with "🪙 500"/"❤ 5" — what a real Stage-2 chip looks like —
+    // survives): finds the two slot Views STRUCTURALLY (their own reserved
+    // dimensions, §0 rule 2a's "render nothing"), and asserts each has
+    // NO children at all and NO accessibilityLabel of its own — closing the
+    // second half of rule 2a too ("reads no later-stage state"), since a
+    // slot that read Stage-2 state and dropped it straight into an
+    // `accessibilityLabel` would have no rendered TEXT to catch either.
     const renderer = render(<HomeScreen onPlay={noop} onOpenMap={noop} />);
     const hud = renderer.root.findByType(HudBar);
-    // The reservation is layout-only: no text lives inside the HUD row other
-    // than the a11y-labelled icon glyphs (settings/avatar/map), never a coin
-    // or life NUMBER — that would be reading Stage-2 state (§0 rule 2a).
-    const numbers = collectTextContrast(hud, contrastColors.night).filter((c) =>
-      /^\d+$/.test(c.text),
-    );
-    expect(numbers).toEqual([]);
+    const slots = hud.findAll((n) => {
+      if (typeof n.type !== 'string') return false;
+      const style = flattenStyle((n.props as { style?: unknown }).style);
+      return style.width === HUD_ECONOMY_SLOT_WIDTH && style.height === HUD_ICON_SIZE;
+    });
+    expect(slots.length).toBe(2);
+    for (const slot of slots) {
+      expect(slot.children.length).toBe(0);
+      expect((slot.props as { accessibilityLabel?: unknown }).accessibilityLabel).toBeUndefined();
+    }
   });
 
   it('the gear and avatar are announced and tappable, and no-op safely with no handler wired', () => {
@@ -158,13 +203,31 @@ describe('HomeScreen (a) HUD bar', () => {
   });
 });
 
+describe('HomeScreen (c) Daily Board tile flag gate (qa-prd-auditor M-11)', () => {
+  it('flag_daily_board off: DailyBoardTile is not mounted at all', () => {
+    setFlags({ flag_daily_board: false });
+    const renderer = render(<HomeScreen onPlay={noop} onOpenMap={noop} />);
+    expect(renderer.root.findAllByType(DailyBoardTile).length).toBe(0);
+  });
+
+  it('flag_daily_board on (Stage 1 default): DailyBoardTile mounts', () => {
+    setFlags({ flag_daily_board: true });
+    const renderer = render(<HomeScreen onPlay={noop} onOpenMap={noop} />);
+    expect(renderer.root.findAllByType(DailyBoardTile).length).toBe(1);
+  });
+});
+
 describe('HomeScreen (f) event banner slot', () => {
-  it('flag_events off (Stage 1 default): nothing rendered for it', () => {
+  it('flag_events off (Stage 1 default): EventBannerSlot is not mounted at all (qa-prd-auditor M-9)', () => {
     setFlags({ flag_events: false });
     const renderer = render(<HomeScreen onPlay={noop} onOpenMap={noop} />);
-    // Nothing to find by role/label; the absence is the assertion — the
-    // BottomNav's Events/Team tabs (same flag) are also absent, checked below.
-    expect(renderer.root.findAllByProps({ accessibilityLabel: 'Events' }).length).toBe(0);
+    expect(renderer.root.findAllByType(EventBannerSlot).length).toBe(0);
+  });
+
+  it('flag_events on: EventBannerSlot mounts', () => {
+    setFlags({ flag_events: true });
+    const renderer = render(<HomeScreen onPlay={noop} onOpenMap={noop} />);
+    expect(renderer.root.findAllByType(EventBannerSlot).length).toBe(1);
   });
 });
 
@@ -231,11 +294,15 @@ describe("HomeScreen's three Stage-1 states (§7.11 rules line)", () => {
     expect(texts.some((t) => t.startsWith('🔥'))).toBe(false);
   });
 
-  it('daily-unplayed: badges.dailyUnplayed=true — red dot + pulse fires once', () => {
+  it('daily-unplayed: badges.dailyUnplayed=true — red dot + "New today" copy (pulse itself is mutation-tested below)', () => {
     setMeta({ badges: { dailyUnplayed: true }, streak: 0 });
-    render(<HomeScreen onPlay={noop} onOpenMap={noop} />);
-    // Asserted properly (mutation-tested) in the dedicated pulse-session test
-    // below; this case only proves the STATE selection reaches the tile.
+    const renderer = render(<HomeScreen onPlay={noop} onOpenMap={noop} />);
+    const texts = collectTextContrast(renderer.root, contrastColors.night).map((c) => c.text);
+    expect(texts).toContain('New today');
+    expect(texts).not.toContain('Played today');
+    expect(
+      renderer.root.findAll((n) => n.props.accessibilityLabel === 'Unplayed today').length,
+    ).toBe(1);
   });
 
   it('daily-complete: badges.dailyUnplayed=false with a real streak — flame chip, no dot', () => {
@@ -260,5 +327,43 @@ describe('§7.11 "tile pulses once on screen entry, max 1 pulse/session" (mutati
     resetMockAnimationCalls(); // clear what the first mount recorded
     render(<HomeScreen onPlay={noop} onOpenMap={noop} />); // a second, later Home entry
     expect(mockAnimationCalls.length).toBe(0);
+  });
+});
+
+const TEXT_MIN = 4.5;
+/** `AVATAR_COLORS` is `Object.values(blockColors)` in source order (coral,
+ * teal, gold, violet, amber, sky, rose) — indices, not hex, so this stays
+ * correct if the palette is ever reordered. */
+const AVATAR_ID_COUNT = 7;
+
+describe('M-10 — HudBar / BottomNav contrast, computed off the RENDERED tree (never hand-typed)', () => {
+  it('every avatar-chip ink/fill combination clears 4.5:1 — guest, every block color, both the initial and the glyph fallback', () => {
+    const cases: Array<{ avatarId: number | null; playerName: string | null }> = [
+      { avatarId: null, playerName: null }, // guest: night2 fill, cream glyph
+      { avatarId: null, playerName: 'Sam' }, // still night2 (no avatarId), cream initial
+      ...Array.from({ length: AVATAR_ID_COUNT }, (_, i) => ({
+        avatarId: i,
+        playerName: i % 2 === 0 ? 'Sam' : null, // alternate initial vs. glyph fallback
+      })),
+    ];
+    for (const c of cases) {
+      setMeta({ avatarId: c.avatarId, playerName: c.playerName });
+      const renderer = render(<HomeScreen onPlay={noop} onOpenMap={noop} />);
+      const hud = renderer.root.findByType(HudBar);
+      const failing = collectTextContrast(hud, contrastColors.night).filter(
+        (t) => t.ratio < TEXT_MIN,
+      );
+      expect(failing, JSON.stringify({ case: c, failing })).toEqual([]);
+    }
+  });
+
+  it('every BottomNav label/glyph clears 4.5:1 — active (Home) and every inactive tab', () => {
+    setFlags({ flag_manor: true, flag_events: true, flag_team: true, flag_economy: true });
+    const renderer = render(<HomeScreen onPlay={noop} onOpenMap={noop} />);
+    const nav = renderer.root.findByType(BottomNav);
+    const failing = collectTextContrast(nav, contrastColors.night).filter(
+      (t) => t.ratio < TEXT_MIN,
+    );
+    expect(failing, JSON.stringify(failing)).toEqual([]);
   });
 });

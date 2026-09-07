@@ -11,7 +11,7 @@ import { selectBadges, useMetaStore } from '../../state/useMetaStore';
 import { BottomNav } from './BottomNav';
 import { DailyBoardTile } from './DailyBoardTile';
 import { EndlessCard } from './EndlessCard';
-import { EVENT_BANNER_SLOT_HEIGHT } from './homeTokens';
+import { EventBannerSlot } from './EventBannerSlot';
 import { consumeDailyPulse } from './homeSession';
 import { HudBar } from './HudBar';
 
@@ -31,7 +31,9 @@ import { HudBar } from './HudBar';
  *     the real per-room renovation reflection is Stage 3 (§3).
  * (c) `DailyBoardTile` — countdown/LIVE seam, red badge dot, streak chip.
  * (d) the ONE gold CTA on this screen — "PLAY — Level N".
- * (e) `EndlessCard`, reused unmodified from `feat/7.6-endless`.
+ * (e) `EndlessCard`, its §7.6 behaviour untouched — the one composition-only
+ *     addition is `ctaEmphasis="secondary"` (qa-prd-auditor B-4: unlocked,
+ *     its own inner pill was a second `colors.gold` fill next to (d)'s CTA).
  * (f) event banner slot — reserved, `flag_events` (Stage 4)-gated, empty today.
  * (g) `BottomNav` — only Home renders in Stage 1; the rest are flag-hidden.
  *
@@ -163,7 +165,7 @@ export function HomeScreen({
         />
 
         {/* (f) event banner carousel slot — empty in S1/S2, Stage-4-flagged. */}
-        {eventsFlag ? <View style={styles.eventBannerSlot} /> : null}
+        {eventsFlag ? <EventBannerSlot /> : null}
 
         <View style={styles.tileRow}>
           {/* §7.1.3 / §7.11(c): the tile's data is not this screen's to
@@ -176,7 +178,8 @@ export function HomeScreen({
             />
           ) : null}
 
-          {/* §7.6 / §7.11(e): reused unmodified, flag-gated. */}
+          {/* §7.6 / §7.11(e): flag-gated. `ctaEmphasis="secondary"` is the
+              one composition change — see the file-level note above. */}
           {endlessFlag ? (
             <EndlessCard
               unlocked={endlessUnlocked}
@@ -184,6 +187,7 @@ export function HomeScreen({
               currentLevel={currentLevel}
               best={endlessBest}
               onPress={() => onPlayEndless?.()}
+              ctaEmphasis="secondary"
             />
           ) : null}
         </View>
@@ -224,7 +228,6 @@ const styles = StyleSheet.create({
   manorWindow2: { left: '46%', bottom: '26%' },
   manorWindow3: { left: '72%', bottom: '32%' },
   container: { flex: 1, gap: spacing.md, paddingTop: spacing.sm },
-  eventBannerSlot: { height: EVENT_BANNER_SLOT_HEIGHT, marginHorizontal: spacing.md },
   tileRow: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.md },
   spacer: { flex: 1 },
   cta: { marginHorizontal: spacing.md },
