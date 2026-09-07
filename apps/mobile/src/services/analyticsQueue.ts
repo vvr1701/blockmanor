@@ -57,6 +57,9 @@ export function isAnalyticsConsentGranted(): boolean {
 export const defaultSender: AnalyticsSender = async (event) => {
   const analytics = getFirebaseAnalytics();
   if (!analytics) throw new Error('analytics transport not configured — no native Firebase app');
+  // RNFB's modular typings declare `logEvent` as returning void; the native
+  // call really is async, so awaiting it keeps a delivery failure on the
+  // queue's retry path instead of turning into an unhandled rejection.
   await logEvent(analytics, event.name, {
     ...event.params,
     installId: event.installId,
