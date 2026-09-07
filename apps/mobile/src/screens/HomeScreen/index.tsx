@@ -7,7 +7,7 @@ import { isFirebaseConfigured } from '../../services/firebase';
 import { useConfigStore } from '../../state/useConfigStore';
 import { useMetaStore } from '../../state/useMetaStore';
 import { DailyBoardTile } from './DailyBoardTile';
-import { EndlessCard, ENDLESS_UNLOCK_LEVEL } from './EndlessCard';
+import { EndlessCard } from './EndlessCard';
 
 /**
  * HomeScreen — PRD §7.11 / §16.1.
@@ -29,7 +29,7 @@ import { EndlessCard, ENDLESS_UNLOCK_LEVEL } from './EndlessCard';
 export interface HomeScreenProps {
   onPlay: () => void;
   /** Wired only when `flag_endless` is on AND the player has passed
-   * `ENDLESS_UNLOCK_LEVEL` (`EndlessCard` renders no press target
+   * `endless_unlock_level` (`EndlessCard` renders no press target
    * otherwise) — see `App.tsx` for the no-router seam this calls into. */
   onPlayEndless?: () => void;
 }
@@ -43,7 +43,8 @@ export function HomeScreen({ onPlay, onPlayEndless }: HomeScreenProps): React.JS
   // "after Level 10" is complete-and-moved-on, i.e. strictly greater than
   // 10 — still locked while `currentLevel === 10` (mid-attempt on it).
   const endlessFlag = useConfigStore((s) => s.value('flag_endless'));
-  const endlessUnlocked = currentLevel > ENDLESS_UNLOCK_LEVEL;
+  const unlockLevel = useConfigStore((s) => s.value('endless_unlock_level'));
+  const endlessUnlocked = currentLevel > unlockLevel;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -68,6 +69,7 @@ export function HomeScreen({ onPlay, onPlayEndless }: HomeScreenProps): React.JS
         {endlessFlag ? (
           <EndlessCard
             unlocked={endlessUnlocked}
+            unlockLevel={unlockLevel}
             currentLevel={currentLevel}
             best={endlessBest}
             onPress={() => onPlayEndless?.()}

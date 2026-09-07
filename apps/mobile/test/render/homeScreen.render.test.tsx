@@ -30,6 +30,12 @@ function setFlagEndless(on: boolean): void {
   }));
 }
 
+function setUnlockLevel(level: number): void {
+  useConfigStore.setState((s) => ({
+    snapshot: { ...s.snapshot, endless_unlock_level: level } as typeof s.snapshot,
+  }));
+}
+
 beforeEach(() => {
   useMetaStore.setState({ currentLevel: 1, endlessBest: 0 });
   setFlagEndless(true);
@@ -62,5 +68,25 @@ describe('HomeScreen Endless entry (PRD §7.6 / §7.11(e))', () => {
       (pressable.props as { onPress: () => void }).onPress();
     });
     expect(onPlayEndless).toHaveBeenCalledTimes(1);
+  });
+
+  // §0 v1.18 promoted this gate from a call-site literal to `[RC]
+  // endless_unlock_level` (§13 Modes). Without this case nothing would notice
+  // it regressing back to a hardcoded 10: every other test here happens to use
+  // the registry default, so they all still pass against a literal.
+  it('the gate follows [RC] endless_unlock_level, not a literal', () => {
+    setUnlockLevel(3);
+    useMetaStore.setState({ currentLevel: 4 });
+    // Unlocked at 4 with the key at 3 — impossible against a hardcoded 10.
+    expect(
+      render(<HomeScreen onPlay={() => {}} />).root.findByType(EndlessCard).props.unlocked,
+    ).toBe(true);
+
+    setUnlockLevel(30);
+    useMetaStore.setState({ currentLevel: 12 });
+    // Still locked at 12 with the key at 30 — impossible against a hardcoded 10.
+    expect(
+      render(<HomeScreen onPlay={() => {}} />).root.findByType(EndlessCard).props.unlocked,
+    ).toBe(false);
   });
 });

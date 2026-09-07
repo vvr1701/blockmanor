@@ -1,5 +1,6 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": ["docs/PRD.md", "CLAUDE.md"],
   "tasks": {
     "typecheck": {
       "dependsOn": ["^typecheck"],
