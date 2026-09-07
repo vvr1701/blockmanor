@@ -22,7 +22,6 @@ import type { FtueStep } from '@blockmanor/shared';
 import { GameplayScreen } from '../GameplayScreen';
 import { useEngineTuning } from '../../game/useEngineTuning';
 import { track } from '../../services/analytics';
-import { useEngineTuning } from '../../state/useEngineTuning';
 import { useMetaStore } from '../../state/useMetaStore';
 import { t } from '../../i18n';
 import { FtueCallout, FtueHandCursor } from './FtueOverlay';

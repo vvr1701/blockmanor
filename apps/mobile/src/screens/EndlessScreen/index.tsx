@@ -29,7 +29,7 @@ import { createGame, type GameConfig, type GameEvent, type GameState } from '@bl
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { BackHandler, StyleSheet, View } from 'react-native';
 import { track } from '../../services/analytics';
-import { useEngineTuning } from '../../state/useEngineTuning';
+import { useEngineTuning } from '../../game/useEngineTuning';
 import { useMetaStore } from '../../state/useMetaStore';
 import { GameplayScreen } from '../GameplayScreen';
 import { EndlessHud } from './EndlessHud';

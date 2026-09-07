@@ -38,7 +38,7 @@ beforeEach(() => {
 describe('HomeScreen Endless entry (PRD §7.6 / §7.11(e))', () => {
   it('flag_endless off: the card is not rendered at all (not even locked)', () => {
     setFlagEndless(false);
-    const renderer = render(<HomeScreen />);
+    const renderer = render(<HomeScreen onPlay={() => {}} />);
     expect(renderer.root.findAllByType(EndlessCard).length).toBe(0);
   });
 
@@ -48,7 +48,7 @@ describe('HomeScreen Endless entry (PRD §7.6 / §7.11(e))', () => {
     [11, true],
   ])('currentLevel %i -> unlocked=%s (below/at/above the Level-10 gate)', (level, unlocked) => {
     useMetaStore.setState({ currentLevel: level });
-    const renderer = render(<HomeScreen />);
+    const renderer = render(<HomeScreen onPlay={() => {}} />);
     const card = renderer.root.findByType(EndlessCard);
     expect(card.props.unlocked).toBe(unlocked);
   });
@@ -56,8 +56,8 @@ describe('HomeScreen Endless entry (PRD §7.6 / §7.11(e))', () => {
   it('tapping the unlocked card calls onPlayEndless', () => {
     useMetaStore.setState({ currentLevel: 11 });
     const onPlayEndless = vi.fn();
-    const renderer = render(<HomeScreen onPlayEndless={onPlayEndless} />);
-    const pressable = renderer.root.findByType('RNPressable' as never);
+    const renderer = render(<HomeScreen onPlay={() => {}} onPlayEndless={onPlayEndless} />);
+    const pressable = renderer.root.findByType(EndlessCard).findByType('RNPressable' as never);
     act(() => {
       (pressable.props as { onPress: () => void }).onPress();
     });

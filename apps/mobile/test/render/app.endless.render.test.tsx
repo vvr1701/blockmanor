@@ -11,6 +11,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 vi.mock('../../src/services/analytics', () => ({ track: vi.fn() }));
 
 import App from '../../src/App';
+import { EndlessCard } from '../../src/screens/HomeScreen/EndlessCard';
 import { EndlessScreen } from '../../src/screens/EndlessScreen';
 import { HomeScreen } from '../../src/screens/HomeScreen';
 import { useConfigStore } from '../../src/state/useConfigStore';
@@ -38,7 +39,7 @@ beforeEach(() => {
 describe('App Home <-> Endless (PRD §7.6)', () => {
   it('tapping the Endless card on Home mounts EndlessScreen, hiding Home', () => {
     const renderer = render(<App />);
-    const pressable = renderer.root.findByType('RNPressable' as never);
+    const pressable = renderer.root.findByType(EndlessCard).findByType('RNPressable' as never);
     act(() => {
       (pressable.props as { onPress: () => void }).onPress();
     });
@@ -49,7 +50,11 @@ describe('App Home <-> Endless (PRD §7.6)', () => {
   it("EndlessScreen's onExit returns to Home", () => {
     const renderer = render(<App />);
     act(() => {
-      (renderer.root.findByType('RNPressable' as never).props as { onPress: () => void }).onPress();
+      (
+        renderer.root.findByType(EndlessCard).findByType('RNPressable' as never).props as {
+          onPress: () => void;
+        }
+      ).onPress();
     });
     const endless = renderer.root.findByType(EndlessScreen);
     act(() => {

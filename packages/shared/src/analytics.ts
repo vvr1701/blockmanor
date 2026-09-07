@@ -79,6 +79,9 @@ export interface LevelFailParams {
 export interface LevelQuitParams {
   id: number;
   moves: number;
+}
+
+/**
  * §7.6 Endless mode: fired once per run when the board fills (§6.7 game
  * over — Endless has no goals, so `state.status` never reaches `'won'`).
  */

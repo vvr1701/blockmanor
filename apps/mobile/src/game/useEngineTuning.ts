@@ -1,8 +1,14 @@
 /**
  * `EngineTuning` from the live RC snapshot (§13 "these five keys apply to
  * level and endless modes only"). Shared by every screen that builds a
- * `GameConfig` for a level/endless run (`FtueScreen`, `LevelSession`) — never
- * hardcode these at a call site (CLAUDE.md rule 3).
+ * `GameConfig` for a level/endless run (`FtueScreen` §7.1, `LevelSession`
+ * §7.5, `EndlessScreen` §7.6) — never hardcode these at a call site
+ * (CLAUDE.md rule 3).
+ *
+ * The Daily Board does NOT use this. §13's scope note is explicit: it reads
+ * the frozen `engineConfig` snapshot from `dailyBoards/{date}` instead of
+ * live RC, so that §8.5's server re-simulation stays reproducible across a
+ * mid-day RC push.
  */
 import { useMemo } from 'react';
 import type { EngineTuning } from '@blockmanor/engine';
