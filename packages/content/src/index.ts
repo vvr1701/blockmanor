@@ -14,6 +14,14 @@ export {
 } from './schema';
 export { FTUE_LEVELS, FIRST_POST_FTUE_LEVEL } from './ftueLevels';
 export { LEVELS, MAX_LEVEL_ID, getLevel } from './levels';
+export {
+  AVATAR_FRAMES,
+  CHEST_INTERVAL,
+  CHEST_LEVELS,
+  avatarFrameSchema,
+  frameForChest,
+  type AvatarFrame,
+} from './frames';
 export { chooseMove, playout, MAX_BOT_MOVES, type BotRun } from './bot';
 export {
   generateLevel,

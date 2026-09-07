@@ -76,6 +76,68 @@ describe('migrateMetaState (PRD §7.5 audit B-1)', () => {
     expect(migrated.attempts).toEqual({});
   });
 
+  it('v2 -> v3 (§7.10): a save predating per-level stars gets the three new maps, not `undefined`', () => {
+    const migrated = migrateMetaState({ ...BASE, currentLevel: 24, attempts: {} }, 2) as {
+      stars: Record<string, number>;
+      chestsClaimed: Record<string, boolean>;
+      ownedFrames: readonly string[];
+    };
+    expect(migrated.stars).toEqual({});
+    expect(migrated.chestsClaimed).toEqual({});
+    expect(migrated.ownedFrames).toEqual([]);
+  });
+
+  it('v2 -> v3 leaves already-earned stars, chests and frames alone', () => {
+    const migrated = migrateMetaState(
+      {
+        ...BASE,
+        currentLevel: 24,
+        attempts: {},
+        stars: { '12': 3 },
+        chestsClaimed: { '10': true },
+        ownedFrames: ['ivy_wreath'],
+      },
+      3,
+    ) as { stars: Record<string, number>; ownedFrames: readonly string[] };
+    expect(migrated.stars).toEqual({ '12': 3 });
+    expect(migrated.ownedFrames).toEqual(['ivy_wreath']);
+  });
+
+  /**
+   * The composition trap, one step further out than §0 v1.17's: a v0 save is
+   * older than ALL THREE steps and must come out of a single pass with the
+   * FTUE clamp, `attempts` AND §7.10's three maps. Turn any step into an
+   * early `return` and this reds.
+   */
+  it('a v0 save runs through ALL THREE steps in one pass (§7.5 clamp + v1.17 attempts + §7.10 stars)', () => {
+    const migrated = migrateMetaState({ ...BASE, currentLevel: 1 }, 0) as typeof BASE & {
+      attempts: Record<string, number>;
+      stars: Record<string, number>;
+      chestsClaimed: Record<string, boolean>;
+      ownedFrames: readonly string[];
+    };
+    expect(migrated.currentLevel).toBe(FIRST_POST_FTUE_LEVEL);
+    expect(migrated.attempts).toEqual({});
+    expect(migrated.stars).toEqual({});
+    expect(migrated.chestsClaimed).toEqual({});
+    expect(migrated.ownedFrames).toEqual([]);
+  });
+
+  it('the persisted `version` is 3 — a v2 blob must actually REACH the §7.10 step', async () => {
+    mmkvStorage.setItem(
+      'meta',
+      JSON.stringify({ state: { ...BASE, currentLevel: 24, attempts: { '24': 2 } }, version: 2 }),
+    );
+
+    await useMetaStore.persist.rehydrate();
+
+    const state = useMetaStore.getState();
+    expect(state.stars).toEqual({});
+    expect(state.chestsClaimed).toEqual({});
+    expect(state.ownedFrames).toEqual([]);
+    expect(state.attempts).toEqual({ '24': 2 });
+  });
+
   it('tolerates a missing/undefined persisted state (fresh install, nothing to migrate)', () => {
     expect(migrateMetaState(undefined, 0)).toBeUndefined();
   });

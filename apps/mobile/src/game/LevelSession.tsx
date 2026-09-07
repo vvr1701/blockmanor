@@ -7,10 +7,10 @@
  * already reports (same boundary `FtueScreen` and `JuiceLayer` keep — never
  * re-deriving win/lose from the rules), swaps in `WinScreen` or `FailScreen`.
  *
- * §7.10 `LevelMapScreen` is a later session (task brief) — the "Level map"
- * ghost and the "ran past the last shipped level" fallback both call
- * `onExit`, which the mount point (`App.tsx`) wires to Home. Honest, not a
- * stub: Home is a real, already-built destination.
+ * §7.10's `LevelMapScreen` now exists, so §7.5's "Level map" ghost routes
+ * there via the optional `onLevelMap` prop; the "ran past the last shipped
+ * level" fallback still calls `onExit` (Home), which is the mount point's
+ * own choice.
  */
 import {
   createGame,
@@ -81,9 +81,13 @@ interface TerminalResult {
 
 export interface LevelSessionProps {
   onExit: () => void;
+  /** §7.5's "Level map" ghost, and the destination for a level past the
+   * shipped range. Optional so existing mounts keep the pre-§7.10 behaviour
+   * (everything routes to `onExit`); `App.tsx` passes the real map. */
+  onLevelMap?: () => void;
 }
 
-export function LevelSession({ onExit }: LevelSessionProps): React.JSX.Element | null {
+export function LevelSession({ onExit, onLevelMap }: LevelSessionProps): React.JSX.Element | null {
   const currentLevel = useMetaStore((s) => s.currentLevel);
   const setCurrentLevel = useMetaStore((s) => s.setCurrentLevel);
   const tuning = useEngineTuning();
@@ -100,6 +104,11 @@ export function LevelSession({ onExit }: LevelSessionProps): React.JSX.Element |
   // write-at-run-start below into a render loop. The write happens in the
   // run-start effect, never during render.
   const persistAttempt = useMetaStore((s) => s.setAttempt);
+  // §7.10: the level map's medallions render "1-3 stars", and §7.5's
+  // WinScreen computed stars that died with the session. This is the write
+  // that gives them something to render. Same non-reactive discipline as
+  // `attempts`: only the stable action is subscribed.
+  const persistStars = useMetaStore((s) => s.setLevelStars);
   const [attempt, setAttempt] = useState(() => nextAttempt(currentLevel));
   const [phase, setPhase] = useState<Phase>('playing');
   const [result, setResult] = useState<TerminalResult | null>(null);
@@ -184,6 +193,7 @@ export function LevelSession({ onExit }: LevelSessionProps): React.JSX.Element |
           continues: 0,
           boosters_used: 0,
         });
+        persistStars(json.id, won.stars);
         setResult({ score: won.score, stars: won.stars, goals: [] });
         clearPhaseTimer();
         phaseTimerRef.current = setTimeout(() => setPhase('won'), WIN_HOLD_MS);
@@ -201,6 +211,7 @@ export function LevelSession({ onExit }: LevelSessionProps): React.JSX.Element |
           continues: 0,
           boosters_used: 0,
         });
+        persistStars(json.id, stars);
         setResult({ score: state.score, stars, goals: [] });
         clearPhaseTimer();
         phaseTimerRef.current = setTimeout(() => setPhase('won'), WIN_HOLD_MS);
@@ -216,7 +227,7 @@ export function LevelSession({ onExit }: LevelSessionProps): React.JSX.Element |
         phaseTimerRef.current = setTimeout(() => setPhase('lost'), FAIL_HOLD_MS);
       }
     },
-    [json, clearPhaseTimer],
+    [json, clearPhaseTimer, persistStars],
   );
 
   const handleNext = useCallback(() => {
@@ -265,7 +276,7 @@ export function LevelSession({ onExit }: LevelSessionProps): React.JSX.Element |
         levelId={json.id}
         goals={result.goals}
         onRetry={handleRetry}
-        onLevelMap={onExit}
+        onLevelMap={onLevelMap ?? onExit}
       />
     );
   }

@@ -29,8 +29,20 @@ export function useAnimatedStyle<T>(fn: () => T): T {
   return fn();
 }
 
+/**
+ * Controllable stand-in for the real hook (which reads the OS "reduce motion"
+ * setting). Defaults to `false` — the animating path every other render test
+ * expects — and `setMockReducedMotion(true)` lets a test drive the branch a
+ * device setting would otherwise be the only way to reach.
+ */
+let reducedMotion = false;
+
+export function setMockReducedMotion(value: boolean): void {
+  reducedMotion = value;
+}
+
 export function useReducedMotion(): boolean {
-  return false;
+  return reducedMotion;
 }
 
 type AnimCallback = (finished?: boolean) => void;
