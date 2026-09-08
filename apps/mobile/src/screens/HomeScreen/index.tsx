@@ -13,6 +13,8 @@ import { BottomNav } from './BottomNav';
 import { DailyBoardTile } from './DailyBoardTile';
 import { EndlessCard } from './EndlessCard';
 import { EventBannerSlot } from './EventBannerSlot';
+import { isNudgeSuppressed, UpdateBanner } from './UpdateBanner';
+import { getInstalledVersion, isSoftUpdateAvailable } from '../../services/appInfo';
 import { consumeDailyPulse } from './homeSession';
 import { HudBar } from './HudBar';
 
@@ -86,6 +88,9 @@ export interface HomeScreenProps {
    * §7.10 already ships, it just had no route FROM Home until this PRD
    * v1.18 addition. */
   onOpenMap: () => void;
+  /** §12.11: injected so the "max 1/week" window is testable without faking
+   * timers, and so Home never reads the clock itself. */
+  now?: number;
   /** §12.1 `SettingsScreen` — its own branch, out of scope here. Optional:
    * the gear renders and is announced either way, but presses no-op until
    * that screen exists. */
@@ -98,6 +103,7 @@ export function HomeScreen({
   onPlay,
   onPlayEndless,
   onOpenMap,
+  now = Date.now(),
   onOpenSettings,
   onOpenProfile,
 }: HomeScreenProps): React.JSX.Element {
@@ -126,6 +132,14 @@ export function HomeScreen({
   // "Stage-4 STATE" (§0 rule 2a's own worked example is exactly this kind
   // of flag-hidden slot); no event content model is read or rendered.
   const eventsFlag = useConfigStore((s) => s.value('flag_events'));
+  // §12.11 — both halves of the rule, read live off the same snapshot §12.5
+  // gates on, so the banner and the blocking screen can never disagree.
+  const latestVersion = useConfigStore((s) => s.value('latest_version'));
+  const minSupported = useConfigStore((s) => s.value('min_supported_version'));
+  const dismissedAt = useMetaStore((s) => s.updateNudgeDismissedAt);
+  const dismissUpdateNudge = useMetaStore((s) => s.dismissUpdateNudge);
+  const softUpdate = isSoftUpdateAvailable(getInstalledVersion(), latestVersion, minSupported);
+  const nudgeSuppressed = isNudgeSuppressed(dismissedAt, now);
   // (g) bottom nav gates — §7.11(g) (PRD v1.20) names each tab's flag
   // inline; `flag_economy`-for-Shop is the one deliberate non-1:1 mapping
   // (see `BottomNav`'s own doc comment).
@@ -176,6 +190,14 @@ export function HomeScreen({
         />
 
         {/* (f) event banner carousel slot — empty in S1/S2, Stage-4-flagged. */}
+        {/* §12.11: above the event slot and well clear of (d) — a soft nudge
+            that competes with the primary action is not soft. §12.5 already
+            gated a below-minimum build before this screen renders at all;
+            `isSoftUpdateAvailable` restates that rule locally so the banner is
+            correct on its own terms rather than by position alone. */}
+        {softUpdate && !nudgeSuppressed ? (
+          <UpdateBanner onDismiss={() => dismissUpdateNudge(now)} />
+        ) : null}
         {eventsFlag ? <EventBannerSlot /> : null}
 
         <View style={styles.tileRow}>

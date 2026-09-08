@@ -69,6 +69,10 @@ interface MetaState {
   sfxEnabled: boolean;
   musicEnabled: boolean;
   hapticsEnabled: boolean;
+  /** §12.11: epoch ms of the last soft-update-banner dismissal, or 0 if never.
+   * Persisted, because "max 1/week" has to survive a relaunch or the banner
+   * reappears on every cold start and stops being soft. */
+  updateNudgeDismissedAt: number;
   /** §12.1 "notification prefs by category." §8.7 names exactly two Stage-1
    * push categories — the daily-drop ping and the 20:00 streak-risk ping —
    * so those are the two categories, not an invented general list. Both
@@ -93,6 +97,10 @@ interface MetaState {
   setSfxEnabled: (enabled: boolean) => void;
   setMusicEnabled: (enabled: boolean) => void;
   setHapticsEnabled: (enabled: boolean) => void;
+  /** §12.11: records a dismissal at `now` (injected, never `Date.now()` at a
+   * call site — the engine's purity rule is not in force here, but a testable
+   * clock is still cheaper than faking timers). */
+  dismissUpdateNudge: (now: number) => void;
   setNotificationPref: (category: keyof MetaState['notificationPrefs'], enabled: boolean) => void;
 }
 
@@ -152,6 +160,14 @@ export function migrateMetaState(persisted: unknown, version: number): unknown {
       next = { ...next, notificationPrefs: { dailyDrop: true, streakRisk: true } };
     }
   }
+  // v5 -> v6 (§12.11): the soft-update-nudge dismissal timestamp. 0 means
+  // "never dismissed", which is the correct default for an existing save —
+  // a returning player has not dismissed a banner they have never seen.
+  if (version < 6) {
+    if (typeof next.updateNudgeDismissedAt !== 'number') {
+      next = { ...next, updateNudgeDismissedAt: 0 };
+    }
+  }
   return next;
 }
 
@@ -172,6 +188,7 @@ export const useMetaStore = create<MetaState>()(
       sfxEnabled: true,
       musicEnabled: true,
       hapticsEnabled: true,
+      updateNudgeDismissedAt: 0,
       notificationPrefs: { dailyDrop: true, streakRisk: true },
       setCurrentLevel: (currentLevel) => set({ currentLevel }),
       setStreak: (streak) => set({ streak }),
@@ -210,6 +227,7 @@ export const useMetaStore = create<MetaState>()(
       setSfxEnabled: (sfxEnabled) => set({ sfxEnabled }),
       setMusicEnabled: (musicEnabled) => set({ musicEnabled }),
       setHapticsEnabled: (hapticsEnabled) => set({ hapticsEnabled }),
+      dismissUpdateNudge: (now) => set({ updateNudgeDismissedAt: now }),
       setNotificationPref: (category, enabled) =>
         set((state) => ({
           notificationPrefs: { ...state.notificationPrefs, [category]: enabled },
@@ -218,7 +236,7 @@ export const useMetaStore = create<MetaState>()(
     {
       name: 'meta',
       storage: createJSONStorage(() => mmkvStorage),
-      version: 5,
+      version: 6,
       migrate: migrateMetaState,
     },
   ),
