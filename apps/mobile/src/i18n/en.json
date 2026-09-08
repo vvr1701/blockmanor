@@ -117,5 +117,13 @@
   "endless.result.delta": "+{{delta}} over your old best",
   "endless.result.firstRecord": "Your first record — the bar is set",
   "endless.result.yourBest": "Your best",
-  "endless.result.short": "{{gap}} short — one good combo away"
+  "endless.result.short": "{{gap}} short — one good combo away",
+  "forceUpdate.eyebrow": "Update required",
+  "forceUpdate.title": "A new chapter is waiting",
+  "forceUpdate.body": "Update to version {{version}} or later to keep playing.",
+  "forceUpdate.cta": "Update on the store",
+  "maintenance.title": "Back in a moment",
+  "maintenance.body": "We're rewiring the east wing. Your streak and progress are safe.",
+  "maintenance.retry": "Retry",
+  "maintenance.checking": "Checking…"
 }

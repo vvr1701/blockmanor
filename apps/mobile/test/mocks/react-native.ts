@@ -51,6 +51,42 @@ export const AccessibilityInfo = {
 };
 
 /**
+ * Minimal `Platform` stand-in — §12.5's store link-out (`ForceUpdateScreen`)
+ * is the first thing that branches on OS. `OS` is a plain mutable field
+ * (same pattern as `AppState.currentState`), not a getter, so a test can
+ * flip it directly and restore it in `afterEach`. Defaults to `'android'`:
+ * that is the only device-verified platform per CLAUDE.md ("iOS boot
+ * unverified... deliberately not blocking Stage 1"), and every existing
+ * render test already assumes an Android-shaped app.
+ */
+export const Platform = {
+  OS: 'android' as 'android' | 'ios',
+  select<T>(spec: { android?: T; ios?: T; default?: T }): T | undefined {
+    return spec[Platform.OS] ?? spec.default;
+  },
+};
+
+/**
+ * Minimal `Linking` stand-in — §12.5's store button and §12.1's `mailto:`
+ * support link both open an external URL and never navigate inside the app.
+ * `openURL` records every call (`__calls`) instead of doing anything real, so
+ * a press handler is verifiable without an actual OS intent/URL scheme.
+ */
+const linkingCalls: string[] = [];
+export const Linking = {
+  openURL(url: string): Promise<void> {
+    linkingCalls.push(url);
+    return Promise.resolve();
+  },
+  /** Test-only: every URL passed to `openURL`, in call order. */
+  __calls: linkingCalls,
+  /** Test-only: clears recorded calls between tests. */
+  __reset(): void {
+    linkingCalls.length = 0;
+  },
+};
+
+/**
  * Minimal `AppState` stand-in — the §14 analytics queue's lifecycle flush
  * (audit MINOR finding) subscribes to `'change'`. Real RN's shape is
  * `addEventListener(event, cb) -> { remove }`; `__emit` is test-only, used
