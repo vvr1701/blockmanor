@@ -1,6 +1,11 @@
 import { getAnalytics } from '@react-native-firebase/analytics';
 import { getApp, getApps } from '@react-native-firebase/app';
 import { getAuth, signInAnonymously } from '@react-native-firebase/auth';
+import {
+  getCrashlytics,
+  log,
+  recordError as crashlyticsRecordError,
+} from '@react-native-firebase/crashlytics';
 import { fetchAndActivate, getAll, getRemoteConfig } from '@react-native-firebase/remote-config';
 import {
   REMOTE_CONFIG_DEFAULTS,
@@ -23,6 +28,26 @@ import { useConfigStore } from '../state/useConfigStore';
  * EVERYTHING here degrades to a no-op when Firebase is absent — PRD §12.4:
  * levels and endless stay fully playable with no connectivity and no project.
  */
+
+/**
+ * §12.8 Crashlytics report. Deliberately re-added HERE, with `ErrorBoundary`
+ * as its consumer: WP-1 built this seam with no caller and a QA audit
+ * correctly called it dead code, so it landed with the subsection that needs
+ * it instead. No-ops when Firebase is absent (§12.4).
+ *
+ * `recordError` wants a real `Error`; a thrown string or object would
+ * otherwise reach native as `undefined` and lose the report entirely.
+ */
+export function recordError(error: unknown, context?: string): void {
+  if (!getFirebaseApp()) return;
+  try {
+    const err = error instanceof Error ? error : new Error(String(error));
+    if (context) log(getCrashlytics(), context);
+    crashlyticsRecordError(getCrashlytics(), err);
+  } catch {
+    // A crash reporter that crashes must not take the app down with it.
+  }
+}
 
 /** The native app, or null when no `google-services.json` was baked in. */
 export function getFirebaseApp(): ReturnType<typeof getApp> | null {

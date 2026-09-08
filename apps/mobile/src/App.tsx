@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AnalyticsDebugOverlay } from './components/AnalyticsDebugOverlay';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { colors } from './components/tokens';
 import { DEV_BOARD_ENABLED, FTUE_FORCE_REPLAY } from './game/devFlag';
 import { createDemoGameState } from './game/demoGameState';
@@ -16,6 +17,7 @@ import { GameplayScreen } from './screens/GameplayScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { LevelMapScreen } from './screens/LevelMapScreen';
 import { MaintenanceScreen } from './screens/MaintenanceScreen';
+import { RestartScreen } from './screens/RestartScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { useConfigStore } from './state/useConfigStore';
 import { useMetaStore } from './state/useMetaStore';
@@ -90,66 +92,73 @@ export default function App(): React.JSX.Element {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
-        {/* §12.5 gates BEFORE every other branch below — including the dev
+        {/* §12.8: inside SafeAreaProvider so `RestartScreen` gets real insets,
+            outside every screen branch below so no screen can render past a
+            throw. `AnalyticsDebugOverlay` stays OUTSIDE it on purpose — if the
+            boundary itself is what is broken, the overlay is the last thing
+            still able to say so on a device. */}
+        <ErrorBoundary fallback={(reset) => <RestartScreen onRestart={reset} />}>
+          {/* §12.5 gates BEFORE every other branch below — including the dev
             board escape hatch — so a below-minimum or maintenance build can
             never reach FTUE, Home or gameplay by any route this file knows
             about. `ForceUpdateScreen` takes no dismiss callback and nothing
             else is mounted alongside it, so there is no sibling screen for a
             stray callback or a back-press to reveal (see that screen's own
             doc comment). */}
-        {belowMinVersion ? (
-          <ForceUpdateScreen minSupportedVersion={minSupportedVersion} />
-        ) : maintenanceMode ? (
-          <MaintenanceScreen onRetry={syncRemoteConfig} />
-        ) : (
-          <>
-            {DEV_BOARD_ENABLED && devBoard && demoState ? (
-              <GameplayScreen initialState={demoState} />
-            ) : showFtue ? (
-              <FtueScreen />
-            ) : playing ? (
-              <LevelSession
-                onExit={() => setPlaying(false)}
-                onLevelMap={() => {
-                  setPlaying(false);
-                  setMapOpen(true);
-                }}
-                onOpenSettings={() => setSettingsOpen(true)}
-              />
-            ) : mapOpen ? (
-              <LevelMapScreen
-                onPlay={() => {
-                  setMapOpen(false);
-                  setPlaying(true);
-                }}
-                onExit={() => setMapOpen(false)}
-              />
-            ) : showEndless ? (
-              <EndlessScreen onExit={() => setShowEndless(false)} />
-            ) : (
-              <>
-                <HomeScreen
-                  onPlay={() => setPlaying(true)}
-                  onPlayEndless={() => setShowEndless(true)}
-                  onOpenMap={() => setMapOpen(true)}
+          {belowMinVersion ? (
+            <ForceUpdateScreen minSupportedVersion={minSupportedVersion} />
+          ) : maintenanceMode ? (
+            <MaintenanceScreen onRetry={syncRemoteConfig} />
+          ) : (
+            <>
+              {DEV_BOARD_ENABLED && devBoard && demoState ? (
+                <GameplayScreen initialState={demoState} />
+              ) : showFtue ? (
+                <FtueScreen />
+              ) : playing ? (
+                <LevelSession
+                  onExit={() => setPlaying(false)}
+                  onLevelMap={() => {
+                    setPlaying(false);
+                    setMapOpen(true);
+                  }}
                   onOpenSettings={() => setSettingsOpen(true)}
                 />
-                {DEV_BOARD_ENABLED ? (
-                  <Pressable style={styles.devButton} onPress={() => setDevBoard(true)}>
-                    <Text style={styles.devButtonText}>DEV: Board</Text>
-                  </Pressable>
-                ) : null}
-              </>
-            )}
-            {/* §12.1: an overlay, not a route — see `settingsOpen`'s own
+              ) : mapOpen ? (
+                <LevelMapScreen
+                  onPlay={() => {
+                    setMapOpen(false);
+                    setPlaying(true);
+                  }}
+                  onExit={() => setMapOpen(false)}
+                />
+              ) : showEndless ? (
+                <EndlessScreen onExit={() => setShowEndless(false)} />
+              ) : (
+                <>
+                  <HomeScreen
+                    onPlay={() => setPlaying(true)}
+                    onPlayEndless={() => setShowEndless(true)}
+                    onOpenMap={() => setMapOpen(true)}
+                    onOpenSettings={() => setSettingsOpen(true)}
+                  />
+                  {DEV_BOARD_ENABLED ? (
+                    <Pressable style={styles.devButton} onPress={() => setDevBoard(true)}>
+                      <Text style={styles.devButtonText}>DEV: Board</Text>
+                    </Pressable>
+                  ) : null}
+                </>
+              )}
+              {/* §12.1: an overlay, not a route — see `settingsOpen`'s own
                 comment above for why. */}
-            {settingsOpen ? (
-              <View style={styles.settingsOverlay}>
-                <SettingsScreen onExit={() => setSettingsOpen(false)} />
-              </View>
-            ) : null}
-          </>
-        )}
+              {settingsOpen ? (
+                <View style={styles.settingsOverlay}>
+                  <SettingsScreen onExit={() => setSettingsOpen(false)} />
+                </View>
+              ) : null}
+            </>
+          )}
+        </ErrorBoundary>
         <AnalyticsDebugOverlay />
       </SafeAreaProvider>
     </GestureHandlerRootView>

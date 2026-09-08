@@ -137,5 +137,10 @@
   "settings.support": "Support",
   "settings.privacy": "Privacy Policy",
   "settings.terms": "Terms of Service",
-  "settings.footer": "Block Manor v{{version}} (build {{build}})"
+  "settings.footer": "Block Manor v{{version}} (build {{build}})",
+  "restart.title": "The butler dropped something",
+  "restart.body": "Nothing's lost — your progress is saved. Let's pick up where you left off.",
+  "restart.cta": "Back to the manor",
+  "toast.retry": "Retry",
+  "toast.callableFailed": "That didn't go through"
 }

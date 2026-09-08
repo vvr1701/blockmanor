@@ -31,6 +31,8 @@ export const firebaseMock = {
   reservedEventNames: ['session_start', 'first_open', 'app_remove'],
   /** Simulate the native module blowing up rather than returning empty. */
   throwOnGetApps: false,
+  /** §12.8: every Crashlytics report, in order. */
+  crashes: [] as { message: string; context?: string }[],
 };
 
 export function resetFirebaseMock(): void {
@@ -43,6 +45,7 @@ export function resetFirebaseMock(): void {
   firebaseMock.settings = { minimumFetchIntervalMillis: 43_200_000, fetchTimeoutMillis: 60_000 };
   firebaseMock.logEventRejects = false;
   firebaseMock.throwOnGetApps = false;
+  firebaseMock.crashes = [];
 }
 
 // --- app ---
@@ -132,4 +135,24 @@ export function getAll(
     };
   }
   return out;
+}
+
+// --- crashlytics (§12.8) ---
+
+export function getCrashlytics(): { readonly __crashlytics: true } {
+  return { __crashlytics: true };
+}
+
+let pendingContext: string | undefined;
+
+export function log(_crashlytics: unknown, message: string): void {
+  pendingContext = message;
+}
+
+export function recordError(_crashlytics: unknown, error: Error): void {
+  firebaseMock.crashes.push({
+    message: error.message,
+    ...(pendingContext ? { context: pendingContext } : {}),
+  });
+  pendingContext = undefined;
 }

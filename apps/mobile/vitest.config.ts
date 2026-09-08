@@ -38,6 +38,7 @@ export default defineConfig({
       '@react-native-firebase/auth': path.resolve(mocks, 'react-native-firebase.ts'),
       '@react-native-firebase/analytics': path.resolve(mocks, 'react-native-firebase.ts'),
       '@react-native-firebase/remote-config': path.resolve(mocks, 'react-native-firebase.ts'),
+      '@react-native-firebase/crashlytics': path.resolve(mocks, 'react-native-firebase.ts'),
     },
   },
 });
