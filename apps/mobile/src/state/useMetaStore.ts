@@ -83,6 +83,17 @@ interface MetaState {
   lastFailAt: number;
   /** §12.10 "max once per version" — the build we last ASKED on, '' if never. */
   reviewPromptedVersion: string;
+  /** §12.3 stat. Distinct from `streak` (current) — a player who broke a
+   * 30-day run has a longest of 30 and a current of 0, and the profile is
+   * about the 30. Advanced by §8.6's server-authoritative streak, never
+   * derived from it after the fact. */
+  longestStreak: number;
+  /** §12.3 stat: lifetime lines cleared, accumulated from the engine's own
+   * LINES_CLEARED events rather than re-derived from scores. */
+  totalLines: number;
+  /** §12.3 stat: best daily percentile, 0 until §8.4's client lands and can
+   * supply one. Rendered as §12.9's "Early bird" empty state meanwhile. */
+  bestDailyPercentile: number;
   /** §12.1 "notification prefs by category." §8.7 names exactly two Stage-1
    * push categories — the daily-drop ping and the 20:00 streak-risk ping —
    * so those are the two categories, not an invented general list. Both
@@ -115,6 +126,9 @@ interface MetaState {
   recordLevelWin: () => void;
   recordLevelFail: (now: number) => void;
   markReviewPrompted: (version: string) => void;
+  /** §12.3: raises `longestStreak` if `streak` just beat it. Monotonic. */
+  recordStreak: (streak: number) => void;
+  addClearedLines: (lines: number) => void;
   setNotificationPref: (category: keyof MetaState['notificationPrefs'], enabled: boolean) => void;
 }
 
@@ -193,6 +207,19 @@ export function migrateMetaState(persisted: unknown, version: number): unknown {
       next = { ...next, reviewPromptedVersion: '' };
     }
   }
+  // v7 -> v8 (§12.3): profile stats. `longestStreak` seeds from whatever the
+  // save's CURRENT streak is rather than 0 — an upgrading player with a live
+  // 12-day streak has demonstrably reached 12, and showing them 0 would be
+  // wrong in a way they would notice immediately.
+  if (version < 8) {
+    if (typeof next.longestStreak !== 'number') {
+      next = { ...next, longestStreak: typeof next.streak === 'number' ? next.streak : 0 };
+    }
+    if (typeof next.totalLines !== 'number') next = { ...next, totalLines: 0 };
+    if (typeof next.bestDailyPercentile !== 'number') {
+      next = { ...next, bestDailyPercentile: 0 };
+    }
+  }
   return next;
 }
 
@@ -218,6 +245,9 @@ export const useMetaStore = create<MetaState>()(
       recentFails: 0,
       lastFailAt: 0,
       reviewPromptedVersion: '',
+      longestStreak: 0,
+      totalLines: 0,
+      bestDailyPercentile: 0,
       notificationPrefs: { dailyDrop: true, streakRisk: true },
       setCurrentLevel: (currentLevel) => set({ currentLevel }),
       setStreak: (streak) => set({ streak }),
@@ -261,6 +291,9 @@ export const useMetaStore = create<MetaState>()(
       recordLevelFail: (now) =>
         set((st) => ({ winStreak: 0, recentFails: st.recentFails + 1, lastFailAt: now })),
       markReviewPrompted: (version) => set({ reviewPromptedVersion: version }),
+      recordStreak: (streak) =>
+        set((st) => ({ streak, longestStreak: Math.max(st.longestStreak, streak) })),
+      addClearedLines: (lines) => set((st) => ({ totalLines: st.totalLines + lines })),
       setNotificationPref: (category, enabled) =>
         set((state) => ({
           notificationPrefs: { ...state.notificationPrefs, [category]: enabled },
@@ -269,7 +302,7 @@ export const useMetaStore = create<MetaState>()(
     {
       name: 'meta',
       storage: createJSONStorage(() => mmkvStorage),
-      version: 7,
+      version: 8,
       migrate: migrateMetaState,
     },
   ),
