@@ -79,3 +79,20 @@ export function getStoreUrl(): string {
     default: `https://play.google.com/store/apps/details?id=${androidPackage}`,
   })!;
 }
+
+/**
+ * §12.11: a SOFT update nudge is offered only when a newer optional build
+ * exists AND the installed build is still supported. Both halves matter — a
+ * below-minimum build must get §12.5's blocking screen and never this banner,
+ * or the player is offered a dismissible nudge for a build that cannot play.
+ * §12.5 gates before this in `App.tsx`, and this guard is the second, local
+ * statement of the same rule so the banner is correct on its own terms.
+ */
+export function isSoftUpdateAvailable(
+  installed: string,
+  latestVersion: string,
+  minSupportedVersion: string,
+): boolean {
+  if (isBelowMinVersion(installed, minSupportedVersion)) return false;
+  return compareVersions(latestVersion, installed) > 0;
+}

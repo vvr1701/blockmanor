@@ -142,5 +142,8 @@
   "restart.body": "Nothing's lost — your progress is saved. Let's pick up where you left off.",
   "restart.cta": "Back to the manor",
   "toast.retry": "Retry",
-  "toast.callableFailed": "That didn't go through"
+  "toast.callableFailed": "That didn't go through",
+  "update.nudge": "A new version of the manor is ready",
+  "update.cta": "Update",
+  "update.dismiss": "Dismiss the update notice"
 }
