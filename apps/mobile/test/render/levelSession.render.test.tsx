@@ -271,13 +271,13 @@ afterEach(() => {
 
 describe('LevelSession (PRD §7.5 progression loop)', () => {
   it('mounts GameplayScreen for `useMetaStore.currentLevel` and fires level_start{id,attempt:1}', () => {
-    const renderer = render(<LevelSession onExit={vi.fn()} />);
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
     expect(renderer.root.findAllByType(GameplayScreen).length).toBe(1);
     expect(trackMock).toHaveBeenCalledWith('level_start', { id: 10, attempt: 1 });
   });
 
   it('a win HOLDS the board (§7.5 audit M-2) before swapping in WinScreen, fires level_complete, and "Next level" advances currentLevel', () => {
-    const renderer = render(<LevelSession onExit={vi.fn()} />);
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
     place(renderer, 0, 0, 0);
 
     // The win beat (stars slam, confetti) plays on the still-mounted board —
@@ -304,7 +304,7 @@ describe('LevelSession (PRD §7.5 progression loop)', () => {
 
   it('a fail HOLDS the board (§7.5 audit M-2) before swapping in FailScreen with goal progress, and fires level_fail', () => {
     useMetaStore.setState({ currentLevel: 11 });
-    const renderer = render(<LevelSession onExit={vi.fn()} />);
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
     place(renderer, 0, 0, 0);
 
     expect(renderer.root.findAllByType(FailScreen).length).toBe(0);
@@ -329,7 +329,7 @@ describe('LevelSession (PRD §7.5 progression loop)', () => {
 
   it('a goal-less scripted level EXHAUSTING its pieceSequence (status "completed", §8.2/§4.3) swaps in WinScreen — §7.5 audit B-1', () => {
     useMetaStore.setState({ currentLevel: 12 });
-    const renderer = render(<LevelSession onExit={vi.fn()} />);
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
     place(renderer, 0, 3, 3); // empty board, no line clear — pure exhaustion
 
     expect(renderer.root.findAllByType(WinScreen).length).toBe(0);
@@ -348,7 +348,7 @@ describe('LevelSession (PRD §7.5 progression loop)', () => {
 
   it('Retry re-mounts a fresh GameplayScreen and fires level_start with attempt:2', () => {
     useMetaStore.setState({ currentLevel: 11 });
-    const renderer = render(<LevelSession onExit={vi.fn()} />);
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
     place(renderer, 0, 0, 0);
     advance(FAIL_HOLD_MS);
 
@@ -365,7 +365,7 @@ describe('LevelSession (PRD §7.5 progression loop)', () => {
   it('"Level map" (fail) calls onExit — the ghost has somewhere honest to go, not a dead end', () => {
     useMetaStore.setState({ currentLevel: 11 });
     const onExit = vi.fn();
-    const renderer = render(<LevelSession onExit={onExit} />);
+    const renderer = render(<LevelSession onExit={onExit} onOpenSettings={vi.fn()} />);
     place(renderer, 0, 0, 0);
     advance(FAIL_HOLD_MS);
 
@@ -379,12 +379,12 @@ describe('LevelSession (PRD §7.5 progression loop)', () => {
   it('a level past the shipped range calls onExit instead of rendering a dead end (§12.9)', () => {
     useMetaStore.setState({ currentLevel: 999999 });
     const onExit = vi.fn();
-    render(<LevelSession onExit={onExit} />);
+    render(<LevelSession onExit={onExit} onOpenSettings={vi.fn()} />);
     expect(onExit).toHaveBeenCalled();
   });
 
   it('unmounting mid-hold clears the deferred phase-swap timer — no throw, no late setState (§7.5 re-audit item 6)', () => {
-    const renderer = render(<LevelSession onExit={vi.fn()} />);
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
     place(renderer, 0, 0, 0); // WIN_LEVEL: arms the WIN_HOLD_MS phase-swap timer
 
     // Unmount BEFORE the hold elapses — `LevelSession`'s own
@@ -419,7 +419,7 @@ describe('LevelSession (PRD §7.5 progression loop)', () => {
     useMetaStore.setState({ currentLevel: 11, attempts: {} });
 
     // Session 1: run 1 (mount) -> fail -> Retry -> run 2.
-    const first = render(<LevelSession onExit={vi.fn()} />);
+    const first = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
     expect(trackMock).toHaveBeenCalledWith('level_start', { id: 11, attempt: 1 });
     place(first, 0, 0, 0);
     advance(FAIL_HOLD_MS);
@@ -447,7 +447,7 @@ describe('LevelSession (PRD §7.5 progression loop)', () => {
     await useMetaStore.persist.rehydrate();
     expect(useMetaStore.getState().attempts).toEqual({ '11': 2 });
 
-    render(<LevelSession onExit={vi.fn()} />);
+    render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
 
     // Run 3 of L11 — NOT a second `attempt: 1`.
     expect(trackMock).toHaveBeenCalledWith('level_start', { id: 11, attempt: 3 });
@@ -473,7 +473,7 @@ describe('LevelSession (PRD §7.5 progression loop)', () => {
       // "advances at run start").
       useMetaStore.setState({ currentLevel: 13, attempts: { '13': attempt - 1 } });
       trackMock.mockClear();
-      const renderer = render(<LevelSession onExit={vi.fn()} />);
+      const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
       const { initialState } = renderer.root.findByType(GameplayScreen).props as {
         initialState: GameState;
       };
@@ -500,7 +500,7 @@ describe('LevelSession (PRD §7.5 progression loop)', () => {
 
   it('advancing to a level already attempted resumes ITS counter instead of faking a first attempt (§0 v1.17)', () => {
     useMetaStore.setState({ currentLevel: 10, attempts: { '11': 4 } });
-    const renderer = render(<LevelSession onExit={vi.fn()} />);
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
     place(renderer, 0, 0, 0);
     advance(WIN_HOLD_MS);
     act(() => {
@@ -528,7 +528,7 @@ describe('LevelSession (PRD §7.5 progression loop)', () => {
         attempts: attempts as unknown as Record<string, number>,
       });
 
-      const renderer = render(<LevelSession onExit={vi.fn()} />);
+      const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
 
       expect(renderer.root.findAllByType(GameplayScreen).length).toBe(1);
       expect(trackMock).toHaveBeenCalledWith('level_start', { id: 11, attempt: 1 });
@@ -546,7 +546,7 @@ describe('LevelSession (PRD §7.5 progression loop)', () => {
     // unreachable-level path in `LevelSession` already uses.
     useMetaStore.setState({ currentLevel: MAX_LEVEL_ID });
     const onExit = vi.fn();
-    const renderer = render(<LevelSession onExit={onExit} />);
+    const renderer = render(<LevelSession onExit={onExit} onOpenSettings={vi.fn()} />);
     place(renderer, 0, 0, 0);
     advance(WIN_HOLD_MS);
 
@@ -573,7 +573,7 @@ describe('LevelSession (PRD §7.5 progression loop)', () => {
    * Drop either `persistStars` call and exactly one of them reds.
    */
   it('§7.10: a win PERSISTS the star count the level map renders', () => {
-    const renderer = render(<LevelSession onExit={vi.fn()} />);
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
     place(renderer, 0, 0, 0);
     advance(WIN_HOLD_MS);
 
@@ -584,7 +584,7 @@ describe('LevelSession (PRD §7.5 progression loop)', () => {
 
   it('§7.10: the `pieceSequence`-exhaustion win path persists stars too', () => {
     useMetaStore.setState({ currentLevel: 12 });
-    const renderer = render(<LevelSession onExit={vi.fn()} />);
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
     place(renderer, 0, 3, 3);
     advance(WIN_HOLD_MS);
 
@@ -596,7 +596,9 @@ describe('LevelSession (PRD §7.5 progression loop)', () => {
     useMetaStore.setState({ currentLevel: 11 });
     const onExit = vi.fn();
     const onLevelMap = vi.fn();
-    const renderer = render(<LevelSession onExit={onExit} onLevelMap={onLevelMap} />);
+    const renderer = render(
+      <LevelSession onExit={onExit} onLevelMap={onLevelMap} onOpenSettings={vi.fn()} />,
+    );
     place(renderer, 0, 0, 0);
     advance(FAIL_HOLD_MS);
 
@@ -606,7 +608,7 @@ describe('LevelSession (PRD §7.5 progression loop)', () => {
     expect(onLevelMap).toHaveBeenCalledTimes(1);
     expect(onExit).not.toHaveBeenCalled();
 
-    const bare = render(<LevelSession onExit={onExit} />);
+    const bare = render(<LevelSession onExit={onExit} onOpenSettings={vi.fn()} />);
     place(bare, 0, 0, 0);
     advance(FAIL_HOLD_MS);
     act(() => {
@@ -647,7 +649,7 @@ describe('LevelSession — PRD §12.2 pause', () => {
    */
   it('restart-from-pause IS retry-from-fail — literally the same callback', () => {
     useMetaStore.setState({ currentLevel: 11, attempts: {} });
-    const renderer = render(<LevelSession onExit={vi.fn()} />);
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
     const restart = pauseOf(renderer).onRestart;
 
     place(renderer, 0, 0, 0);
@@ -659,7 +661,7 @@ describe('LevelSession — PRD §12.2 pause', () => {
 
   it('restart-from-pause advances `attempt` by exactly one and persists it (§0 v1.17)', () => {
     useMetaStore.setState({ currentLevel: 11, attempts: {} });
-    const renderer = render(<LevelSession onExit={vi.fn()} />);
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
     expect(trackMock).toHaveBeenCalledWith('level_start', { id: 11, attempt: 1 });
     expect(useMetaStore.getState().attempts).toEqual({ '11': 1 });
 
@@ -676,7 +678,7 @@ describe('LevelSession — PRD §12.2 pause', () => {
 
   it('retry-from-fail lands on the SAME counter value, from the same starting state', () => {
     useMetaStore.setState({ currentLevel: 11, attempts: {} });
-    const renderer = render(<LevelSession onExit={vi.fn()} />);
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
     place(renderer, 0, 0, 0);
     advance(FAIL_HOLD_MS);
     act(() => {
@@ -695,7 +697,7 @@ describe('LevelSession — PRD §12.2 pause', () => {
    */
   it('restart-from-pause DEALS A FRESH TRAY, same as Retry (§0 v1.17 (ii))', () => {
     useMetaStore.setState({ currentLevel: 13, attempts: {} });
-    const renderer = render(<LevelSession onExit={vi.fn()} />);
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
     const trayOf = (): string =>
       (
         renderer.root.findByType(GameplayScreen).props as { initialState: GameState }
@@ -723,7 +725,9 @@ describe('LevelSession — PRD §12.2 pause', () => {
     useMetaStore.setState({ currentLevel: 13, attempts: {} });
     const onExit = vi.fn();
     const onLevelMap = vi.fn();
-    const renderer = render(<LevelSession onExit={onExit} onLevelMap={onLevelMap} />);
+    const renderer = render(
+      <LevelSession onExit={onExit} onLevelMap={onLevelMap} onOpenSettings={vi.fn()} />,
+    );
 
     place(renderer, 0, 0, 0);
     place(renderer, 1, 4, 4);
@@ -738,7 +742,9 @@ describe('LevelSession — PRD §12.2 pause', () => {
 
   it('fires `level_quit` EXACTLY once even if the control is hit twice before navigation', () => {
     useMetaStore.setState({ currentLevel: 13, attempts: {} });
-    const renderer = render(<LevelSession onExit={vi.fn()} onLevelMap={vi.fn()} />);
+    const renderer = render(
+      <LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} onLevelMap={vi.fn()} />,
+    );
     const { onQuit } = pauseOf(renderer);
     act(() => {
       onQuit(0);
@@ -750,7 +756,9 @@ describe('LevelSession — PRD §12.2 pause', () => {
   it('re-arms after a restart, so quitting the SECOND run still reports', () => {
     useMetaStore.setState({ currentLevel: 13, attempts: {} });
     const onLevelMap = vi.fn();
-    const renderer = render(<LevelSession onExit={vi.fn()} onLevelMap={onLevelMap} />);
+    const renderer = render(
+      <LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} onLevelMap={onLevelMap} />,
+    );
     act(() => {
       pauseOf(renderer).onQuit(1);
     });
@@ -768,7 +776,7 @@ describe('LevelSession — PRD §12.2 pause', () => {
   it('falls back to `onExit` when the mount point supplies no map route', () => {
     useMetaStore.setState({ currentLevel: 13, attempts: {} });
     const onExit = vi.fn();
-    const renderer = render(<LevelSession onExit={onExit} />);
+    const renderer = render(<LevelSession onExit={onExit} onOpenSettings={vi.fn()} />);
     act(() => {
       pauseOf(renderer).onQuit(0);
     });
@@ -782,7 +790,9 @@ describe('LevelSession — PRD §12.2 pause', () => {
    */
   it('an abandoned run still counts against `attempt` (§0 v1.17 (i))', () => {
     useMetaStore.setState({ currentLevel: 13, attempts: {} });
-    const renderer = render(<LevelSession onExit={vi.fn()} onLevelMap={vi.fn()} />);
+    const renderer = render(
+      <LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} onLevelMap={vi.fn()} />,
+    );
     act(() => {
       pauseOf(renderer).onQuit(3);
     });

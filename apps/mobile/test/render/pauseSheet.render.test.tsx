@@ -162,6 +162,7 @@ describe('PauseSheet — §12.2 clause by clause', () => {
       moves: 0,
       onResume: vi.fn(),
       onRestart: vi.fn(),
+      onOpenSettings: vi.fn(),
       onQuit: vi.fn(),
       ...over,
     };
@@ -216,15 +217,17 @@ describe('PauseSheet — §12.2 clause by clause', () => {
     expect(all).not.toContain('lives');
   });
 
-  it('the SETTINGS shortcut renders as a disabled button with an honest reason, and cannot be pressed', () => {
-    const { renderer } = sheet();
+  it("the SETTINGS shortcut is a real, enabled route to §12.1's SettingsScreen", () => {
+    const { renderer, props } = sheet();
     const row = renderer.root.findAll((n) =>
       String(n.props.accessibilityLabel ?? '').startsWith(en['pause.settings']),
     )[0]!;
     expect(row.props.accessibilityRole).toBe('button');
-    expect(row.props.accessibilityState).toEqual({ disabled: true });
-    expect(row.props.onPress).toBeUndefined();
-    expect(String(row.props.accessibilityLabel)).toContain(en['pause.settingsUnavailable']);
+    expect(row.props.accessibilityState).toBeUndefined();
+    expect(typeof row.props.onPress).toBe('function');
+    expect(String(row.props.accessibilityLabel)).toContain(en['pause.settingsHint']);
+    press(row);
+    expect(props.onOpenSettings).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -238,6 +241,7 @@ describe('PauseSheet — §12.2 quit-to-map, the >50% confirm boundary', () => {
         moves={4}
         onResume={noop}
         onRestart={noop}
+        onOpenSettings={noop}
         onQuit={onQuit}
       />,
     );
@@ -306,6 +310,7 @@ describe('PauseSheet — a11y and contrast (§15, CLAUDE.md a11y rules)', () => 
         moves={18}
         onResume={noop}
         onRestart={noop}
+        onOpenSettings={noop}
         onQuit={noop}
       />,
     );
@@ -330,7 +335,7 @@ describe('PauseSheet — a11y and contrast (§15, CLAUDE.md a11y rules)', () => 
     expect(labels).toContain(en['pause.resume']);
     expect(labels).toContain(en['pause.quit']);
     expect(labels).toContain(`${en['pause.restart']} · ${en['pause.restartHint']}`);
-    expect(labels).toContain(`${en['pause.settings']} · ${en['pause.settingsUnavailable']}`);
+    expect(labels).toContain(`${en['pause.settings']} · ${en['pause.settingsHint']}`);
     expect(new Set(labels).size).toBe(labels.length);
     for (const l of labels) expect(l.trim().length).toBeGreaterThan(0);
   });
@@ -381,7 +386,7 @@ describe('PauseSheet — a11y and contrast (§15, CLAUDE.md a11y rules)', () => 
 });
 
 describe('GameplayScreen — the §12.2 pause affordance', () => {
-  const controls = () => ({ onRestart: vi.fn(), onQuit: vi.fn() });
+  const controls = () => ({ onRestart: vi.fn(), onOpenSettings: vi.fn(), onQuit: vi.fn() });
 
   it('without `pause` there is NO announced control at all and no BackHandler (FTUE / dev board)', () => {
     const before = BackHandler.__count();
@@ -508,7 +513,7 @@ describe('GameplayScreen — the §12.2 pause affordance', () => {
 });
 
 describe('GameplayScreen — Android hardware back (§12.9, no dead ends)', () => {
-  const controls = () => ({ onRestart: vi.fn(), onQuit: vi.fn() });
+  const controls = () => ({ onRestart: vi.fn(), onOpenSettings: vi.fn(), onQuit: vi.fn() });
 
   it('opens pause, closes it on a second press, and CONSUMES both (never exits the app)', () => {
     const renderer = render(<GameplayScreen initialState={levelState()} pause={controls()} />);
@@ -581,7 +586,7 @@ describe('GameplayScreen — Android hardware back (§12.9, no dead ends)', () =
 });
 
 describe('GameplayScreen — §4.5: pausing stops the running animation', () => {
-  const controls = () => ({ onRestart: vi.fn(), onQuit: vi.fn() });
+  const controls = () => ({ onRestart: vi.fn(), onOpenSettings: vi.fn(), onQuit: vi.fn() });
 
   /** A board past §7.4's near-death threshold, whose vignette is the only
    * INDEFINITE (`withRepeat(..., -1)`) animation this screen runs. */

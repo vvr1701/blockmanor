@@ -13,7 +13,7 @@
  * as underlined text inside the card ("Exit is text, never a button", per
  * that panel's own footnote).
  *
- * NINE DIVERGENCES from panel 3.9, all deliberate — the PRD wins (§15) and
+ * EIGHT DIVERGENCES from panel 3.9, all deliberate — the PRD wins (§15) and
  * every mismatch is listed here, including the obvious ones (keep the count
  * in this sentence in step with the list):
  *
@@ -23,30 +23,25 @@
  *    life chip is not even reserved as a slot: §0 rule 2a admits only slots a
  *    CURRENT-stage section explicitly specs, and §12.2 specs no life counter.
  *    The sublabel says what restart actually does in Stage 1 instead.
- * 2. The settings shortcut is ONE disabled row, not the panel's three live
- *    SFX / Music / Haptics toggles. Those toggles are §12.1's spec
- *    ("SFX/music/haptics toggles"), and §12.1's `SettingsScreen` does not
- *    exist yet; building them here would implement §12.1 inside a §12.2 PR
- *    (CLAUDE.md rule 4, one subsection per PR) and would need a settings
- *    store §12.1 gets to design. §12.2's word is "shortcut" — a route to
- *    §12.1 — so a route is what this renders, honestly unavailable.
- * 3. That disabled row is NOT dimmed to a grey. Its title stays at the same
- *    `colors.night` on cream every enabled row uses, and "disabled" is
- *    carried by the "coming soon" sublabel, the absent press handler and
- *    `accessibilityState.disabled`. WCAG 1.4.3 exempts inactive controls
- *    from the 4.5:1 floor, but that exemption is a licence to be
- *    low-contrast, not a reason to be — a row a player is supposed to READ
- *    and understand should stay readable.
- * 4. The status line reads "Moves 18", not the panel's "18 moves left".
+ * 2. The settings shortcut is ONE row that routes to §12.1's `SettingsScreen`
+ *    (now that it exists — §12.1 landed on its own PR, per CLAUDE.md rule 4),
+ *    not the panel's three inline live SFX / Music / Haptics toggles. §12.2's
+ *    own word is "shortcut," not "controls" — a route to §12.1 is what it
+ *    specs, and duplicating three live toggles here would fork the mute
+ *    state's one source of truth (`useMetaStore`) across two screens for no
+ *    reason. Previously (before §12.1 existed) this row rendered disabled
+ *    with "coming soon" copy; that placeholder is gone now that the
+ *    destination is real.
+ * 3. The status line reads "Moves 18", not the panel's "18 moves left".
  *    §6.7's game over is board death; there is no move limit anywhere in the
  *    engine or in §7.7's level schema, so "moves left" is a number that does
  *    not exist. This is placements made (`GameState.placements`) — the same
  *    number §14's `level_quit.moves` carries.
- * 5. No blur behind the sheet. The panel blurs the board (`filter:blur(1.5px)`)
+ * 4. No blur behind the sheet. The panel blurs the board (`filter:blur(1.5px)`)
  *    under an 82% scrim; RN has no free blur primitive (that is `expo-blur`,
  *    an un-installed dependency) and §15's component list has no blur token.
  *    The 82% scrim alone is kept — it is the part that carries the meaning.
- * 6. EVERY secondary text on the cream is `colors.night` @ 70% (`INK_70`),
+ * 5. EVERY secondary text on the cream is `colors.night` @ 70% (`INK_70`),
  *    not the panel's ink — not just "Exit to map". The panel writes
  *    `rgba(42,33,21,.4)` on "Exit to map" (2.55:1 on cream) and
  *    `rgba(42,33,21,.45)` on the status line and the restart row's sublabel
@@ -54,16 +49,16 @@
  *    substitution `GhostButton`'s `onLight` variant already made for the same
  *    reason (§7.5 re-audit item 1). The settings sublabel and the confirm
  *    body take `INK_70` too, for consistency rather than as a substitution:
- *    they are PRD-only compositions (divergences 2 and 7) with no panel ink
+ *    they are PRD-only compositions (divergences 2 and 6) with no panel ink
  *    of their own to diverge from.
- * 7. The panel has NO confirm step; §12.2 requires one past 50% goal
+ * 6. The panel has NO confirm step; §12.2 requires one past 50% goal
  *    progress, so the confirm composition below is PRD-only and has no
  *    mockup to match. It is built from this sheet's own parts (title +
  *    body + gold CTA + text link) so it reads as the same surface.
- * 8. The panel's serif "Paused" is Playfair Display; `fontFamily.display` is
+ * 7. The panel's serif "Paused" is Playfair Display; `fontFamily.display` is
  *    still the platform `serif` fallback repo-wide (§15's font loading is not
  *    wired). Pre-existing, not introduced here, listed for completeness.
- * 9. The status line's goal segment reads "Crates 7/12"; the panel writes
+ * 8. The status line's goal segment reads "Crates 7/12"; the panel writes
  *    "crates 7/12", lower case. The label is `GOAL_LABEL_KEY` — the single
  *    §7.8 goal-type -> i18n-key mapping, shared with §7.5's `FailScreen`
  *    (which renders it title-cased at the start of its own line). Reusing
@@ -204,6 +199,9 @@ export interface PauseSheetProps {
   /** §12.2 restart. FREE in Stage 1; §9.2's life cost is Stage 2 and is not
    * modelled, reserved or referenced here. */
   onRestart: () => void;
+  /** §12.2's "settings shortcut" — routes to §12.1's `SettingsScreen`
+   * (divergence 2). */
+  onOpenSettings: () => void;
   /** §12.2 quit-to-map. Called only AFTER the confirm when §12.2's threshold
    * says one is needed. */
   onQuit: () => void;
@@ -222,6 +220,7 @@ export function PauseSheet({
   moves,
   onResume,
   onRestart,
+  onOpenSettings,
   onQuit,
   confirming,
   onConfirmingChange,
@@ -293,14 +292,13 @@ export function PauseSheet({
                 onPress={onRestart}
               />
 
-              {/* §12.2's "settings shortcut". §12.1 `SettingsScreen` does not
-                  exist yet (it is Stage 1, so this is a not-yet, not an
-                  out-of-stage), so the row states that rather than pretending
-                  to route somewhere. See divergences 2 and 3. */}
+              {/* §12.2's "settings shortcut" -> §12.1's `SettingsScreen`.
+                  See divergence 2. */}
               <SheetRow
                 glyph="⚙"
                 title={t('pause.settings')}
-                subtitle={t('pause.settingsUnavailable')}
+                subtitle={t('pause.settingsHint')}
+                onPress={onOpenSettings}
               />
 
               <Pressable

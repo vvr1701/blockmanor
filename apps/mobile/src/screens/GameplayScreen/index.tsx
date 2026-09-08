@@ -109,6 +109,10 @@ export interface PauseControls {
    * holder of that number, so it hands it up rather than making the caller
    * mirror the state. */
   onQuit: (moves: number) => void;
+  /** §12.2's "settings shortcut" -> §12.1's `SettingsScreen`. This screen
+   * has no navigation of its own (same reason it can't restart/quit itself)
+   * so it hands the press straight up, unchanged. */
+  onOpenSettings: () => void;
 }
 
 export interface GameplayScreenProps {
@@ -496,6 +500,7 @@ export function GameplayScreen({
           moves={state.placements}
           onResume={closePause}
           onRestart={handleRestart}
+          onOpenSettings={pause.onOpenSettings}
           onQuit={handleQuit}
           confirming={confirming}
           onConfirmingChange={setConfirming}

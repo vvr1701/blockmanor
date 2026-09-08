@@ -57,7 +57,7 @@ import {
   Shadow,
   vec,
 } from '@shopify/react-native-skia';
-import * as Haptics from 'expo-haptics';
+import * as Haptics from './haptics';
 import React, { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';

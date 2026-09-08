@@ -24,7 +24,7 @@
 
 import { type GameEvent } from '@blockmanor/engine';
 import { Canvas, Circle, RoundedRect, vec } from '@shopify/react-native-skia';
-import * as Haptics from 'expo-haptics';
+import * as Haptics from './haptics';
 import React, { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Animated, {
