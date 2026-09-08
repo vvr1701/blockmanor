@@ -147,5 +147,17 @@
   "update.cta": "Update",
   "update.dismiss": "Dismiss the update notice",
   "daily.offline": "Needs connection",
-  "daily.retry": "Retry"
+  "daily.retry": "Retry",
+  "profile.title": "Your profile",
+  "profile.guest": "Guest",
+  "profile.avatarA11y": "Avatar {{n}}",
+  "profile.stat.levels": "Levels done",
+  "profile.stat.percentile": "Best daily",
+  "profile.stat.streak": "Longest streak",
+  "profile.stat.lines": "Lines cleared",
+  "profile.percentileValue": "Top {{n}}%",
+  "profile.badgeCase": "Your frames",
+  "profile.noFrames": "Early bird! 🌅 Open a chest on the level map to earn your first frame.",
+  "profile.noFramesCta": "Back",
+  "profile.nameA11y": "Your name"
 }
