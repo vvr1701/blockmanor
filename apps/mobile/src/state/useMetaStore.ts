@@ -54,6 +54,28 @@ interface MetaState {
   /** §7.6 "personal best tracked" — the Endless mode high score. 0 means
    * "no record yet" (§12.9 empty-state trigger), never negative. */
   endlessBest: number;
+  /**
+   * §12.1 SFX/music/haptics toggles — persisted per its own acceptance
+   * clause ("every toggle persists across relaunch and takes effect
+   * immediately"). `game/sfx.ts`'s `playCue` reads `sfxEnabled` directly;
+   * `game/haptics.ts` reads `hapticsEnabled` directly — both read this
+   * store rather than being handed the value as a prop, because the mute
+   * has to reach call sites (`GoldButton`, `JuiceLayer`, `DragLayer`, ...)
+   * this PR does not touch. `musicEnabled` has no playback code to gate
+   * yet (§7.4/§15.1's music is blocked on the same missing audio assets as
+   * SFX) — it exists so the toggle persists and defaults on, per §7.4's
+   * "off by default is NOT allowed."  All three default `true`.
+   */
+  sfxEnabled: boolean;
+  musicEnabled: boolean;
+  hapticsEnabled: boolean;
+  /** §12.1 "notification prefs by category." §8.7 names exactly two Stage-1
+   * push categories — the daily-drop ping and the 20:00 streak-risk ping —
+   * so those are the two categories, not an invented general list. Both
+   * default `true`: no soft-ask/opt-in preference model exists yet to seed
+   * a different initial value from (§7.1's soft-ask is OS permission, a
+   * separate concern from this in-app preference). */
+  notificationPrefs: { dailyDrop: boolean; streakRisk: boolean };
   setCurrentLevel: (level: number) => void;
   setStreak: (streak: number) => void;
   setBadge: (badge: keyof MetaState['badges'], on: boolean) => void;
@@ -68,6 +90,10 @@ interface MetaState {
   /** Monotonic: only ever raises `endlessBest`, never lowers it — enforced
    * here (single source of truth) rather than trusted to every call site. */
   setEndlessBest: (score: number) => void;
+  setSfxEnabled: (enabled: boolean) => void;
+  setMusicEnabled: (enabled: boolean) => void;
+  setHapticsEnabled: (enabled: boolean) => void;
+  setNotificationPref: (category: keyof MetaState['notificationPrefs'], enabled: boolean) => void;
 }
 
 /**
@@ -113,6 +139,19 @@ export function migrateMetaState(persisted: unknown, version: number): unknown {
   if (version < 4 && typeof next.endlessBest !== 'number') {
     next = { ...next, endlessBest: 0 };
   }
+  // v4 -> v5 (§12.1): SFX/music/haptics toggles + notification prefs. All
+  // default `true` — §7.4's music rule ("off by default is NOT allowed")
+  // extended to SFX/haptics/notifications for consistency, since nothing in
+  // the PRD asks for a muted-by-default install. Same one-guard-per-key
+  // shape as every migration above.
+  if (version < 5) {
+    if (typeof next.sfxEnabled !== 'boolean') next = { ...next, sfxEnabled: true };
+    if (typeof next.musicEnabled !== 'boolean') next = { ...next, musicEnabled: true };
+    if (typeof next.hapticsEnabled !== 'boolean') next = { ...next, hapticsEnabled: true };
+    if (!next.notificationPrefs) {
+      next = { ...next, notificationPrefs: { dailyDrop: true, streakRisk: true } };
+    }
+  }
   return next;
 }
 
@@ -130,6 +169,10 @@ export const useMetaStore = create<MetaState>()(
       chestsClaimed: {},
       ownedFrames: [],
       endlessBest: 0,
+      sfxEnabled: true,
+      musicEnabled: true,
+      hapticsEnabled: true,
+      notificationPrefs: { dailyDrop: true, streakRisk: true },
       setCurrentLevel: (currentLevel) => set({ currentLevel }),
       setStreak: (streak) => set({ streak }),
       setBadge: (badge, on) => set((state) => ({ badges: { ...state.badges, [badge]: on } })),
@@ -164,11 +207,18 @@ export const useMetaStore = create<MetaState>()(
         }),
       setEndlessBest: (score) =>
         set((state) => ({ endlessBest: Math.max(state.endlessBest, score) })),
+      setSfxEnabled: (sfxEnabled) => set({ sfxEnabled }),
+      setMusicEnabled: (musicEnabled) => set({ musicEnabled }),
+      setHapticsEnabled: (hapticsEnabled) => set({ hapticsEnabled }),
+      setNotificationPref: (category, enabled) =>
+        set((state) => ({
+          notificationPrefs: { ...state.notificationPrefs, [category]: enabled },
+        })),
     }),
     {
       name: 'meta',
       storage: createJSONStorage(() => mmkvStorage),
-      version: 4,
+      version: 5,
       migrate: migrateMetaState,
     },
   ),

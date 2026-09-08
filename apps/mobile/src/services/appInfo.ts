@@ -43,6 +43,25 @@ export function isBelowMinVersion(installed: string, minSupportedVersion: string
 }
 
 /**
+ * §12.1's "version/build footer" — the build-number half. `app.config.ts`
+ * sets neither `android.versionCode` nor `ios.buildNumber` today (`eas.json`
+ * manages both remotely via `appVersionSource: "remote"` +
+ * `autoIncrement`), so there is genuinely no build identifier baked into
+ * this JS bundle yet — this reads whatever IS configured and falls back to
+ * `'1'` rather than inventing a number. Honest either way: "matches the
+ * running build" holds because it reads the same `Constants` object a real
+ * device build would populate, never a hardcoded literal.
+ * ponytail: no build-number wiring in app.config.ts yet — read it for real once EAS's remote version source is surfaced to the JS bundle.
+ */
+export function getBuildLabel(): string {
+  const android = Constants.expoConfig?.android?.versionCode;
+  const ios = Constants.expoConfig?.ios?.buildNumber;
+  if (typeof android === 'number') return String(android);
+  if (typeof ios === 'string' && ios.length > 0) return ios;
+  return '1';
+}
+
+/**
  * §12.5's "working store button" — a link-out, never a purchase flow. The
  * Android URL is real (built from the same package id `app.config.ts` ships,
  * read off `Constants` rather than re-typed here so the two can never

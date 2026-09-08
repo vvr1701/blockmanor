@@ -55,7 +55,7 @@
   "pause.restart": "Restart level",
   "pause.restartHint": "Start over with a freshly dealt tray",
   "pause.settings": "Settings",
-  "pause.settingsUnavailable": "Sound and haptics — coming soon",
+  "pause.settingsHint": "Sound, music & haptics",
   "pause.quit": "Exit to map",
   "pause.confirm.title": "Leave this level?",
   "pause.confirm.body": "You're more than halfway through the goals — leaving ends this attempt.",
@@ -125,5 +125,17 @@
   "maintenance.title": "Back in a moment",
   "maintenance.body": "We're rewiring the east wing. Your streak and progress are safe.",
   "maintenance.retry": "Retry",
-  "maintenance.checking": "Checking…"
+  "maintenance.checking": "Checking…",
+  "settings.title": "Settings",
+  "settings.closeLabel": "Close settings",
+  "settings.sfx": "Sound effects",
+  "settings.music": "Music",
+  "settings.haptics": "Haptics",
+  "settings.notifications.header": "Notifications",
+  "settings.notifications.dailyDrop": "Daily board is live",
+  "settings.notifications.streakRisk": "Streak at risk",
+  "settings.support": "Support",
+  "settings.privacy": "Privacy Policy",
+  "settings.terms": "Terms of Service",
+  "settings.footer": "Block Manor v{{version}} (build {{build}})"
 }

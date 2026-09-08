@@ -10,6 +10,7 @@ import { Platform } from 'react-native';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   compareVersions,
+  getBuildLabel,
   getInstalledVersion,
   getStoreUrl,
   isBelowMinVersion,
@@ -98,5 +99,32 @@ describe('getStoreUrl (PRD §12.5 — a working link-out, not a purchase flow)',
     Platform.OS = 'ios';
     const url = getStoreUrl();
     expect(url.startsWith('https://apps.apple.com/')).toBe(true);
+  });
+});
+
+describe('getBuildLabel (PRD §12.1 — "the version/build footer matches the running build")', () => {
+  afterEach(() => {
+    delete Constants.expoConfig!.android!.versionCode;
+    delete Constants.expoConfig!.ios!.buildNumber;
+  });
+
+  it('reads android.versionCode when present', () => {
+    Constants.expoConfig!.android!.versionCode = 42;
+    expect(getBuildLabel()).toBe('42');
+  });
+
+  it('falls back to ios.buildNumber when there is no android versionCode', () => {
+    Constants.expoConfig!.ios!.buildNumber = '7';
+    expect(getBuildLabel()).toBe('7');
+  });
+
+  it('falls back to "1" rather than inventing a number when neither is configured', () => {
+    expect(getBuildLabel()).toBe('1');
+  });
+
+  it('prefers android.versionCode over ios.buildNumber when both are set', () => {
+    Constants.expoConfig!.android!.versionCode = 42;
+    Constants.expoConfig!.ios!.buildNumber = '7';
+    expect(getBuildLabel()).toBe('42');
   });
 });

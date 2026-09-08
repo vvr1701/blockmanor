@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AnalyticsDebugOverlay } from './components/AnalyticsDebugOverlay';
@@ -16,6 +16,7 @@ import { GameplayScreen } from './screens/GameplayScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { LevelMapScreen } from './screens/LevelMapScreen';
 import { MaintenanceScreen } from './screens/MaintenanceScreen';
+import { SettingsScreen } from './screens/SettingsScreen';
 import { useConfigStore } from './state/useConfigStore';
 import { useMetaStore } from './state/useMetaStore';
 
@@ -53,6 +54,12 @@ export default function App(): React.JSX.Element {
   // (none exists yet, same gap `devBoard` above already works around) — same
   // local-state seam, not a preview of §7.11's eventual real navigation.
   const [showEndless, setShowEndless] = useState(false);
+  // §12.1: Home's HUD gear AND (via `LevelSession`) `PauseSheet`'s settings
+  // shortcut both reach the same local-state seam. Rendered as an OVERLAY
+  // sibling (like `AnalyticsDebugOverlay`), not a replacement branch of the
+  // ternary below — opening it from mid-level must not unmount `LevelSession`
+  // and lose the paused run's in-memory board state.
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const demoState = useMemo(() => (DEV_BOARD_ENABLED ? createDemoGameState() : null), []);
 
   // §7.1 v1.11 skip logic: "returning users (existing cloud/local save)
@@ -94,39 +101,52 @@ export default function App(): React.JSX.Element {
           <ForceUpdateScreen minSupportedVersion={minSupportedVersion} />
         ) : maintenanceMode ? (
           <MaintenanceScreen onRetry={syncRemoteConfig} />
-        ) : DEV_BOARD_ENABLED && devBoard && demoState ? (
-          <GameplayScreen initialState={demoState} />
-        ) : showFtue ? (
-          <FtueScreen />
-        ) : playing ? (
-          <LevelSession
-            onExit={() => setPlaying(false)}
-            onLevelMap={() => {
-              setPlaying(false);
-              setMapOpen(true);
-            }}
-          />
-        ) : mapOpen ? (
-          <LevelMapScreen
-            onPlay={() => {
-              setMapOpen(false);
-              setPlaying(true);
-            }}
-            onExit={() => setMapOpen(false)}
-          />
-        ) : showEndless ? (
-          <EndlessScreen onExit={() => setShowEndless(false)} />
         ) : (
           <>
-            <HomeScreen
-              onPlay={() => setPlaying(true)}
-              onPlayEndless={() => setShowEndless(true)}
-              onOpenMap={() => setMapOpen(true)}
-            />
-            {DEV_BOARD_ENABLED ? (
-              <Pressable style={styles.devButton} onPress={() => setDevBoard(true)}>
-                <Text style={styles.devButtonText}>DEV: Board</Text>
-              </Pressable>
+            {DEV_BOARD_ENABLED && devBoard && demoState ? (
+              <GameplayScreen initialState={demoState} />
+            ) : showFtue ? (
+              <FtueScreen />
+            ) : playing ? (
+              <LevelSession
+                onExit={() => setPlaying(false)}
+                onLevelMap={() => {
+                  setPlaying(false);
+                  setMapOpen(true);
+                }}
+                onOpenSettings={() => setSettingsOpen(true)}
+              />
+            ) : mapOpen ? (
+              <LevelMapScreen
+                onPlay={() => {
+                  setMapOpen(false);
+                  setPlaying(true);
+                }}
+                onExit={() => setMapOpen(false)}
+              />
+            ) : showEndless ? (
+              <EndlessScreen onExit={() => setShowEndless(false)} />
+            ) : (
+              <>
+                <HomeScreen
+                  onPlay={() => setPlaying(true)}
+                  onPlayEndless={() => setShowEndless(true)}
+                  onOpenMap={() => setMapOpen(true)}
+                  onOpenSettings={() => setSettingsOpen(true)}
+                />
+                {DEV_BOARD_ENABLED ? (
+                  <Pressable style={styles.devButton} onPress={() => setDevBoard(true)}>
+                    <Text style={styles.devButtonText}>DEV: Board</Text>
+                  </Pressable>
+                ) : null}
+              </>
+            )}
+            {/* §12.1: an overlay, not a route — see `settingsOpen`'s own
+                comment above for why. */}
+            {settingsOpen ? (
+              <View style={styles.settingsOverlay}>
+                <SettingsScreen onExit={() => setSettingsOpen(false)} />
+              </View>
             ) : null}
           </>
         )}
@@ -138,6 +158,7 @@ export default function App(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  settingsOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   devButton: {
     position: 'absolute',
     bottom: 24,

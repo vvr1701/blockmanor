@@ -90,9 +90,17 @@ export interface LevelSessionProps {
    * shipped range. Optional so existing mounts keep the pre-§7.10 behaviour
    * (everything routes to `onExit`); `App.tsx` passes the real map. */
   onLevelMap?: () => void;
+  /** §12.2's "settings shortcut" -> §12.1's `SettingsScreen`. This screen
+   * owns no navigation of its own (same as `onLevelMap`), so it hands the
+   * press straight to `App.tsx`'s route. */
+  onOpenSettings: () => void;
 }
 
-export function LevelSession({ onExit, onLevelMap }: LevelSessionProps): React.JSX.Element | null {
+export function LevelSession({
+  onExit,
+  onLevelMap,
+  onOpenSettings,
+}: LevelSessionProps): React.JSX.Element | null {
   const currentLevel = useMetaStore((s) => s.currentLevel);
   const setCurrentLevel = useMetaStore((s) => s.setCurrentLevel);
   const tuning = useEngineTuning();
@@ -295,8 +303,8 @@ export function LevelSession({ onExit, onLevelMap }: LevelSessionProps): React.J
   // has already fired `level_fail`, a pause-restart has not — an abandoned
   // run mid-level is a quit-shaped hole in the funnel by design, §3.)
   const pauseControls: PauseControls = useMemo(
-    () => ({ onRestart: handleRetry, onQuit: handleQuit }),
-    [handleRetry, handleQuit],
+    () => ({ onRestart: handleRetry, onQuit: handleQuit, onOpenSettings }),
+    [handleRetry, handleQuit, onOpenSettings],
   );
 
   if (!json || !initialState) return null;

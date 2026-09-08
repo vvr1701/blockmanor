@@ -1,3 +1,5 @@
+import { useMetaStore } from '../state/useMetaStore';
+
 /**
  * The audio seam — PRD §7.4 / §15.1. Deliberately out of scope THIS session:
  * §15.1's own rule is "every named cue above MUST exist before its screen
@@ -37,10 +39,25 @@ export type SfxCue =
   | 'modal_close';
 
 /**
- * No-op: blocked on audio assets (see header). `semitones` is accepted now
- * (clear_chime's §6.6/§7.4 pitch-per-combo requirement) so call sites don't
- * need to change when this stops being a no-op.
+ * No-op today beyond its §12.1 mute gate: blocked on audio assets (see file
+ * header). `semitones` is accepted now (clear_chime's §6.6/§7.4
+ * pitch-per-combo requirement) so call sites don't need to change when this
+ * stops being a no-op.
+ *
+ * §12.1's acceptance is explicit that the SFX toggle "actually silences its
+ * channel" — with nothing behind the no-op to silence, the only thing that
+ * can honestly be muted is the CALL itself: `sfxEnabled: false` returns
+ * before any future playback code (or asset lookup) would run.
+ *
+ * Returns whether the cue was actually REACHED (`true`) or muted before
+ * anything would have played (`false`). No call site today reads this —
+ * every one of them still fires `playCue('...')` with no receiver — it
+ * exists so the mute gate has an observable effect to assert against
+ * without needing a real audio side effect: "assert `playCue` is not
+ * reached when muted" is exactly `expect(playCue(cue)).toBe(false)`.
  */
-export function playCue(_cue: SfxCue, _semitones = 0): void {
-  // Intentionally empty — see file header.
+export function playCue(_cue: SfxCue, _semitones = 0): boolean {
+  if (!useMetaStore.getState().sfxEnabled) return false;
+  // Intentionally empty beyond the gate — see file header.
+  return true;
 }
