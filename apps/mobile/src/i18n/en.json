@@ -145,5 +145,7 @@
   "toast.callableFailed": "That didn't go through",
   "update.nudge": "A new version of the manor is ready",
   "update.cta": "Update",
-  "update.dismiss": "Dismiss the update notice"
+  "update.dismiss": "Dismiss the update notice",
+  "daily.offline": "Needs connection",
+  "daily.retry": "Retry"
 }

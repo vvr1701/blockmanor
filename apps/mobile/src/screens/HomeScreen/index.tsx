@@ -15,6 +15,7 @@ import { EndlessCard } from './EndlessCard';
 import { EventBannerSlot } from './EventBannerSlot';
 import { isNudgeSuppressed, UpdateBanner } from './UpdateBanner';
 import { getInstalledVersion, isSoftUpdateAvailable } from '../../services/appInfo';
+import { reportNetworkResult, useOnline } from '../../services/connectivity';
 import { consumeDailyPulse } from './homeSession';
 import { HudBar } from './HudBar';
 
@@ -140,6 +141,10 @@ export function HomeScreen({
   const dismissUpdateNudge = useMetaStore((s) => s.dismissUpdateNudge);
   const softUpdate = isSoftUpdateAvailable(getInstalledVersion(), latestVersion, minSupported);
   const nudgeSuppressed = isNudgeSuppressed(dismissedAt, now);
+  // §12.4: the Daily tile is the ONLY thing on Home that needs the network.
+  // Levels and Endless read MMKV and the bundled content, so they stay fully
+  // playable — that is asserted, not assumed, in the offline tests.
+  const online = useOnline();
   // (g) bottom nav gates — §7.11(g) (PRD v1.20) names each tab's flag
   // inline; `flag_economy`-for-Shop is the one deliberate non-1:1 mapping
   // (see `BottomNav`'s own doc comment).
@@ -205,6 +210,8 @@ export function HomeScreen({
               fetch — §8.3 is a different, not-yet-built branch. */}
           {dailyBoardFlag ? (
             <DailyBoardTile
+              offline={!online}
+              onRetry={() => reportNetworkResult(true)}
               unplayed={badges.dailyUnplayed}
               streak={streak}
               pulseOnMount={pulseThisEntry}

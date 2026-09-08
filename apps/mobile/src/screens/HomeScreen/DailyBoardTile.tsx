@@ -20,7 +20,7 @@
  */
 
 import React, { useEffect } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useReducedMotion,
@@ -50,12 +50,21 @@ export interface DailyBoardTileProps {
    * (outlives one mount) — `HomeScreen` computes it via `homeSession.ts` and
    * passes the result down; this prop is only the mount-local seam. */
   pulseOnMount?: boolean;
+  /** §12.4: the offline state REPLACES the play affordance rather than
+   * sitting beside it — a tile that still invites a tap it cannot honour is
+   * the dead end §12.9 forbids. */
+  offline?: boolean;
+  /** §12.4's "with retry". Required whenever `offline` is true, or the state
+   * would be a dead end. */
+  onRetry?: () => void;
 }
 
 export function DailyBoardTile({
   unplayed,
   streak,
   pulseOnMount = true,
+  offline = false,
+  onRetry,
 }: DailyBoardTileProps): React.JSX.Element {
   const reducedMotion = useReducedMotion();
   const scale = useSharedValue(1);
@@ -74,13 +83,28 @@ export function DailyBoardTile({
 
   return (
     <Animated.View style={[styles.card, style]}>
-      {unplayed ? (
+      {unplayed && !offline ? (
         <BadgeDot label={t('home.dailyBoard.badgeLabel')} style={styles.badgeDot} />
       ) : null}
       <Text style={styles.title}>{t('home.dailyBoard.title')}</Text>
-      <Text style={styles.subtitle}>
-        {t(unplayed ? 'home.dailyBoard.subtitle' : 'home.dailyBoard.subtitleComplete')}
-      </Text>
+      {offline ? (
+        <>
+          <Text style={styles.subtitle}>{t('daily.offline')}</Text>
+          <Pressable
+            onPress={onRetry}
+            accessibilityRole="button"
+            accessibilityLabel={t('daily.retry')}
+            hitSlop={spacing.sm}
+            style={styles.retry}
+          >
+            <Text style={styles.retryText}>{t('daily.retry')}</Text>
+          </Pressable>
+        </>
+      ) : (
+        <Text style={styles.subtitle}>
+          {t(unplayed ? 'home.dailyBoard.subtitle' : 'home.dailyBoard.subtitleComplete')}
+        </Text>
+      )}
       {streak > 0 ? (
         <View
           style={styles.flameChip}
@@ -128,4 +152,6 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     fontVariant: ['tabular-nums'],
   },
+  retry: { minHeight: 44, justifyContent: 'center' },
+  retryText: { color: colors.gold, fontSize: fontSize.sm, fontWeight: '700' },
 });
