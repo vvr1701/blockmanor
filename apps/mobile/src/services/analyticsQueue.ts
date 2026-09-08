@@ -1,4 +1,5 @@
 import { AppState } from 'react-native';
+import { reportNetworkResult } from './connectivity';
 import { MMKV } from 'react-native-mmkv';
 import { REMOTE_CONFIG_DEFAULTS } from '@blockmanor/shared';
 import { useConfigStore } from '../state/useConfigStore';
@@ -129,6 +130,8 @@ export const defaultSender: AnalyticsSender = async (event) => {
     throw new PermanentSendError(error instanceof Error ? error.message : String(error));
   }
   await sent;
+  // §12.4: a completed send is the app's most reliable "we are online" fact.
+  reportNetworkResult(true);
 };
 
 interface PersistedQueueV1 {
