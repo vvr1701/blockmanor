@@ -73,6 +73,16 @@ interface MetaState {
    * Persisted, because "max 1/week" has to survive a relaunch or the banner
    * reappears on every cold start and stops being soft. */
   updateNudgeDismissedAt: number;
+  /** §12.10: consecutive level wins. Reset by any fail. Distinct from
+   * `streak`, which is the §8.6 DAILY streak — two different things that both
+   * want the word. */
+  winStreak: number;
+  /** §12.10 fail-heavy suppression: fails this session, and when the last one
+   * happened. */
+  recentFails: number;
+  lastFailAt: number;
+  /** §12.10 "max once per version" — the build we last ASKED on, '' if never. */
+  reviewPromptedVersion: string;
   /** §12.1 "notification prefs by category." §8.7 names exactly two Stage-1
    * push categories — the daily-drop ping and the 20:00 streak-risk ping —
    * so those are the two categories, not an invented general list. Both
@@ -101,6 +111,10 @@ interface MetaState {
    * call site — the engine's purity rule is not in force here, but a testable
    * clock is still cheaper than faking timers). */
   dismissUpdateNudge: (now: number) => void;
+  /** §12.10: a win advances the streak; a fail resets it and records the time. */
+  recordLevelWin: () => void;
+  recordLevelFail: (now: number) => void;
+  markReviewPrompted: (version: string) => void;
   setNotificationPref: (category: keyof MetaState['notificationPrefs'], enabled: boolean) => void;
 }
 
@@ -168,6 +182,17 @@ export function migrateMetaState(persisted: unknown, version: number): unknown {
       next = { ...next, updateNudgeDismissedAt: 0 };
     }
   }
+  // v6 -> v7 (§12.10): review-prompt eligibility inputs. All default to "no
+  // history", which is right for an existing save — an upgrading player has
+  // never been asked, so they stay eligible rather than being locked out.
+  if (version < 7) {
+    if (typeof next.winStreak !== 'number') next = { ...next, winStreak: 0 };
+    if (typeof next.recentFails !== 'number') next = { ...next, recentFails: 0 };
+    if (typeof next.lastFailAt !== 'number') next = { ...next, lastFailAt: 0 };
+    if (typeof next.reviewPromptedVersion !== 'string') {
+      next = { ...next, reviewPromptedVersion: '' };
+    }
+  }
   return next;
 }
 
@@ -189,6 +214,10 @@ export const useMetaStore = create<MetaState>()(
       musicEnabled: true,
       hapticsEnabled: true,
       updateNudgeDismissedAt: 0,
+      winStreak: 0,
+      recentFails: 0,
+      lastFailAt: 0,
+      reviewPromptedVersion: '',
       notificationPrefs: { dailyDrop: true, streakRisk: true },
       setCurrentLevel: (currentLevel) => set({ currentLevel }),
       setStreak: (streak) => set({ streak }),
@@ -228,6 +257,10 @@ export const useMetaStore = create<MetaState>()(
       setMusicEnabled: (musicEnabled) => set({ musicEnabled }),
       setHapticsEnabled: (hapticsEnabled) => set({ hapticsEnabled }),
       dismissUpdateNudge: (now) => set({ updateNudgeDismissedAt: now }),
+      recordLevelWin: () => set((st) => ({ winStreak: st.winStreak + 1 })),
+      recordLevelFail: (now) =>
+        set((st) => ({ winStreak: 0, recentFails: st.recentFails + 1, lastFailAt: now })),
+      markReviewPrompted: (version) => set({ reviewPromptedVersion: version }),
       setNotificationPref: (category, enabled) =>
         set((state) => ({
           notificationPrefs: { ...state.notificationPrefs, [category]: enabled },
@@ -236,7 +269,7 @@ export const useMetaStore = create<MetaState>()(
     {
       name: 'meta',
       storage: createJSONStorage(() => mmkvStorage),
-      version: 6,
+      version: 7,
       migrate: migrateMetaState,
     },
   ),
