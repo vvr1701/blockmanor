@@ -20,7 +20,7 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { GhostButton } from '../../components/GhostButton';
 import { GoldButton } from '../../components/GoldButton';
-import { colors, fontSize, radius, spacing } from '../../components/tokens';
+import { colors, fontSize, radius, spacing, withAlpha } from '../../components/tokens';
 import { GOAL_LABEL_KEY, goalProgressPct, type GoalBarEntry } from '../../game/goalBar';
 import { t } from '../../i18n';
 import { CONTINUE_SLOT_RESERVED_HEIGHT } from './failTokens';
@@ -48,8 +48,8 @@ const SO_CLOSE_MIN_PROGRESS_PCT = 50;
  * walk exercised.
  */
 const DIM = {
-  subtitle: 'rgba(19,24,48,0.7)', // colors.night @ 70% — 5.98:1 on cream
-  soClose: 'rgba(19,24,48,0.65)', // colors.night @ 65% — 5.07:1 on cream
+  subtitle: withAlpha(colors.night, 0.7), // 5.98:1 on cream
+  soClose: withAlpha(colors.night, 0.65), // 5.07:1 on cream
 } as const;
 
 export interface FailScreenProps {
@@ -65,7 +65,7 @@ function GoalLine({ goal }: { goal: GoalBarEntry }): React.JSX.Element {
   const done = goal.total - goal.remaining;
   return (
     <Text style={styles.goalLine}>
-      {t('fail.goalLine', { label: t(GOAL_LABEL_KEY[goal.type]), done, total: goal.total })}
+      {t('gameplay.goal.line', { label: t(GOAL_LABEL_KEY[goal.type]), done, total: goal.total })}
     </Text>
   );
 }

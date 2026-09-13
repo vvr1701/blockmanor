@@ -85,7 +85,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { GoldButton } from '../../components/GoldButton';
-import { colors, fontFamily, fontSize, radius, spacing } from '../../components/tokens';
+import { colors, fontFamily, fontSize, radius, spacing, withAlpha } from '../../components/tokens';
 import { t } from '../../i18n';
 import { useMetaStore } from '../../state/useMetaStore';
 import { ChestSheet } from './ChestSheet';
@@ -506,7 +506,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     // `colors.gold` @ 55% — the mockup's lit path, at the alpha that keeps
     // the dots at 3.60:1 on `night` rather than the mockup's 42% (2.57:1).
-    backgroundColor: 'rgba(233,196,106,0.55)',
+    backgroundColor: withAlpha(colors.gold, 0.55),
   },
 
   chapterCard: {
@@ -516,7 +516,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     // `colors.gold` @ 55%: the card's own `night2` fill is 1.06:1 against the
     // `night` screen, so this border is what delineates the card — 3.66:1.
-    borderColor: 'rgba(233,196,106,0.55)',
+    borderColor: withAlpha(colors.gold, 0.55),
     backgroundColor: colors.night2,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
@@ -525,7 +525,7 @@ const styles = StyleSheet.create({
   },
   chapterEyebrow: {
     // `colors.gold` @ 85% on `night2` — 7.5:1, well past the 4.5:1 floor.
-    color: 'rgba(233,196,106,0.85)',
+    color: withAlpha(colors.gold, 0.85),
     fontSize: fontSize.xs,
     fontWeight: '900',
     letterSpacing: 2,
@@ -662,7 +662,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     // `colors.gold` @ 70% — 5.13:1 on `night`; the chip has no fill, so the
     // border is the only thing that draws it.
-    borderColor: 'rgba(233,196,106,0.7)',
+    borderColor: withAlpha(colors.gold, 0.7),
     paddingHorizontal: spacing.md,
   },
   starChipGlyph: { color: colors.gold, fontSize: fontSize.md },

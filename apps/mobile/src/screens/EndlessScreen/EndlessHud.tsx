@@ -17,15 +17,16 @@
  *   - Mode chip: mockup's `linear-gradient(#AAB4CB,#6E7899)` becomes flat
  *     `colors.muted` (the §15 token that gradient is drawn from).
  *
- * The exit affordance is NOT in the mockup — the mockup has no way out of a
+ * The pause affordance is NOT in the mockup — the mockup has no way out of a
  * run at all, which §12.9's "invitations, never dead ends" does not permit
- * for a mode the player elected into. It is one close button, not §12.2's
- * `PauseSheet` (that is its own section, its own PR).
+ * for a mode the player elected into. It opens `GameplayScreen`'s own
+ * §12.2 `PauseSheet` (Endless converged onto that pause instead of keeping a
+ * bespoke close button + its own `BackHandler`, once §12.2 existed to share).
  */
 
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, fontSize, radius, spacing } from '../../components/tokens';
+import { colors, fontSize, radius, spacing, withAlpha } from '../../components/tokens';
 import { t } from '../../i18n';
 import { formatScore } from '../../i18n/format';
 
@@ -38,10 +39,14 @@ export interface EndlessHudProps {
   /** Personal best as it stood when this run STARTED (0 = no best yet, §12.9:
    * nothing to beat, so the whole best-line treatment is suppressed). */
   best: number;
-  onExit: () => void;
+  /** `GameplayScreen`'s own `openPause` (already gated on `canPause` by that
+   * screen) — this HUD replaces the default HUD row entirely, so it is the
+   * only way back to §12.2's `PauseSheet`, which is where "Exit to map"
+   * actually leaves the run. */
+  onOpenPause: () => void;
 }
 
-export function EndlessHud({ score, best, onExit }: EndlessHudProps): React.JSX.Element {
+export function EndlessHud({ score, best, onOpenPause }: EndlessHudProps): React.JSX.Element {
   const hasBest = best > 0;
   const passed = hasBest && score > best;
   return (
@@ -49,16 +54,16 @@ export function EndlessHud({ score, best, onExit }: EndlessHudProps): React.JSX.
       <View style={styles.topRow}>
         <Pressable
           style={styles.exit}
-          onPress={onExit}
+          onPress={onOpenPause}
           accessibilityRole="button"
-          accessibilityLabel={t('endless.hud.exit')}
+          accessibilityLabel={t('pause.openLabel')}
         >
           <Text style={styles.exitGlyph}>{'×'}</Text>
         </Pressable>
         <View style={styles.modeChip}>
           <Text style={styles.modeChipText}>{t('endless.hud.mode')}</Text>
         </View>
-        {/* Balances the exit button so the chip stays optically centred. */}
+        {/* Balances the pause button so the chip stays optically centred. */}
         <View style={styles.exitSpacer} />
       </View>
 
@@ -126,8 +131,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: radius.card,
     borderWidth: 1,
-    borderColor: 'rgba(233,196,106,0.45)',
-    backgroundColor: 'rgba(233,196,106,0.16)',
+    borderColor: withAlpha(colors.gold, 0.45),
+    backgroundColor: withAlpha(colors.gold, 0.16),
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
   },
@@ -148,6 +153,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: spacing.xs,
   },
-  bestLine: { height: 3, borderRadius: 2, backgroundColor: 'rgba(233,196,106,0.35)' },
+  bestLine: { height: 3, borderRadius: 2, backgroundColor: withAlpha(colors.gold, 0.35) },
   bestLinePassed: { backgroundColor: colors.gold },
 });

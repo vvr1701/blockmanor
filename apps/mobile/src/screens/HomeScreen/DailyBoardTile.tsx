@@ -29,7 +29,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { BadgeDot } from '../../components/Badge';
-import { colors, fontFamily, fontSize, radius, spacing } from '../../components/tokens';
+import { colors, fontFamily, fontSize, radius, spacing, withAlpha } from '../../components/tokens';
 import { t } from '../../i18n';
 
 /** §7.11: "tile pulses once on screen entry". Not PRD-timed — a quick,
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     backgroundColor: 'rgba(36,44,85,0.94)',
     borderWidth: 1,
-    borderColor: 'rgba(233,196,106,0.3)',
+    borderColor: withAlpha(colors.gold, 0.3),
     alignSelf: 'stretch',
   },
   // The dot pokes outside the card's own edge (see `BadgeDot`'s -6/-5

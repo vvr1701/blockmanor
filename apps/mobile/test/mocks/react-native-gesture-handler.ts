@@ -31,6 +31,16 @@ export interface ChainableGesture {
   /** Test-only: the last value passed to `.enabled()`, defaulting to RNGH's
    * own default of `true` when the chain never calls it. */
   __enabled: boolean;
+  /** Test-only: the last value passed to `.minDistance()`, `undefined` when
+   * the chain never calls it (RNGH's own default is a platform-specific
+   * non-zero distance). Previously swallowed — a test could not see whether
+   * `DragLayer` actually asked for `minDistance(0)` (a drag must start on
+   * the very first touch, §7.3), only that SOME pan gesture existed. */
+  __minDistance: number | undefined;
+  /** Test-only: the last value passed to `.shouldCancelWhenOutside()`,
+   * `undefined` when the chain never calls it (RNGH's own default is
+   * `false`). Same previously-swallowed shape as `__minDistance` above. */
+  __shouldCancelWhenOutside: boolean | undefined;
   /** Test-only: every callback registered via the chain above, in call order. */
   __handlers: {
     onBegin: ((e: PanEventMock) => void)[];
@@ -68,8 +78,16 @@ function chainable(): ChainableGesture {
       return gesture;
     },
     __enabled: true,
-    minDistance: () => gesture,
-    shouldCancelWhenOutside: () => gesture,
+    minDistance: (value) => {
+      gesture.__minDistance = value;
+      return gesture;
+    },
+    __minDistance: undefined,
+    shouldCancelWhenOutside: (value) => {
+      gesture.__shouldCancelWhenOutside = value;
+      return gesture;
+    },
+    __shouldCancelWhenOutside: undefined,
     onBegin: (cb) => {
       handlers.onBegin.push(cb);
       return gesture;

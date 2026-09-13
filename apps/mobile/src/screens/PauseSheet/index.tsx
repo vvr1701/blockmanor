@@ -73,26 +73,21 @@
  * express icon + title + sublabel + trailing status. Promoting a row into
  * `src/components` would be a design-system ADDITION smuggled into a feature
  * PR — the same call §7.10 made when it declined to build `Confetti`.
- * `ModalSheet(brass frame)` is genuinely in §15's list and this sheet is a
- * third instance of it (`ChestSheet`, §7.6's `EndlessResultSheet`), but
- * extracting it would rewrite two already-audited screens on two other
- * unmerged branches; noted as the extraction point, not done here.
+ * `ModalSheet(brass frame)` IS in §15's list and this sheet was its second
+ * inline copy (`ChestSheet` the first) — now extracted to
+ * `src/components/ModalSheet.tsx` and shared by both. `EndlessResultSheet`
+ * (§7.6) is NOT a third copy: it has a flat cream card with no brass frame
+ * layer at all, a different composition (see `ModalSheet`'s own header).
  *
- * CONVERGENCE POINT with §7.6 (noted, deliberately not done here — that
- * branch is unmerged and already audited). `EndlessScreen` needed a mid-run
- * exit before §12.2 existed, so it grew a bespoke `EndlessHud` close button
- * plus its own `BackHandler`. This sheet is the general version of both:
- * `GameplayScreen` now owns the `BackHandler` for every caller that passes
- * `pause`, so when §7.6 merges, `EndlessScreen` should pass
- * `pause={{ onRestart: playAgain, onQuit: onExit }}` and DELETE its own
- * `BackHandler` effect and `EndlessHud`'s close button. Two things must be
- * decided at that merge, not guessed now: Endless has no goals, so §12.2's
- * >50% confirm can never fire there (a mid-run Endless exit forfeits a live
- * score, which is arguably worth its own confirm — that would be a §7.6
- * amendment, not this code's call), and Endless fires `endless_end`, not
- * `level_quit`, so the quit callback's analytics differ by caller — which is
- * exactly why `PauseControls.onQuit` fires nothing itself and hands `moves`
- * upward instead.
+ * §7.6 convergence (done): `EndlessScreen` now passes `GameplayScreen` a
+ * `pause={{ onRestart: playAgain, onQuit: () => onExit(), onOpenSettings }}`
+ * and this sheet is what it opens — no bespoke close button, no second
+ * `BackHandler`. Endless has no goals, so this sheet's >50% confirm can never
+ * fire there (a mid-run Endless exit forfeits a live score with no
+ * confirmation) — flagged as its own open question in `EndlessScreen`, not
+ * resolved by this sheet. `PauseControls.onQuit` still fires nothing itself
+ * and hands `moves` upward, because Endless's terminal event is
+ * `endless_end`, not `level_quit`, and the two callers' analytics differ.
  *
  * No loading / error / offline states (CLAUDE.md screen checklist): this is a
  * pure synchronous function of the `GameState` the caller already holds. It
@@ -107,7 +102,8 @@
 import React, { useCallback } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { GoldButton } from '../../components/GoldButton';
-import { colors, fontFamily, fontSize, radius, spacing } from '../../components/tokens';
+import { ModalSheet } from '../../components/ModalSheet';
+import { colors, fontFamily, fontSize, radius, spacing, withAlpha } from '../../components/tokens';
 import { GOAL_LABEL_KEY, goalsPastHalf, type GoalBarEntry } from '../../game/goalBar';
 import { t } from '../../i18n';
 
@@ -236,7 +232,7 @@ export function PauseSheet({
   const status = [
     ...(levelId === undefined ? [] : [t('gameplay.level', { id: levelId })]),
     ...goals.map((g) =>
-      t('fail.goalLine', {
+      t('gameplay.goal.line', {
         label: t(GOAL_LABEL_KEY[g.type]),
         done: g.total - g.remaining,
         total: g.total,
@@ -246,112 +242,70 @@ export function PauseSheet({
   ].join(SEGMENT_SEPARATOR);
 
   return (
-    // `accessibilityViewIsModal` WITHOUT `accessible` on the same node — that
-    // pairing collapses the sheet into a single screen-reader node and makes
-    // every button below unreachable (§7.6 fix pass), which is the §12.9 dead
-    // end this section exists to avoid.
-    <View style={styles.backdrop} accessibilityViewIsModal>
-      <View style={styles.frame}>
-        <View style={styles.sheet}>
-          {confirming ? (
-            <>
-              <Text style={styles.title}>{t('pause.confirm.title')}</Text>
-              <Text style={styles.confirmBody}>{t('pause.confirm.body')}</Text>
-              <GoldButton
-                label={t('pause.confirm.stay')}
-                onPress={() => onConfirmingChange(false)}
-                size="lg"
-                style={styles.cta}
-              />
-              <Pressable
-                style={styles.quit}
-                onPress={onQuit}
-                accessibilityRole="button"
-                accessibilityLabel={t('pause.confirm.leave')}
-                hitSlop={8}
-              >
-                <Text style={styles.quitText}>{t('pause.confirm.leave')}</Text>
-              </Pressable>
-            </>
-          ) : (
-            <>
-              <Text style={styles.title}>{t('pause.title')}</Text>
-              <Text style={styles.status}>{status}</Text>
+    <ModalSheet>
+      {confirming ? (
+        <>
+          <Text style={styles.title}>{t('pause.confirm.title')}</Text>
+          <Text style={styles.confirmBody}>{t('pause.confirm.body')}</Text>
+          <GoldButton
+            label={t('pause.confirm.stay')}
+            onPress={() => onConfirmingChange(false)}
+            size="lg"
+            style={styles.cta}
+          />
+          <Pressable
+            style={styles.quit}
+            onPress={onQuit}
+            accessibilityRole="button"
+            accessibilityLabel={t('pause.confirm.leave')}
+            hitSlop={8}
+          >
+            <Text style={styles.quitText}>{t('pause.confirm.leave')}</Text>
+          </Pressable>
+        </>
+      ) : (
+        <>
+          <Text style={styles.title}>{t('pause.title')}</Text>
+          <Text style={styles.status}>{status}</Text>
 
-              <GoldButton
-                label={t('pause.resume')}
-                onPress={onResume}
-                size="lg"
-                style={styles.cta}
-              />
+          <GoldButton label={t('pause.resume')} onPress={onResume} size="lg" style={styles.cta} />
 
-              <SheetRow
-                glyph="↻"
-                title={t('pause.restart')}
-                subtitle={t('pause.restartHint')}
-                onPress={onRestart}
-              />
+          <SheetRow
+            glyph="↻"
+            title={t('pause.restart')}
+            subtitle={t('pause.restartHint')}
+            onPress={onRestart}
+          />
 
-              {/* §12.2's "settings shortcut" -> §12.1's `SettingsScreen`.
-                  See divergence 2. */}
-              <SheetRow
-                glyph="⚙"
-                title={t('pause.settings')}
-                subtitle={t('pause.settingsHint')}
-                onPress={onOpenSettings}
-              />
+          {/* §12.2's "settings shortcut" -> §12.1's `SettingsScreen`.
+              See divergence 2. */}
+          <SheetRow
+            glyph="⚙"
+            title={t('pause.settings')}
+            subtitle={t('pause.settingsHint')}
+            onPress={onOpenSettings}
+          />
 
-              <Pressable
-                style={styles.quit}
-                onPress={handleQuitPress}
-                accessibilityRole="button"
-                accessibilityLabel={t('pause.quit')}
-                hitSlop={8}
-              >
-                <Text style={styles.quitText}>{t('pause.quit')}</Text>
-              </Pressable>
-            </>
-          )}
-        </View>
-      </View>
-    </View>
+          <Pressable
+            style={styles.quit}
+            onPress={handleQuitPress}
+            accessibilityRole="button"
+            accessibilityLabel={t('pause.quit')}
+            hitSlop={8}
+          >
+            <Text style={styles.quitText}>{t('pause.quit')}</Text>
+          </Pressable>
+        </>
+      )}
+    </ModalSheet>
   );
 }
 
 /** `colors.night` @ 70% on cream — 5.98:1, the repo's established on-light
  * ink (`GhostButton.onLight`, `ChestSheet`). */
-const INK_70 = 'rgba(19,24,48,0.7)';
+const INK_70 = withAlpha(colors.night, 0.7);
 
 const styles = StyleSheet.create({
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.lg,
-    // `colors.night` @ 82% — the panel's dark scrim, no new hex. Opaque
-    // enough to also swallow board touches while paused, which is what stops
-    // a placement landing behind the sheet.
-    backgroundColor: 'rgba(19,24,48,0.82)',
-  },
-  /** The panel's brass frame around the cream sheet. */
-  frame: {
-    alignSelf: 'stretch',
-    borderRadius: radius.sheet + spacing.sm,
-    borderWidth: 2,
-    borderColor: colors.goldDeep,
-    backgroundColor: colors.goldDeep,
-    padding: spacing.sm,
-  },
-  sheet: {
-    borderRadius: radius.sheet,
-    backgroundColor: colors.cream,
-    padding: spacing.lg,
-    gap: spacing.sm,
-  },
   title: {
     color: colors.night,
     fontFamily: fontFamily.display,
@@ -382,16 +336,16 @@ const styles = StyleSheet.create({
     borderRadius: radius.card + 2,
     padding: spacing.sm + 2,
     // `colors.night` @ 7% on cream — the panel's faint row wash.
-    backgroundColor: 'rgba(19,24,48,0.07)',
+    backgroundColor: withAlpha(colors.night, 0.07),
   },
-  rowPressed: { backgroundColor: 'rgba(19,24,48,0.14)' },
+  rowPressed: { backgroundColor: withAlpha(colors.night, 0.14) },
   rowIcon: {
     width: 36,
     height: 36,
     borderRadius: radius.card,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(19,24,48,0.1)',
+    backgroundColor: withAlpha(colors.night, 0.1),
   },
   rowGlyph: { color: colors.night, fontSize: fontSize.md },
   rowText: { flex: 1 },

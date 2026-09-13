@@ -49,13 +49,17 @@ import { JuiceLayer } from '../../game/JuiceLayer';
 import { spriteForObstacle } from '../../game/obstacleSprites';
 import { TrayCanvas } from '../../game/TrayCanvas';
 import { playCue } from '../../game/sfx';
-import { colors, fontSize, radius, spacing } from '../../components/tokens';
+import { colors, fontSize, radius, spacing, withAlpha } from '../../components/tokens';
 import { t } from '../../i18n';
 import { formatScore } from '../../i18n/format';
 import { PauseSheet } from '../PauseSheet';
 
 /** CLAUDE.md a11y rule — every interactive element ≥44dp. */
 const MIN_TOUCH_TARGET = 44;
+
+/** Stable no-op handed to a caller-supplied `header` when `!canPause`, so it
+ * never needs its own dep-array churn to stay referentially stable. */
+function NOOP(): void {}
 
 /**
  * Tiny non-Skia color swatch for the HUD goal bar — the board itself is where
@@ -139,8 +143,13 @@ export interface GameplayScreenProps {
    * inside this screen's existing render, it costs nothing extra.
    * `hudVisible`/`hudFadeIn` do not apply to it — a caller that supplies a
    * header owns its own visibility.
+   *
+   * Also receives this screen's own `openPause` — gated the same way the
+   * default HUD's pause glyph is (a no-op once `canPause` is false) — since a
+   * caller-supplied header replaces the default HUD row entirely and would
+   * otherwise have no way to reach this screen's `PauseSheet` at all.
    */
-  header?: (state: GameState) => React.ReactNode;
+  header?: (state: GameState, openPause: () => void) => React.ReactNode;
   /** §7.1: lets a caller (the FTUE step machine) observe every placement's
    * events/resulting state without this screen knowing anything about FTUE —
    * same `applyPlacement` return value `JuiceLayer` already consumes, just
@@ -380,7 +389,7 @@ export function GameplayScreen({
     <SafeAreaView style={styles.safe}>
       <StatusBar style="light" />
       {header ? (
-        header(state)
+        header(state, canPause ? openPause : NOOP)
       ) : (
         <Animated.View style={hudAnimatedStyle} pointerEvents={hudVisible ? 'auto' : 'none'}>
           <View style={styles.hudRow}>
@@ -542,7 +551,7 @@ const styles = StyleSheet.create({
   scoreChip: {
     backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: 1,
-    borderColor: 'rgba(233,196,106,0.3)',
+    borderColor: withAlpha(colors.gold, 0.3),
     borderRadius: 13,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
@@ -564,7 +573,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     backgroundColor: 'rgba(58,42,28,0.6)',
     borderWidth: 1,
-    borderColor: 'rgba(233,196,106,0.22)',
+    borderColor: withAlpha(colors.gold, 0.22),
     borderRadius: radius.card,
     padding: spacing.sm,
   },

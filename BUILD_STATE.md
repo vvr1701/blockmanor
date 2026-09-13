@@ -1250,28 +1250,60 @@ follow-up refactors (Endless pause convergence, ModalSheet, withAlpha,
   width division, so adopting the 18px gap must keep `test/boardLayout.test.ts`'s
   3x-widest-piece fit green.
 
-- ~~Wire `PauseSheet`'s settings row to `SettingsScreen` when §12.1 lands.~~ — **DONE** in §12.1. It currently renders
-  disabled by design — §16.1 lists `SettingsScreen` as Stage 1, so it is a not-yet, and
-  dropping one of §12.2's four clauses silently is the failure mode four audits died on.
-- Extract `ModalSheet(brass frame)` into `src/components`. It IS in §15's component list and
-  `PauseSheet` is its third instance. Deferred because extracting it now would rewrite two
-  audited screens across two unmerged branches — do it when the stack lands.
-- Converge `EndlessScreen` onto §12.2's pause: pass `pause={{...}}` and delete its own
-  `BackHandler` effect and `EndlessHud`'s close button. Two open questions at that merge —
-  Endless has no goals so the >50% confirm can never fire, yet a mid-run exit forfeits a live
-  score; and Endless fires `endless_end`, not `level_quit`.
+The six items tracked before S14 were cleared in the `chore/followups` worktree session (quality/refactor only, no new
+product behavior; one commit per item so any single one reverts cleanly). Verification for
+every item: `TURBO_FORCE=true pnpm typecheck`/`lint`/`test` green from the worktree root, plus
+the full mobile suite from `apps/mobile` (527 tests, up from 522 at the branch point — every
+contrast test stayed green with no assertion changes other than the renamed i18n key).
+
+- ~~Wire `PauseSheet`'s settings row to `SettingsScreen` when §12.1 lands.~~ Already done by the
+  time this session ran — §12.1 landed and `PauseSheet`'s settings row routes for real now (see
+  its own file header, divergence 2); not touched here.
+- ~~Extract `ModalSheet(brass frame)` into `src/components`.~~ **DONE** (`50ec83b`). New
+  `apps/mobile/src/components/ModalSheet.tsx` replaces the byte-identical backdrop/frame/sheet
+  trio in `PauseSheet` and `ChestSheet`. `EndlessResultSheet` was grepped as a candidate too and
+  is deliberately NOT converged — `grep -rn "backgroundColor: colors.goldDeep" src/` returns only
+  the two files above; `EndlessResultSheet` has a flat cream card with no brass frame layer, a
+  different composition.
+- ~~Converge `EndlessScreen` onto §12.2's pause.~~ **DONE** (`fb7a44a`). `EndlessScreen` now
+  passes `GameplayScreen` a `pause={{ onRestart: playAgain, onQuit: () => onExit(), onOpenSettings
+  }}`; its own `BackHandler` effect and `EndlessHud`'s close button are gone. `GameplayScreen`'s
+  `header` render prop gained a second `openPause` argument (gated on `canPause`) since a
+  caller-supplied header replaces the default HUD's own pause glyph entirely — `EndlessHud`'s "×"
+  button now opens the sheet instead of exiting directly. Both open questions resolved as
+  documented, not guessed: Endless has no goals so the >50% confirm structurally can never fire
+  there (flagged in both `EndlessScreen` and `PauseSheet`'s headers, left as a §7.6-amendment
+  question); `PauseControls.onQuit` still fires nothing itself for Endless (no `level_quit` to
+  attach it to). Mutation-tested: disabling `GameplayScreen`'s `BackHandler` subscription reds
+  exactly the two back-handler tests.
 - ~~Port the opacity accumulator; converge the forked `contrast.ts`~~ — **DONE** (`57cf349`,
   `affdd61`). See S5c.
-- `apps/mobile/test/mocks/react-native-gesture-handler.ts` silently swallows `.minDistance()`
-  and `.shouldCancelWhenOutside()` the same way it swallowed `.enabled()`. Only `enabled` was
-  given recording, because only it is load-bearing today; the other two stay unassertable.
-- `t('fail.goalLine', ...)` is consumed by `FailScreen` and `PauseSheet` now, so the `fail.`
-  prefix is a misnomer. A two-screen i18n rename on an unmerged branch — for the drift audit.
-- `FtueOverlay.tsx:74` calls `withRepeat(..., -1)` for the §7.1.1 hand cursor with **no test
-  asserting it at all** — `ftueScreen.render.test.tsx` never greps `withRepeat`. Same class as
-  NIT-5 but a wider gap; §7.1's, already shipped.
-- Extract a shared `withAlpha(token, a)` helper in `tokens.ts`. `GhostButton`, `PauseSheet` and
-  now `FailScreen` all use the literal-plus-comment form. Its own PR across all three call sites.
+- ~~`apps/mobile/test/mocks/react-native-gesture-handler.ts` silently swallows `.minDistance()`
+  and `.shouldCancelWhenOutside()`.~~ **DONE** (`e756aa4`). Both now recorded as
+  `__minDistance`/`__shouldCancelWhenOutside`, same shape as `__enabled`. New
+  `dragLayer.render.test.tsx` assertion pins the real values `DragLayer` configures:
+  `minDistance(0)`, `shouldCancelWhenOutside(false)`. Mutation-tested: changing those two real
+  call-site values to `(10)`/`(true)` reds the new assertion.
+- ~~`t('fail.goalLine', ...)` is consumed by `FailScreen` and `PauseSheet` now, so the `fail.`
+  prefix is a misnomer.~~ **DONE** (`745d0b1`). Renamed to `gameplay.goal.line`, alongside
+  `GOAL_LABEL_KEY`'s existing `gameplay.goal.crate/chain/ivy/heirloom` entries. Same string
+  value; both call sites updated; no other consumer or test referenced the literal key.
+- ~~`FtueOverlay.tsx:74` calls `withRepeat(..., -1)` for the §7.1.1 hand cursor with no test
+  asserting it at all.~~ **DONE** (`2fc5bfa`). New `test/render/ftueOverlay.render.test.tsx`
+  mounts `FtueHandCursor` directly and asserts, via `mockAnimationCalls`, an infinite
+  (`numberOfReps: -1`), non-reversing loop wrapping the two `FTUE_HAND_CURSOR_LOOP_MS/2` tweens,
+  and that `setMockReducedMotion(true)` suppresses it entirely (the component already honored
+  reduced motion; this added the missing guard). Mutation-tested both the `-1` and the
+  `if (!reducedMotion)` guard.
+- ~~Extract a shared `withAlpha(token, a)` helper in `tokens.ts`.~~ **DONE** (`bb3cc70`). New
+  `components/tokens.ts:withAlpha(hex, alpha)` replaces every hand-built `rgba(R,G,B,a)` literal
+  that was an EXACT-channel match for a `colors` token (verified by RGB, not by eyeballing) across
+  `GhostButton`, `PauseSheet`, `FailScreen`, `ModalSheet`, `ChestSheet`, `EndlessHud`,
+  `EndlessResultSheet`, `ForceUpdateScreen`, `MaintenanceScreen`, `GameplayScreen`, `HomeScreen`,
+  `DailyBoardTile`, `FtueNameAvatarStep`, and `LevelMapScreen`. Deliberately NOT touched: rgba()
+  literals that don't exactly match a token's RGB triple (`night2`, `muted`, pure black/white, a
+  few bespoke card washes) — converting those would risk silently changing the rendered color.
+  New `test/tokens.withAlpha.test.ts` pins the helper against the exact literals it replaces.
 
 ## HARD STOP — 3 §7.6 PRD gaps need operator rulings (2026-08-22)
 
