@@ -167,6 +167,81 @@ describe('§8.2(a) prefill', () => {
     expect(Object.keys(PREFILL_TEMPLATES[0]!.cells[0]!).sort()).toStrictEqual(['c', 'r']);
   });
 
+  it('§17: exactly 30 templates, each with a unique id', () => {
+    expect(PREFILL_TEMPLATES).toHaveLength(30);
+    expect(new Set(PREFILL_TEMPLATES.map((t) => t.id)).size).toBe(30);
+  });
+
+  it('no two templates are the same board under any of the 8 orientations', () => {
+    // Two templates that coincide after a rotation or mirror are one template
+    // twice, silently shrinking the set below what §17 asks for.
+    const canonical = (cells: readonly { r: number; c: number }[]): string =>
+      Array.from({ length: TEMPLATE_ORIENTATIONS }, (_, o) =>
+        orient(cells, o)
+          .map(({ r, c }) => `${r},${c}`)
+          .join('|'),
+      ).sort()[0]!;
+    const seen = new Map<string, string>();
+    for (const t of PREFILL_TEMPLATES) {
+      const key = canonical(t.cells);
+      expect(seen.get(key), `${t.id} duplicates ${seen.get(key)}`).toBeUndefined();
+      seen.set(key, t.id);
+    }
+  });
+
+  it('no template fills a whole row or column', () => {
+    // The engine full-scans every line on every placement, so a prefilled full
+    // line would clear on the first move anywhere — a board that is not what
+    // its template drew.
+    for (const t of PREFILL_TEMPLATES) {
+      for (let i = 0; i < BOARD_SIZE; i++) {
+        expect(
+          t.cells.filter((x) => x.r === i),
+          `${t.id} row ${i}`,
+        ).not.toHaveLength(BOARD_SIZE);
+        expect(
+          t.cells.filter((x) => x.c === i),
+          `${t.id} col ${i}`,
+        ).not.toHaveLength(BOARD_SIZE);
+      }
+    }
+  });
+
+  it('no template is a solvability trap, in any of its 8 orientations', () => {
+    // Deterministic: fixed sequences and the bot's own seeded tiebreaks, so
+    // this cannot flake. Production draws every orientation (`drawPrefill`), so
+    // every orientation is probed. A template that failed §8.2's gate on most
+    // rolls would burn re-rolls every time it was drawn. Fewer trials than the
+    // real gate keeps the suite fast; the bar is an aggregate pass rate, which
+    // has more power than a per-orientation vote of 3.
+    const PROBE_DATE = '2026-01-01';
+    const PROBE_TRIALS = 11;
+    const SEQUENCES = 3;
+    const MIN_PASS_RATE = 0.75;
+    const sequences = Array.from({ length: SEQUENCES }, (_, k) =>
+      drawSequence(`template-probe|${k}`, REMOTE_CONFIG_DEFAULTS.daily_piece_count),
+    );
+    const rates: string[] = [];
+    for (const t of PREFILL_TEMPLATES) {
+      let passes = 0;
+      for (let o = 0; o < TEMPLATE_ORIENTATIONS; o++) {
+        const prefill = orient(t.cells, o).map(({ r, c }) => ({ r, c, color: 0 }));
+        for (const sequence of sequences) {
+          const config = dailyGameConfig({ tuning: TUNING, prefill }, sequence, PROBE_DATE);
+          if (solvabilityMedian(config, PROBE_DATE, PROBE_TRIALS) >= SOLVABILITY_MIN_MOVES)
+            passes++;
+        }
+      }
+      const rolls = TEMPLATE_ORIENTATIONS * SEQUENCES;
+      rates.push(`${t.id} ${passes}/${rolls}`);
+      expect(
+        passes / rolls,
+        `${t.id} passed ${passes}/${rolls} probe rolls`,
+      ).toBeGreaterThanOrEqual(MIN_PASS_RATE);
+    }
+    if (process.env.PROBE_RATES) console.log(rates.join('\n'));
+  }, 300_000);
+
   it('assertTemplates rejects an out-of-band template', () => {
     expect(() => assertTemplates([{ id: 'tiny', cells: [{ r: 0, c: 0 }] }])).toThrow(/6–14/);
     expect(() => assertTemplates([])).toThrow(/no prefill templates/);
@@ -237,8 +312,10 @@ describe('§8.2(a) prefill', () => {
       const prefill = drawPrefill(prefillSeed(attemptSeed(dailySeed(SALT, isoDate(day)), '')));
       shapes.add(prefill.map((c) => `${c.r},${c.c}`).join('|'));
     }
-    // 12 templates × 8 orientations, minus collapses from symmetric templates.
-    expect(shapes.size).toBeGreaterThan(30);
+    // 30 templates × 8 orientations, minus collapses from symmetric templates,
+    // sampled over 366 days. Above what 12 templates could ever reach (12 × 8 =
+    // 96), so shrinking the set back fails here.
+    expect(shapes.size).toBeGreaterThan(100);
   });
 });
 

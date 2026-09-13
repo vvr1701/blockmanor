@@ -37,8 +37,11 @@ import {
 import { PREFILL_TEMPLATES, TEMPLATE_ORIENTATIONS, orient } from './patterns';
 import { attemptSeed, prefillSeed, sealSequence, sequenceSeed } from './seal';
 
-/** Bump when a change here would produce a different board from the same seed. */
-export const DAILY_GENERATOR_VERSION = 1;
+/**
+ * Bump when a change here would produce a different board from the same seed.
+ * 2: the §17 template set grew 12 -> 30.
+ */
+export const DAILY_GENERATOR_VERSION = 2;
 
 /** §8.2 solvability gate: "greedy bot must survive ≥15 placements across 200 trials median". */
 export const SOLVABILITY_TRIALS = 200;
