@@ -238,7 +238,7 @@ export function HomeScreen({
             doesn't exist. */}
         <GoldButton
           label={
-            pastContentCeiling ? t('map.allShippedLine') : t('home.play', { level: currentLevel })
+            pastContentCeiling ? t('home.play.allShipped') : t('home.play', { level: currentLevel })
           }
           onPress={pastContentCeiling ? onOpenMap : onPlay}
           size="lg"

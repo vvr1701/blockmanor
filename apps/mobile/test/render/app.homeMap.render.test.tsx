@@ -15,7 +15,9 @@ vi.mock('../../src/services/analytics', () => ({ track: vi.fn() }));
 import App from '../../src/App';
 import en from '../../src/i18n/en.json';
 import { HomeScreen } from '../../src/screens/HomeScreen';
+import { HudBar } from '../../src/screens/HomeScreen/HudBar';
 import { LevelMapScreen } from '../../src/screens/LevelMapScreen';
+import { ProfileScreen } from '../../src/screens/ProfileScreen';
 import { useMetaStore } from '../../src/state/useMetaStore';
 
 function render(el: React.ReactElement): ReactTestRenderer {
@@ -75,11 +77,44 @@ describe('App Home content-ceiling CTA (PRD §0 v1.23 — qa-prd-auditor blocker
     // Home — a press that visibly did nothing.
     useMetaStore.setState({ currentLevel: MAX_LEVEL_ID + 1 });
     const renderer = render(<App />);
-    const cta = renderer.root.findByProps({ accessibilityLabel: en['map.allShippedLine'] });
+    const cta = renderer.root.findByProps({ accessibilityLabel: en['home.play.allShipped'] });
     act(() => {
       (cta.props as { onPress: () => void }).onPress();
     });
     expect(renderer.root.findAllByType(LevelMapScreen).length).toBe(1);
     expect(renderer.root.findAllByType(HomeScreen).length).toBe(0);
+  });
+});
+
+describe('App Home -> Profile via the HUD avatar (§12.3)', () => {
+  // The avatar was an announced button with no handler: HudBar bound
+  // `onPress={onOpenProfile}`, but App never passed `onOpenProfile`, so the
+  // press did nothing. Find the pressable actually bound to that prop, so a
+  // HudBar that stopped binding it would red too.
+  function pressAvatar(renderer: ReactTestRenderer): void {
+    const hud = renderer.root.findByType(HudBar);
+    const handler = (hud.props as { onOpenProfile?: () => void }).onOpenProfile;
+    expect(handler, 'App must pass onOpenProfile through Home to HudBar').toBeTypeOf('function');
+    const bound = hud.findAll((n) => n.props.onPress === handler);
+    expect(bound.length).toBeGreaterThan(0);
+    act(() => {
+      handler!();
+    });
+  }
+
+  it('tapping the avatar opens ProfileScreen', () => {
+    const renderer = render(<App />);
+    pressAvatar(renderer);
+    expect(renderer.root.findAllByType(ProfileScreen)).toHaveLength(1);
+  });
+
+  it("ProfileScreen's close returns to Home — never a dead end", () => {
+    const renderer = render(<App />);
+    pressAvatar(renderer);
+    act(() => {
+      (renderer.root.findByType(ProfileScreen).props as { onClose: () => void }).onClose();
+    });
+    expect(renderer.root.findAllByType(ProfileScreen)).toHaveLength(0);
+    expect(renderer.root.findAllByType(HomeScreen)).toHaveLength(1);
   });
 });

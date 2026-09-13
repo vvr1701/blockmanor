@@ -1,6 +1,7 @@
 import { CHEST_LEVELS, FIRST_POST_FTUE_LEVEL } from '@blockmanor/content';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { FAIL_HEAVY_WINDOW_MS } from '../services/reviewPrompt';
 import { mmkvStorage } from './persist';
 
 /**
@@ -126,8 +127,6 @@ interface MetaState {
   recordLevelWin: () => void;
   recordLevelFail: (now: number) => void;
   markReviewPrompted: (version: string) => void;
-  /** §12.3: raises `longestStreak` if `streak` just beat it. Monotonic. */
-  recordStreak: (streak: number) => void;
   addClearedLines: (lines: number) => void;
   setNotificationPref: (category: keyof MetaState['notificationPrefs'], enabled: boolean) => void;
 }
@@ -250,7 +249,10 @@ export const useMetaStore = create<MetaState>()(
       bestDailyPercentile: 0,
       notificationPrefs: { dailyDrop: true, streakRisk: true },
       setCurrentLevel: (currentLevel) => set({ currentLevel }),
-      setStreak: (streak) => set({ streak }),
+      // §12.3: `longestStreak` rides on the ONE streak writer, so no §8.6
+      // client path can update the current streak and forget the best.
+      setStreak: (streak) =>
+        set((st) => ({ streak, longestStreak: Math.max(st.longestStreak, streak) })),
       setBadge: (badge, on) => set((state) => ({ badges: { ...state.badges, [badge]: on } })),
       setFtueComplete: (ftueComplete) => set({ ftueComplete }),
       setProfile: (playerName, avatarId) => set({ playerName, avatarId }),
@@ -288,11 +290,19 @@ export const useMetaStore = create<MetaState>()(
       setHapticsEnabled: (hapticsEnabled) => set({ hapticsEnabled }),
       dismissUpdateNudge: (now) => set({ updateNudgeDismissedAt: now }),
       recordLevelWin: () => set((st) => ({ winStreak: st.winStreak + 1 })),
+      // §12.10 "fail-heavy session": a fail more than 24h after the previous
+      // one starts a fresh count. Without the reset, three fails last week
+      // plus one today would read as fail-heavy today and suppress the prompt
+      // for a player who is currently winning.
+      // ponytail: chained window (each fail within 24h of the last), not a true
+      // trailing-24h count — store per-fail timestamps if that ever matters.
       recordLevelFail: (now) =>
-        set((st) => ({ winStreak: 0, recentFails: st.recentFails + 1, lastFailAt: now })),
+        set((st) => ({
+          winStreak: 0,
+          recentFails: now - st.lastFailAt >= FAIL_HEAVY_WINDOW_MS ? 1 : st.recentFails + 1,
+          lastFailAt: now,
+        })),
       markReviewPrompted: (version) => set({ reviewPromptedVersion: version }),
-      recordStreak: (streak) =>
-        set((st) => ({ streak, longestStreak: Math.max(st.longestStreak, streak) })),
       addClearedLines: (lines) => set((st) => ({ totalLines: st.totalLines + lines })),
       setNotificationPref: (category, enabled) =>
         set((state) => ({

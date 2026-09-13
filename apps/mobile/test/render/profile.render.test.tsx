@@ -83,12 +83,12 @@ describe('§12.3 profile', () => {
   });
 
   it('longest streak is monotonic — a broken streak does not lower it', () => {
-    const { recordStreak } = useMetaStore.getState();
+    const { setStreak } = useMetaStore.getState();
     act(() => {
-      recordStreak(12);
+      setStreak(12);
     });
     act(() => {
-      recordStreak(0);
+      setStreak(0);
     });
     expect(useMetaStore.getState().longestStreak).toBe(12);
     expect(useMetaStore.getState().streak).toBe(0);
