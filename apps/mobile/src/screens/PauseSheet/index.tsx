@@ -232,7 +232,7 @@ export function PauseSheet({
   const status = [
     ...(levelId === undefined ? [] : [t('gameplay.level', { id: levelId })]),
     ...goals.map((g) =>
-      t('fail.goalLine', {
+      t('gameplay.goal.line', {
         label: t(GOAL_LABEL_KEY[g.type]),
         done: g.total - g.remaining,
         total: g.total,

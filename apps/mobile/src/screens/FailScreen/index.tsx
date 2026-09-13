@@ -65,7 +65,7 @@ function GoalLine({ goal }: { goal: GoalBarEntry }): React.JSX.Element {
   const done = goal.total - goal.remaining;
   return (
     <Text style={styles.goalLine}>
-      {t('fail.goalLine', { label: t(GOAL_LABEL_KEY[goal.type]), done, total: goal.total })}
+      {t('gameplay.goal.line', { label: t(GOAL_LABEL_KEY[goal.type]), done, total: goal.total })}
     </Text>
   );
 }
