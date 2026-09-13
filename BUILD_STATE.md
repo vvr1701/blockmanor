@@ -1205,6 +1205,29 @@ already correct. Fix BLOCKERs and MAJORs; defer NITs to a follow-up list.
 Applies from the §12.1 branch onward. The §8.5 re-audit already in flight
 stands — it is daily-board, i.e. mandated.
 
+### S16 — 30 templates + SDK patch merged; v1.27 move-log identity (2026-09-13)
+
+- **`feat/17-daily-templates` MERGED** (audit PASS). Its MAJOR fixed first: the
+  trap probe covered orientation 0 only, production draws all 8. Now 8 × 3
+  rolls per template with a 75% aggregate bar (lowest `checker-patch` 18/24).
+  Mutation: a 14-cell checker trap scores 0/24 and reds. Follow-up NIT, not
+  done: distinctness is D4-only, so a translated template counts as new.
+- **`chore/expo-sdk57-patch-align` MERGED.** expo ~57.0.22, RN 0.86.3, plus
+  constants/haptics/store-review patches; dropped the forced
+  `disableHierarchicalLookup`. expo-doctor 21/21. Proof: Android export source
+  maps before/after both show one `react` and one `react-native` root, and
+  `@blockmanor/shared` resolved from source.
+- **`fix/8.x-v1.26-hardening` @ 48ae96a — UNDER DELTA AUDIT.** The 6e2e90f audit
+  FAILED on test adequacy and found a real exploit: swapping two same-tray moves
+  replays to the same score under a different hash, so a copied top log still
+  counted. **PRD v1.27**: the hash sorts each tray's placements by slot. New
+  tests: different logs both count, reordered copy excluded, pure hash
+  within/across trays, 8-way concurrent first-wins. Mutations: exact hash (2
+  red), length-only hash (red). `tx.create`→`tx.set` survives by design.
+- **Gotcha:** `npx firebase-tools` currently fails (`@inquirer/core`) and
+  `pnpm test:emulator` does not start an emulator. With one already on 8080,
+  set `FIRESTORE_EMULATOR_HOST=127.0.0.1:8080 GCLOUD_PROJECT=demo-blockmanor`.
+
 ### S15 — §8.5 merged; v1.26 hardening, 30 templates, real build number (2026-09-13)
 
 - **§8.5 merged** after its re-audit PASSED (no blockers). Two MAJORs became
