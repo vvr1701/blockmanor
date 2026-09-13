@@ -99,12 +99,16 @@ export function openSequence(attempt: string, sealed: SealedSequence): PieceId[]
 }
 
 /**
- * The same open, keyed directly. This is the shape §8.3's play-start callable
- * hands out: the client receives the KEY (never the salt, never the attempt
- * seed it is derived from), so what the client can do with it is exactly what
- * this function does. Having one implementation behind both entry points is
- * what lets `playStart.emulator.test.ts` prove the returned key really opens
- * the published sequence, rather than asserting it is 32 bytes and hoping.
+ * The same open, keyed directly.
+ *
+ * The client does NOT receive this key. Per PRD v1.19(ii), §8.3's play-start
+ * callable opens the seal server-side and returns the plaintext `PieceId[]`, so
+ * neither the salt, the attempt seed, nor the key ever leaves Functions.
+ *
+ * This entry point exists for the test that keeps that honest:
+ * `playStart.emulator.test.ts` derives the key itself, opens the sealed blob in
+ * the published document, and asserts the callable returned that exact list —
+ * so a callable that invented, reordered or truncated a sequence fails.
  */
 export function openSequenceWithKey(key: Buffer, sealed: SealedSequence): PieceId[] {
   if (sealed.alg !== 'AES-256-GCM') throw new Error(`Unknown seal alg "${sealed.alg}"`);

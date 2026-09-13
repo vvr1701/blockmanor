@@ -430,9 +430,26 @@ describe('§8.2 frozen engineConfig snapshot (PRD v1.7)', () => {
     // generation; nothing else may.
     const { readFileSync, readdirSync } = await import('node:fs');
     const dir = new URL('../src/daily/', import.meta.url).pathname;
+    // The allowlist, and the ONLY two reasons a daily module may read RC:
+    //  - `publish.ts` reads it once, at generation, to build the frozen snapshot.
+    //  - `streak.ts` reads §8.6's `daily_streak_min_moves [RC, 3]`, which never
+    //    reaches `simulate()` or `dailyGameConfig()` and so cannot move a score
+    //    or a `daily_cheat_rejected` verdict. §8.2 does not freeze it and §13
+    //    lists it as a live Daily-board key.
+    // `submit.ts` is deliberately NOT on it: it is the file where an RC read
+    // would do the most damage, which is why §8.6's streak logic was split into
+    // `streak.ts` rather than exempting it.
+    //
+    // Measured honestly, this allowlist is one exemption WIDER than the
+    // `!== 'publish.ts'` filter it replaced — that form scanned new files too.
+    // What it buys is the canary below: the exemption is now enumerable, and
+    // `submit.ts` is asserted by name to still be scanned, so a future edit that
+    // quietly adds a third exempt file has to say so here.
+    const allowed = new Set(['publish.ts', 'streak.ts']);
     const files = readdirSync(dir)
-      .filter((f) => f !== 'publish.ts')
+      .filter((f) => !allowed.has(f))
       .map((f) => `${dir}${f}`);
+    expect(files.map((f) => f.split('/').pop())).toContain('submit.ts');
     // …including the client-side half of the daily path. `dailyBoard.ts` builds
     // the `GameConfig` both §8.3 and §8.5 play/re-simulate from, and its header
     // claims RC "is not imported here and must never be" — this is what makes

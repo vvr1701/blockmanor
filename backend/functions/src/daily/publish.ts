@@ -211,20 +211,27 @@ export const SOLVABILITY_ALERT = 'daily_solvability_exhausted';
  * deterministic, so a scheduler retry updates one alert instead of fanning out.
  *
  * Alerting never blocks publication: a board with no alert beats no board.
+ *
+ * Shared with §8.5, which raises `daily_engine_drift` through the same seam —
+ * one alerting mechanism, not two shapes an operator has to learn. Returns
+ * whether the DURABLE half landed, so a caller that de-duplicates alerts can
+ * avoid recording a failure as done; the log line always goes out either way.
  */
-async function raiseOpsAlert(
+export async function raiseOpsAlert(
   kind: string,
   date: string,
   detail: Record<string, unknown>,
-): Promise<void> {
+): Promise<boolean> {
   logger.error(`ops_alert: ${kind}`, { alert: kind, date, ...detail });
   try {
     await getFirestore()
       .collection(OPS_ALERTS_COLLECTION)
       .doc(`${date}_${kind}`)
       .set({ kind, date, raisedAt: new Date().toISOString(), ...detail });
+    return true;
   } catch (error) {
     logger.error('ops_alert: could not persist alert document', { alert: kind, date, error });
+    return false;
   }
 }
 
@@ -310,8 +317,12 @@ export async function publishDailyBoard(
  * `activatesAt`, enforced in `firestore.rules`.
  *
  * No §14 analytics event fires here. §14's taxonomy is client Firebase Analytics
- * and marks exactly one server event (`daily_missed`, which belongs to §8.6);
- * there is no generation event in it. Inventing one would be a new permanent
+ * and marks exactly one server event (`daily_missed`); there is no generation
+ * event in it. `daily_missed` is DEFERRED and deliberately unimplemented in
+ * this work package: no section says when or where it fires, and it is being
+ * amended into §8.7 alongside the streak-risk scan, which already needs the
+ * scheduled per-user sweep it would share. Inventing a second sweep here would
+ * be a permanent §14 API name placed by guess. Inventing one would be a new permanent
  * API name and needs a PRD amendment first (§14, §0.1) — so generation reports
  * through structured logs and, on failure, through `opsAlerts`.
  */

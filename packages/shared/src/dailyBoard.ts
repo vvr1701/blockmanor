@@ -29,6 +29,7 @@ import {
   fnv1a,
   getLegalPlacements,
   simulate,
+  TRAY_SIZE,
   type EngineTuning,
   type GameConfig,
   type GameEvent,
@@ -434,3 +435,55 @@ export const dailyBoardDocSchema: z.ZodType<DailyBoardDoc> = z.object({
 /** Throws `z.ZodError` on anything that is not a §8.2 board document. */
 export const parseDailyBoardDoc = (input: unknown): DailyBoardDoc =>
   dailyBoardDocSchema.parse(input);
+
+/**
+ * Absolute payload ceiling on a §8.5 submission's move log — a request-size
+ * bound, NOT §8.5's rule. §8.5 rejects `moves.length > daily_piece_count`, read
+ * from the frozen snapshot, and this number is deliberately the same ceiling
+ * `FROZEN_BOUNDS.daily_piece_count.max` puts on that key, so it can never
+ * shadow the real rule: any board's `pieceCount` is <= this. Its only job is to
+ * stop an unbounded array reaching the engine.
+ */
+export const DAILY_MOVE_LIMIT = 1_000;
+
+/**
+ * The §8.5 submission payload: "Client submits `{date, moves[], claimedScore}`
+ * via callable." Here rather than in the function because §4.2 puts the
+ * app<->backend schemas in this package and `apps/mobile` builds this object.
+ *
+ * Every field is bounded at the parse: a move outside the board or the tray is
+ * refused at the trust boundary rather than deep inside `applyPlacement`, so an
+ * `IllegalMoveError` from the re-simulation means what it says — a move that is
+ * well-formed but not legal on this board.
+ */
+export const dailySubmissionSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'date must be YYYY-MM-DD'),
+  moves: z
+    .array(
+      z.object({
+        pieceIndex: z
+          .number()
+          .int()
+          .min(0)
+          .max(TRAY_SIZE - 1),
+        r: z
+          .number()
+          .int()
+          .min(0)
+          .max(BOARD_SIZE - 1),
+        c: z
+          .number()
+          .int()
+          .min(0)
+          .max(BOARD_SIZE - 1),
+      }),
+    )
+    .max(DAILY_MOVE_LIMIT),
+  // Not `.int()`: §6.6 rounds clear points down, but `score_clear_base` and
+  // `perfect_clear_bonus` are `[RC]` numbers a LiveOps push could set
+  // fractionally, and this is compared for EXACT equality against the engine's
+  // own number — the two sides run the same code on the same inputs.
+  claimedScore: z.number().finite().nonnegative(),
+});
+
+export type DailySubmission = z.infer<typeof dailySubmissionSchema>;
