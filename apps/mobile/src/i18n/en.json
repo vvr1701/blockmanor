@@ -159,5 +159,6 @@
   "profile.badgeCase": "Your frames",
   "profile.noFrames": "Early bird! 🌅 Open a chest on the level map to earn your first frame.",
   "profile.noFramesCta": "Back",
-  "profile.nameA11y": "Your name"
+  "profile.nameA11y": "Your name",
+  "home.play.allShipped": "Open the level map"
 }

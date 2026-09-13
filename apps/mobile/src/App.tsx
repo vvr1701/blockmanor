@@ -18,6 +18,7 @@ import { HomeScreen } from './screens/HomeScreen';
 import { LevelMapScreen } from './screens/LevelMapScreen';
 import { MaintenanceScreen } from './screens/MaintenanceScreen';
 import { RestartScreen } from './screens/RestartScreen';
+import { ProfileScreen } from './screens/ProfileScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { useConfigStore } from './state/useConfigStore';
 import { useMetaStore } from './state/useMetaStore';
@@ -62,6 +63,8 @@ export default function App(): React.JSX.Element {
   // ternary below — opening it from mid-level must not unmount `LevelSession`
   // and lose the paused run's in-memory board state.
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // §12.3: same overlay seam as Settings, for the same reason.
+  const [profileOpen, setProfileOpen] = useState(false);
   const demoState = useMemo(() => (DEV_BOARD_ENABLED ? createDemoGameState() : null), []);
 
   // §7.1 v1.11 skip logic: "returning users (existing cloud/local save)
@@ -141,6 +144,7 @@ export default function App(): React.JSX.Element {
                     onPlayEndless={() => setShowEndless(true)}
                     onOpenMap={() => setMapOpen(true)}
                     onOpenSettings={() => setSettingsOpen(true)}
+                    onOpenProfile={() => setProfileOpen(true)}
                   />
                   {DEV_BOARD_ENABLED ? (
                     <Pressable style={styles.devButton} onPress={() => setDevBoard(true)}>
@@ -152,8 +156,13 @@ export default function App(): React.JSX.Element {
               {/* §12.1: an overlay, not a route — see `settingsOpen`'s own
                 comment above for why. */}
               {settingsOpen ? (
-                <View style={styles.settingsOverlay}>
+                <View style={styles.overlay}>
                   <SettingsScreen onExit={() => setSettingsOpen(false)} />
+                </View>
+              ) : null}
+              {profileOpen ? (
+                <View style={styles.overlay}>
+                  <ProfileScreen onClose={() => setProfileOpen(false)} />
                 </View>
               ) : null}
             </>
@@ -167,7 +176,7 @@ export default function App(): React.JSX.Element {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  settingsOverlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+  overlay: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
   devButton: {
     position: 'absolute',
     bottom: 24,

@@ -146,7 +146,7 @@ describe('HomeScreen (d) content-ceiling CTA (§0 v1.23, qa-prd-auditor blocker 
     expect(onOpenMap).not.toHaveBeenCalled();
   });
 
-  it('past MAX_LEVEL_ID: the CTA reuses map.allShippedLine copy and routes to onOpenMap, never onPlay', () => {
+  it('past MAX_LEVEL_ID: the CTA names the map action (not a congratulation) and routes to onOpenMap, never onPlay', () => {
     setMeta({ currentLevel: MAX_LEVEL_ID + 1 });
     const onPlay = vi.fn();
     const onOpenMap = vi.fn();
@@ -159,7 +159,7 @@ describe('HomeScreen (d) content-ceiling CTA (§0 v1.23, qa-prd-auditor blocker 
           n.props.accessibilityLabel.startsWith('PLAY'),
       ).length,
     ).toBe(0);
-    const cta = renderer.root.findByProps({ accessibilityLabel: en['map.allShippedLine'] });
+    const cta = renderer.root.findByProps({ accessibilityLabel: en['home.play.allShipped'] });
     act(() => (cta.props as { onPress: () => void }).onPress());
     expect(onOpenMap).toHaveBeenCalledTimes(1);
     expect(onPlay).not.toHaveBeenCalled();

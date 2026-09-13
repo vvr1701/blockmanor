@@ -36,7 +36,9 @@ import { GameplayScreen } from '../../src/screens/GameplayScreen';
 import { WinScreen } from '../../src/screens/WinScreen';
 import { FailScreen } from '../../src/screens/FailScreen';
 import { mmkvStorage } from '../../src/state/persist';
+import { getInstalledVersion } from '../../src/services/appInfo';
 import { selectBadges, useMetaStore } from '../../src/state/useMetaStore';
+import { resetStoreReviewMock, storeReviewMock } from '../mocks/expo-store-review';
 
 vi.mock('../../src/services/analytics', () => ({ track: vi.fn() }));
 
@@ -44,145 +46,149 @@ vi.mock('../../src/services/analytics', () => ({ track: vi.fn() }));
 // this file (including `const` declarations) — `vi.hoisted` is the
 // documented escape hatch so the fixtures below can still be built with a
 // normal helper function instead of one giant inline literal.
-const { WIN_LEVEL, FAIL_LEVEL, COMPLETED_LEVEL, CEILING_LEVEL_BASE, RESEED } = vi.hoisted(() => {
-  // `findFullLines` (packages/engine `clearing.ts`) full-scans the WHOLE
-  // board on every placement, not just the lines the new piece touched — so
-  // these fixtures must never let an UNRELATED row/column sit fully occupied
-  // at rest, or that line clears/wins the instant ANY piece lands anywhere.
-  // Every row and column below always keeps at least one empty cell except
-  // the exact one(s) this test's single placement is meant to complete.
+const { WIN_LEVEL, WIN3_LEVEL, FAIL_LEVEL, COMPLETED_LEVEL, CEILING_LEVEL_BASE, RESEED } =
+  vi.hoisted(() => {
+    // `findFullLines` (packages/engine `clearing.ts`) full-scans the WHOLE
+    // board on every placement, not just the lines the new piece touched — so
+    // these fixtures must never let an UNRELATED row/column sit fully occupied
+    // at rest, or that line clears/wins the instant ANY piece lands anywhere.
+    // Every row and column below always keeps at least one empty cell except
+    // the exact one(s) this test's single placement is meant to complete.
 
-  /**
-   * A row-0 + column-0 board (one prefill cell a `crate`, one goal
-   * `{type:'crate',count:1}`): dropping the sequence's single `P01` (1x1)
-   * dot at (0,0) completes row 0 AND column 0 simultaneously (15 cells, 2
-   * lines) -> destroys the crate -> the goal hits 0 -> `LEVEL_WON`. Shared by
-   * `WIN_LEVEL` (id 10) and `CEILING_LEVEL_BASE` (§7.5 audit M-1's
-   * MAX_LEVEL_ID fixture) so the win-shaped board isn't duplicated twice.
-   * Score: placement (1) + clear(base 10 x 15 cells x 2 lines x 1.0) = 301,
-   * plus a `PERFECT_CLEAR` +300 flat bonus (the 15 cleared cells ARE this
-   * fixture's entire filled content, so the board is empty after) = 601 —
-   * crosses `s2:200` but not `s3:700`, exercising §7.5's "star 2/3 = score
-   * thresholds" around a real boundary.
-   */
-  function makeWinLevel(id: number, seedSalt: string): Record<string, unknown> {
-    return {
-      id,
+    /**
+     * A row-0 + column-0 board (one prefill cell a `crate`, one goal
+     * `{type:'crate',count:1}`): dropping the sequence's single `P01` (1x1)
+     * dot at (0,0) completes row 0 AND column 0 simultaneously (15 cells, 2
+     * lines) -> destroys the crate -> the goal hits 0 -> `LEVEL_WON`. Shared by
+     * `WIN_LEVEL` (id 10) and `CEILING_LEVEL_BASE` (§7.5 audit M-1's
+     * MAX_LEVEL_ID fixture) so the win-shaped board isn't duplicated twice.
+     * Score: placement (1) + clear(base 10 x 15 cells x 2 lines x 1.0) = 301,
+     * plus a `PERFECT_CLEAR` +300 flat bonus (the 15 cleared cells ARE this
+     * fixture's entire filled content, so the board is empty after) = 601 —
+     * crosses `s2:200` but not `s3:700`, exercising §7.5's "star 2/3 = score
+     * thresholds" around a real boundary.
+     */
+    function makeWinLevel(id: number, seedSalt: string): Record<string, unknown> {
+      return {
+        id,
+        chapter: 1,
+        seedSalt,
+        prefill: [
+          { r: 0, c: 1, type: 'filled' },
+          { r: 0, c: 2, type: 'filled' },
+          { r: 0, c: 3, type: 'crate' },
+          { r: 0, c: 4, type: 'filled' },
+          { r: 0, c: 5, type: 'filled' },
+          { r: 0, c: 6, type: 'filled' },
+          { r: 0, c: 7, type: 'filled' },
+          { r: 1, c: 0, type: 'filled' },
+          { r: 2, c: 0, type: 'filled' },
+          { r: 3, c: 0, type: 'filled' },
+          { r: 4, c: 0, type: 'filled' },
+          { r: 5, c: 0, type: 'filled' },
+          { r: 6, c: 0, type: 'filled' },
+          { r: 7, c: 0, type: 'filled' },
+        ],
+        goals: [{ type: 'crate', count: 1 }],
+        pieceWeightOverrides: {},
+        mercy: true,
+        stars: { s2: 200, s3: 700 },
+        ivySpreadInterval: 3,
+        ivyMaxTiles: 16,
+        pieceSequence: ['P01'],
+      };
+    }
+
+    const WIN_LEVEL = makeWinLevel(10, 'test-win');
+    // `id` gets overwritten to the REAL `MAX_LEVEL_ID` inside the
+    // `@blockmanor/content` mock factory below, once `importOriginal` can
+    // resolve it — placeholder here.
+    const CEILING_LEVEL_BASE = makeWinLevel(0, 'test-ceiling');
+    // §12.10: the same one-placement win (score 601) with s3 lowered to 500, so
+    // it lands 3 stars — the only star count the review prompt accepts.
+    const WIN3_LEVEL = { ...makeWinLevel(14, 'test-win3'), stars: { s2: 200, s3: 500 } };
+
+    /**
+     * FAIL fixture: every cell filled EXCEPT a diagonal-ish scatter that keeps
+     * every row and column with exactly its own spare, none orthogonally
+     * adjacent to another: (0,0)+(0,1) (row 0's 2 spares), (1,0) (col 0's 2nd
+     * spare), then one isolated spare per remaining row/col at (2,2) (3,3)
+     * (4,4) (5,5) (6,6) (7,7). `P01` dropped at (0,0) leaves (0,1) empty in
+     * row 0 and (1,0) empty in column 0 — so THAT placement clears nothing.
+     * Every remaining empty cell is isolated (no empty neighbour anywhere on
+     * the board), so the tray's other two pieces (`P02`/`P03`, both 2-cell)
+     * fit nowhere -> `GAME_OVER` on this one placement, goal untouched (no
+     * clear ever happened to credit either crate).
+     */
+    const FAIL_EMPTY = new Set(['0,0', '0,1', '1,0', '2,2', '3,3', '4,4', '5,5', '6,6', '7,7']);
+    const FAIL_CRATES = new Set(['7,0', '7,1']);
+    const failPrefill: { r: number; c: number; type: string }[] = [];
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const key = `${r},${c}`;
+        if (FAIL_EMPTY.has(key)) continue;
+        failPrefill.push({ r, c, type: FAIL_CRATES.has(key) ? 'crate' : 'filled' });
+      }
+    }
+
+    const FAIL_LEVEL = {
+      id: 11,
       chapter: 1,
-      seedSalt,
-      prefill: [
-        { r: 0, c: 1, type: 'filled' },
-        { r: 0, c: 2, type: 'filled' },
-        { r: 0, c: 3, type: 'crate' },
-        { r: 0, c: 4, type: 'filled' },
-        { r: 0, c: 5, type: 'filled' },
-        { r: 0, c: 6, type: 'filled' },
-        { r: 0, c: 7, type: 'filled' },
-        { r: 1, c: 0, type: 'filled' },
-        { r: 2, c: 0, type: 'filled' },
-        { r: 3, c: 0, type: 'filled' },
-        { r: 4, c: 0, type: 'filled' },
-        { r: 5, c: 0, type: 'filled' },
-        { r: 6, c: 0, type: 'filled' },
-        { r: 7, c: 0, type: 'filled' },
-      ],
-      goals: [{ type: 'crate', count: 1 }],
+      seedSalt: 'test-fail',
+      prefill: failPrefill,
+      goals: [{ type: 'crate', count: 2 }],
+      pieceWeightOverrides: {},
+      mercy: true,
+      stars: { s2: 200, s3: 500 },
+      ivySpreadInterval: 3,
+      ivyMaxTiles: 16,
+      pieceSequence: ['P01', 'P02', 'P03'],
+    };
+
+    /**
+     * §7.5 audit B-1: a goal-less scripted level (`goals: []`, like FTUE's
+     * L1-L3) with a single-piece `pieceSequence`. Placing that one `P01`
+     * (empty board, no line clear) leaves the tray fully `used` -> the next
+     * refill finds nothing left in the sequence -> `status: 'completed'`,
+     * `SEQUENCE_EXHAUSTED` — neither `'won'` nor `'lost'`, the exact case
+     * `LevelSession` didn't handle before this fix.
+     */
+    const COMPLETED_LEVEL = {
+      id: 12,
+      chapter: 1,
+      seedSalt: 'test-completed',
+      prefill: [],
+      goals: [],
+      pieceWeightOverrides: {},
+      mercy: true,
+      stars: { s2: 5, s3: 10 },
+      ivySpreadInterval: 3,
+      ivyMaxTiles: 16,
+      pieceSequence: ['P01'],
+    };
+
+    /**
+     * §0 v1.17 (ii)'s fixture: the ONLY one here with no `pieceSequence`, so
+     * the tray is actually drawn from the seeded PRNG (§6.2) and therefore
+     * actually observes the run seed. Every other fixture pins its draw, which
+     * is exactly why they cannot guard this rule. Empty board, no goals — it is
+     * never played, only mounted and read.
+     */
+    const RESEED = {
+      id: 13,
+      chapter: 1,
+      seedSalt: 'test-reseed',
+      prefill: [],
+      goals: [],
       pieceWeightOverrides: {},
       mercy: true,
       stars: { s2: 200, s3: 700 },
       ivySpreadInterval: 3,
       ivyMaxTiles: 16,
-      pieceSequence: ['P01'],
     };
-  }
 
-  const WIN_LEVEL = makeWinLevel(10, 'test-win');
-  // `id` gets overwritten to the REAL `MAX_LEVEL_ID` inside the
-  // `@blockmanor/content` mock factory below, once `importOriginal` can
-  // resolve it — placeholder here.
-  const CEILING_LEVEL_BASE = makeWinLevel(0, 'test-ceiling');
-
-  /**
-   * FAIL fixture: every cell filled EXCEPT a diagonal-ish scatter that keeps
-   * every row and column with exactly its own spare, none orthogonally
-   * adjacent to another: (0,0)+(0,1) (row 0's 2 spares), (1,0) (col 0's 2nd
-   * spare), then one isolated spare per remaining row/col at (2,2) (3,3)
-   * (4,4) (5,5) (6,6) (7,7). `P01` dropped at (0,0) leaves (0,1) empty in
-   * row 0 and (1,0) empty in column 0 — so THAT placement clears nothing.
-   * Every remaining empty cell is isolated (no empty neighbour anywhere on
-   * the board), so the tray's other two pieces (`P02`/`P03`, both 2-cell)
-   * fit nowhere -> `GAME_OVER` on this one placement, goal untouched (no
-   * clear ever happened to credit either crate).
-   */
-  const FAIL_EMPTY = new Set(['0,0', '0,1', '1,0', '2,2', '3,3', '4,4', '5,5', '6,6', '7,7']);
-  const FAIL_CRATES = new Set(['7,0', '7,1']);
-  const failPrefill: { r: number; c: number; type: string }[] = [];
-  for (let r = 0; r < 8; r++) {
-    for (let c = 0; c < 8; c++) {
-      const key = `${r},${c}`;
-      if (FAIL_EMPTY.has(key)) continue;
-      failPrefill.push({ r, c, type: FAIL_CRATES.has(key) ? 'crate' : 'filled' });
-    }
-  }
-
-  const FAIL_LEVEL = {
-    id: 11,
-    chapter: 1,
-    seedSalt: 'test-fail',
-    prefill: failPrefill,
-    goals: [{ type: 'crate', count: 2 }],
-    pieceWeightOverrides: {},
-    mercy: true,
-    stars: { s2: 200, s3: 500 },
-    ivySpreadInterval: 3,
-    ivyMaxTiles: 16,
-    pieceSequence: ['P01', 'P02', 'P03'],
-  };
-
-  /**
-   * §7.5 audit B-1: a goal-less scripted level (`goals: []`, like FTUE's
-   * L1-L3) with a single-piece `pieceSequence`. Placing that one `P01`
-   * (empty board, no line clear) leaves the tray fully `used` -> the next
-   * refill finds nothing left in the sequence -> `status: 'completed'`,
-   * `SEQUENCE_EXHAUSTED` — neither `'won'` nor `'lost'`, the exact case
-   * `LevelSession` didn't handle before this fix.
-   */
-  const COMPLETED_LEVEL = {
-    id: 12,
-    chapter: 1,
-    seedSalt: 'test-completed',
-    prefill: [],
-    goals: [],
-    pieceWeightOverrides: {},
-    mercy: true,
-    stars: { s2: 5, s3: 10 },
-    ivySpreadInterval: 3,
-    ivyMaxTiles: 16,
-    pieceSequence: ['P01'],
-  };
-
-  /**
-   * §0 v1.17 (ii)'s fixture: the ONLY one here with no `pieceSequence`, so
-   * the tray is actually drawn from the seeded PRNG (§6.2) and therefore
-   * actually observes the run seed. Every other fixture pins its draw, which
-   * is exactly why they cannot guard this rule. Empty board, no goals — it is
-   * never played, only mounted and read.
-   */
-  const RESEED = {
-    id: 13,
-    chapter: 1,
-    seedSalt: 'test-reseed',
-    prefill: [],
-    goals: [],
-    pieceWeightOverrides: {},
-    mercy: true,
-    stars: { s2: 200, s3: 700 },
-    ivySpreadInterval: 3,
-    ivyMaxTiles: 16,
-  };
-
-  return { WIN_LEVEL, FAIL_LEVEL, COMPLETED_LEVEL, CEILING_LEVEL_BASE, RESEED };
-});
+    return { WIN_LEVEL, WIN3_LEVEL, FAIL_LEVEL, COMPLETED_LEVEL, CEILING_LEVEL_BASE, RESEED };
+  });
 
 vi.mock('@blockmanor/content', async (importOriginal) => {
   const actual = await importOriginal<typeof ContentModule>();
@@ -195,6 +201,7 @@ vi.mock('@blockmanor/content', async (importOriginal) => {
     11: FAIL_LEVEL as LevelJson,
     12: COMPLETED_LEVEL as LevelJson,
     13: RESEED as LevelJson,
+    14: WIN3_LEVEL as LevelJson,
     [actual.MAX_LEVEL_ID]: ceilingLevel as LevelJson,
   };
   return { ...actual, getLevel: (id: number) => byId[id] };
@@ -256,7 +263,18 @@ beforeEach(() => {
   trackMock.mockClear();
   // `attempts` is persisted per level id (§0 v1.17) — reset it too, or one
   // test's retries become the next test's starting attempt number.
-  useMetaStore.setState({ currentLevel: 10, attempts: {}, stars: {}, chestsClaimed: {} });
+  useMetaStore.setState({
+    currentLevel: 10,
+    attempts: {},
+    stars: {},
+    chestsClaimed: {},
+    winStreak: 0,
+    recentFails: 0,
+    lastFailAt: 0,
+    reviewPromptedVersion: '',
+    totalLines: 0,
+  });
+  resetStoreReviewMock();
 });
 
 afterEach(() => {
@@ -802,5 +820,79 @@ describe('LevelSession — PRD §12.2 pause', () => {
     // No win/fail was reported for it — a quit is its own funnel shape.
     expect(trackMock.mock.calls.map(([name]) => name)).not.toContain('level_complete');
     expect(trackMock.mock.calls.map(([name]) => name)).not.toContain('level_fail');
+  });
+});
+
+/**
+ * §12.3 / §12.10 — the meta writes those screens read. Both shipped with their
+ * store actions and screens but NO caller: winStreak never advanced (so the
+ * review prompt could never fire) and totalLines never grew. These assert the
+ * coordinator actually performs the writes.
+ */
+describe('LevelSession — §12.3 / §12.10 meta writes', () => {
+  const flush = async (): Promise<void> => {
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  };
+
+  it('§12.3: a win adds the lines it cleared to totalLines', () => {
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
+    place(renderer, 0, 0, 0);
+    // WIN_LEVEL's single placement completes row 0 AND column 0.
+    expect(useMetaStore.getState().totalLines).toBe(2);
+  });
+
+  it('§12.10: a win advances winStreak', () => {
+    useMetaStore.setState({ winStreak: 1 });
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
+    place(renderer, 0, 0, 0);
+    expect(useMetaStore.getState().winStreak).toBe(2);
+  });
+
+  it('§12.10: a fail resets winStreak and starts the fail count', () => {
+    useMetaStore.setState({ currentLevel: 11, winStreak: 4 });
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
+    place(renderer, 0, 0, 0);
+    const meta = useMetaStore.getState();
+    expect(meta.winStreak).toBe(0);
+    expect(meta.recentFails).toBe(1);
+    expect(meta.lastFailAt).toBeGreaterThan(0);
+  });
+
+  it('§12.10: a 3-star win at win-streak 3 asks once WinScreen is up, and records the build', async () => {
+    useMetaStore.setState({ currentLevel: 14, winStreak: 2 });
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
+    place(renderer, 0, 0, 0);
+    await flush();
+    // Never over the win juice: nothing asked until the hold ends.
+    expect(storeReviewMock.requests).toBe(0);
+    advance(WIN_HOLD_MS);
+    await flush();
+    expect(renderer.root.findByType(WinScreen).props.stars).toBe(3);
+    expect(storeReviewMock.requests).toBe(1);
+    expect(useMetaStore.getState().reviewPromptedVersion).toBe(getInstalledVersion());
+  });
+
+  it('§12.10: a 2-star win does NOT ask, even at win-streak 3', async () => {
+    useMetaStore.setState({ winStreak: 2 });
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
+    place(renderer, 0, 0, 0);
+    advance(WIN_HOLD_MS);
+    await flush();
+    expect(renderer.root.findByType(WinScreen).props.stars).toBe(2);
+    expect(storeReviewMock.requests).toBe(0);
+    expect(useMetaStore.getState().reviewPromptedVersion).toBe('');
+  });
+
+  it('§12.10: an ask the store cannot take is not recorded, so a later eligible win can ask', async () => {
+    storeReviewMock.available = false;
+    useMetaStore.setState({ currentLevel: 14, winStreak: 2 });
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
+    place(renderer, 0, 0, 0);
+    advance(WIN_HOLD_MS);
+    await flush();
+    expect(useMetaStore.getState().reviewPromptedVersion).toBe('');
   });
 });

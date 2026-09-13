@@ -34,6 +34,9 @@ import { GameplayScreen, type PauseControls } from '../screens/GameplayScreen';
 import { WinScreen } from '../screens/WinScreen';
 import { FailScreen } from '../screens/FailScreen';
 import { track } from '../services/analytics';
+import { getInstalledVersion } from '../services/appInfo';
+import { requestReview, shouldPromptReview } from '../services/reviewPrompt';
+import { useConfigStore } from '../state/useConfigStore';
 import { useMetaStore } from '../state/useMetaStore';
 
 /** `attempt` tags the engine seed too (not just analytics) — a Stage-1 free
@@ -122,6 +125,12 @@ export function LevelSession({
   // that gives them something to render. Same non-reactive discipline as
   // `attempts`: only the stable action is subscribed.
   const persistStars = useMetaStore((s) => s.setLevelStars);
+  // §12.3 / §12.10: the lifetime and win-streak stats those screens read.
+  // Stable actions only — same non-reactive discipline as above.
+  const addClearedLines = useMetaStore((s) => s.addClearedLines);
+  const recordLevelWin = useMetaStore((s) => s.recordLevelWin);
+  const recordLevelFail = useMetaStore((s) => s.recordLevelFail);
+  const markReviewPrompted = useMetaStore((s) => s.markReviewPrompted);
   const [attempt, setAttempt] = useState(() => nextAttempt(currentLevel));
   const [phase, setPhase] = useState<Phase>('playing');
   const [result, setResult] = useState<TerminalResult | null>(null);
@@ -180,9 +189,55 @@ export function LevelSession({
     if (!json) onExit();
   }, [json, onExit]);
 
+  // §12.10: a win advances the win-streak FIRST — this win counts toward the
+  // "win-streak >= 3" it is judged against — then eligibility is read off the
+  // post-write store. Returns the build to record the ask against, or null.
+  const recordWin = useCallback(
+    (stars: number): string | null => {
+      recordLevelWin();
+      const meta = useMetaStore.getState();
+      const installedVersion = getInstalledVersion();
+      const eligible = shouldPromptReview({
+        enabled: useConfigStore.getState().value('review_prompt_enabled'),
+        stars,
+        winStreak: meta.winStreak,
+        installedVersion,
+        promptedVersion: meta.reviewPromptedVersion,
+        recentFails: meta.recentFails,
+        lastFailAt: meta.lastFailAt,
+        // Stage 1 has no purchase flow (§10.3 is Stage 2), so there is no
+        // purchase record to read; the predicate still carries the rule.
+        lastPurchaseAt: 0,
+        now: Date.now(),
+      });
+      return eligible ? installedVersion : null;
+    },
+    [recordLevelWin],
+  );
+
+  // The native ask waits for WinScreen — never over the win juice — and the
+  // version is recorded only if we actually asked (see `requestReview`).
+  const promptReview = useCallback(
+    (version: string | null) => {
+      if (!version) return;
+      void requestReview().then((asked) => {
+        if (asked) markReviewPrompted(version);
+      });
+    },
+    [markReviewPrompted],
+  );
+
   const handleEvent = useCallback(
     (events: readonly GameEvent[], state: GameState) => {
       if (!json) return;
+      // §12.3 "total lines": accumulated from the engine's own events. `onEvent`
+      // fires once per state change carrying only that change's events, so
+      // this cannot double-count; never re-derived from score.
+      const lines = events.reduce(
+        (n, e) => (e.type === 'LINES_CLEARED' ? n + e.rows.length + e.cols.length : n),
+        0,
+      );
+      if (lines > 0) addClearedLines(lines);
       // §8.2/§4.3: `'won'` (a goal reached 0) and `'completed'` (a fixed
       // `pieceSequence` ran dry with the board still alive — goal-less
       // scripted levels only, e.g. a stale save still pointed at FTUE's
@@ -215,9 +270,13 @@ export function LevelSession({
           boosters_used: 0,
         });
         persistStars(json.id, won.stars);
+        const reviewVersion = recordWin(won.stars);
         setResult({ score: won.score, stars: won.stars, goals: [] });
         clearPhaseTimer();
-        phaseTimerRef.current = setTimeout(() => setPhase('won'), WIN_HOLD_MS);
+        phaseTimerRef.current = setTimeout(() => {
+          setPhase('won');
+          promptReview(reviewVersion);
+        }, WIN_HOLD_MS);
       } else if (state.status === 'completed') {
         // No `LEVEL_WON` event exists on this path (only `SEQUENCE_EXHAUSTED`,
         // which carries no `stars`) — `starsFor` is the one source for stars
@@ -233,9 +292,13 @@ export function LevelSession({
           boosters_used: 0,
         });
         persistStars(json.id, stars);
+        const reviewVersion = recordWin(stars);
         setResult({ score: state.score, stars, goals: [] });
         clearPhaseTimer();
-        phaseTimerRef.current = setTimeout(() => setPhase('won'), WIN_HOLD_MS);
+        phaseTimerRef.current = setTimeout(() => {
+          setPhase('won');
+          promptReview(reviewVersion);
+        }, WIN_HOLD_MS);
       } else if (state.status === 'lost') {
         const goals = deriveGoalBar(state);
         track('level_fail', {
@@ -243,12 +306,21 @@ export function LevelSession({
           goal_progress_pct: goalProgressPct(goals),
           fill_ratio: fillRatio(state.board),
         });
+        recordLevelFail(Date.now());
         setResult({ score: state.score, stars: 0, goals });
         clearPhaseTimer();
         phaseTimerRef.current = setTimeout(() => setPhase('lost'), FAIL_HOLD_MS);
       }
     },
-    [json, clearPhaseTimer, persistStars],
+    [
+      json,
+      clearPhaseTimer,
+      persistStars,
+      addClearedLines,
+      recordWin,
+      promptReview,
+      recordLevelFail,
+    ],
   );
 
   const handleNext = useCallback(() => {
