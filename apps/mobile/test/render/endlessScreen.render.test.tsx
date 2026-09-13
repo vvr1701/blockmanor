@@ -255,6 +255,70 @@ describe('EndlessScreen exits, converged onto §12.2 pause (PRD §12.9 "invitati
     expect(renderer.root.findAllByType(GameplayScreen).length).toBe(1);
   });
 
+  // §0 v1.25: leaving a run ENDS it. Before, quit/restart went straight out and
+  // only a full board ran the end-of-run path, so a record set and then quit
+  // was silently lost and the run never reached analytics.
+  function live(r: ReturnType<typeof mount>, score: number): void {
+    act(() => {
+      (r.renderer.root.findByType(GameplayScreen).props as { onEvent: OnEvent }).onEvent([], {
+        ...r.base,
+        status: 'playing',
+        score,
+      });
+    });
+  }
+  const endlessEnds = (): unknown[][] =>
+    trackMock.mock.calls.filter(([name]) => name === 'endless_end');
+
+  it('quitting mid-run ENDS the run: fires `endless_end` once and keeps a new best', () => {
+    const r = mount();
+    live(r, 1200);
+    press(byLabel(r.renderer.root, 'Pause the game')!);
+    press(byLabel(r.renderer.root, 'Exit to map')!);
+
+    expect(r.onExit).toHaveBeenCalledTimes(1);
+    expect(endlessEnds()).toEqual([['endless_end', { score: 1200, best: 1200 }]]);
+    expect(useMetaStore.getState().endlessBest).toBe(1200);
+  });
+
+  it('restarting mid-run ends the ABANDONED run before dealing a fresh one', () => {
+    const r = mount();
+    live(r, 700);
+    press(byLabel(r.renderer.root, 'Pause the game')!);
+    press(
+      r.renderer.root.findAll((n) =>
+        String(n.props.accessibilityLabel ?? '').startsWith('Restart level'),
+      )[0]!,
+    );
+
+    expect(endlessEnds()).toEqual([['endless_end', { score: 700, best: 700 }]]);
+    expect(useMetaStore.getState().endlessBest).toBe(700);
+  });
+
+  it('a quit run below the existing best reports the old best and does not lower it', () => {
+    useMetaStore.setState({ endlessBest: 5000 });
+    const r = mount();
+    live(r, 900);
+    press(byLabel(r.renderer.root, 'Pause the game')!);
+    press(byLabel(r.renderer.root, 'Exit to map')!);
+
+    expect(endlessEnds()).toEqual([['endless_end', { score: 900, best: 5000 }]]);
+    expect(useMetaStore.getState().endlessBest).toBe(5000);
+  });
+
+  it('leaving AFTER the board already filled does not end the run a second time', () => {
+    const r = mount();
+    r.end(1500);
+    act(() => {
+      (
+        r.renderer.root.findByType(GameplayScreen).props as { pause: { onQuit: () => void } }
+      ).pause.onQuit();
+    });
+
+    expect(endlessEnds()).toHaveLength(1);
+    expect(useMetaStore.getState().endlessBest).toBe(1500);
+  });
+
   it('the hardware-back subscription is released on unmount', () => {
     const before = MockBackHandler.__count();
     const { renderer } = mount();
