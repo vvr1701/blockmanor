@@ -41,6 +41,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { GoldButton } from '../../components/GoldButton';
+import { ModalSheet } from '../../components/ModalSheet';
 import { colors, fontFamily, fontSize, radius, spacing } from '../../components/tokens';
 import { playCue } from '../../game/sfx';
 import { t } from '../../i18n';
@@ -96,86 +97,51 @@ export function ChestSheet({
   }, [onOpen]);
 
   return (
-    // `accessibilityViewIsModal` WITHOUT `accessible` on the same node: the
-    // §7.6 fix pass found that pairing collapses a sheet into a single
-    // screen-reader node and makes its buttons unreachable — the same dead
-    // end for TalkBack users that §12.9 forbids for everyone else.
-    <View style={styles.backdrop} accessibilityViewIsModal>
-      <View style={styles.frame}>
-        <View style={styles.sheet}>
-          <Text style={styles.eyebrow}>{t('map.chest.eyebrow', { level: chestLevel })}</Text>
-          <Text style={styles.title}>
-            {t(opened ? 'map.chest.openedTitle' : 'map.chest.title')}
-          </Text>
+    <ModalSheet
+      sheetAlign="center"
+      footer={
+        // §12.9 "invitations, never dead ends": the sheet always has a way
+        // out, including before the chest is opened.
+        <Pressable
+          style={styles.dismiss}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel={t('map.chest.dismissLabel')}
+          hitSlop={8}
+        >
+          <Text style={styles.dismissText}>{t('map.chest.dismiss')}</Text>
+        </Pressable>
+      }
+    >
+      <Text style={styles.eyebrow}>{t('map.chest.eyebrow', { level: chestLevel })}</Text>
+      <Text style={styles.title}>{t(opened ? 'map.chest.openedTitle' : 'map.chest.title')}</Text>
 
-          <Animated.View style={[styles.chest, chestStyle]}>
-            <View style={styles.chestBand} />
-            <View style={styles.chestLock} />
-          </Animated.View>
+      <Animated.View style={[styles.chest, chestStyle]}>
+        <View style={styles.chestBand} />
+        <View style={styles.chestLock} />
+      </Animated.View>
 
-          {opened ? (
-            <View style={styles.rewardCard}>
-              <View style={styles.frameSwatch} />
-              <Text style={styles.rewardName}>{frameName}</Text>
-              <Text style={styles.rewardKind}>{t('map.chest.rewardKind')}</Text>
-            </View>
-          ) : (
-            <Text style={styles.teaser}>{t('map.chest.teaser')}</Text>
-          )}
-
-          <GoldButton
-            label={t(opened ? 'map.chest.collect' : 'map.chest.open')}
-            onPress={opened ? onClose : handleOpen}
-            size="lg"
-            style={styles.cta}
-          />
+      {opened ? (
+        <View style={styles.rewardCard}>
+          <View style={styles.frameSwatch} />
+          <Text style={styles.rewardName}>{frameName}</Text>
+          <Text style={styles.rewardKind}>{t('map.chest.rewardKind')}</Text>
         </View>
-      </View>
+      ) : (
+        <Text style={styles.teaser}>{t('map.chest.teaser')}</Text>
+      )}
 
-      {/* §12.9 "invitations, never dead ends": the sheet always has a way out,
-          including before the chest is opened. */}
-      <Pressable
-        style={styles.dismiss}
-        onPress={onClose}
-        accessibilityRole="button"
-        accessibilityLabel={t('map.chest.dismissLabel')}
-        hitSlop={8}
-      >
-        <Text style={styles.dismissText}>{t('map.chest.dismiss')}</Text>
-      </Pressable>
-    </View>
+      <GoldButton
+        label={t(opened ? 'map.chest.collect' : 'map.chest.open')}
+        onPress={opened ? onClose : handleOpen}
+        size="lg"
+        style={styles.cta}
+      />
+    </ModalSheet>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: spacing.lg,
-    // `colors.night` @ 82% — the panel's dark scrim, no new hex.
-    backgroundColor: 'rgba(19,24,48,0.82)',
-  },
-  /** The panel's brass frame around the cream sheet. */
-  frame: {
-    alignSelf: 'stretch',
-    borderRadius: radius.sheet + spacing.sm,
-    borderWidth: 2,
-    borderColor: colors.goldDeep,
-    backgroundColor: colors.goldDeep,
-    padding: spacing.sm,
-  },
-  sheet: {
-    borderRadius: radius.sheet,
-    backgroundColor: colors.cream,
-    alignItems: 'center',
-    padding: spacing.lg,
-    gap: spacing.sm,
-  },
   eyebrow: {
     // `colors.night` @ 70% on cream — 5.98:1, the same pair `GhostButton`'s
     // `onLight` variant uses (§7.5 re-audit item 1).
