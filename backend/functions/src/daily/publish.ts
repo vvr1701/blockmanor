@@ -13,11 +13,13 @@
 import {
   DAILY_BOARDS_COLLECTION,
   FROZEN_CONFIG_KEYS,
+  REMOTE_CONFIG_BOUNDS,
   REMOTE_CONFIG_DEFAULTS,
   type DailyBoardDoc,
   type DailyConfigSource,
   type DailySolvability,
   type FrozenConfigKey,
+  type NumberBound,
 } from '@blockmanor/shared';
 import { type EngineTuning } from '@blockmanor/engine';
 import { getApps, initializeApp } from 'firebase-admin/app';
@@ -47,36 +49,17 @@ export const DAILY_BOARD_SALT = defineSecret('DAILY_BOARD_SALT');
 type DailyRcKey = FrozenConfigKey | 'daily_reroll_cap';
 
 /**
- * Sanity bounds for each daily Remote Config number.
+ * Sanity bounds for each daily Remote Config number — the shared §13 table, so
+ * the generator and the app agree on what a valid push is (§0 v1.24).
  *
- * This exists because a frozen value is IMMUTABLE for 24h and there is no undo:
- * `create()` refuses to overwrite (that is the idempotency guarantee), so
- * rolling Remote Config back does not repair the day. Worse, `asNumber()` on the
- * admin SDK returns **0** for anything that will not parse — so an operator
- * typing `ten` into `score_clear_base` in the RC console would freeze `0` and
- * every clear that day would score nothing, silently. And a bad
- * `daily_piece_count` makes `drawSequence` throw, which fails all three
- * scheduler retries identically and leaves NO board at all for 24h.
- *
- * Bounds are deliberately wide: they are a typo/corruption guard, not a balance
- * policy. Balance lives in Remote Config (§13), and anything inside these bounds
- * is honoured verbatim.
+ * Why they matter most HERE: a frozen value is IMMUTABLE for 24h and there is
+ * no undo — `create()` refuses to overwrite, so rolling Remote Config back does
+ * not repair the day. `asNumber()` on the admin SDK returns 0 for anything that
+ * will not parse, so a typo in `score_clear_base` would freeze a day where every
+ * clear scores nothing, and a bad `daily_piece_count` makes `drawSequence` throw
+ * on all three scheduler retries and leaves NO board for 24h.
  */
-const FROZEN_BOUNDS: Record<DailyRcKey, { min: number; max: number; integer: boolean }> = {
-  // §6.4 probabilities.
-  mercy_threshold: { min: 0, max: 1, integer: false },
-  mercy_small_prob: { min: 0, max: 1, integer: false },
-  // §6.6 scoring. `score_clear_base: 0` would make every clear worth nothing,
-  // which is exactly the `asNumber()` failure mode, so 0 is out of band.
-  score_clear_base: { min: 1, max: 10_000, integer: false },
-  combo_step: { min: 0, max: 10, integer: false },
-  perfect_clear_bonus: { min: 0, max: 1_000_000, integer: false },
-  // §8.2 sequence length. Must be a positive integer or `drawSequence` throws.
-  daily_piece_count: { min: 1, max: 1_000, integer: true },
-  // §8.2 re-rolls. Each costs 200 bot playouts (~2s), so the ceiling is the
-  // function timeout, not taste. 0 is legal and means "no re-roll".
-  daily_reroll_cap: { min: 0, max: 20, integer: true },
-};
+const FROZEN_BOUNDS: Record<DailyRcKey, NumberBound> = REMOTE_CONFIG_BOUNDS;
 
 export interface FrozenRemoteConfig {
   tuning: EngineTuning;
