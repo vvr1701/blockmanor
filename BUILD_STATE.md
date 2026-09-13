@@ -1205,6 +1205,17 @@ already correct. Fix BLOCKERs and MAJORs; defer NITs to a follow-up list.
 Applies from the §12.1 branch onward. The §8.5 re-audit already in flight
 stands — it is daily-board, i.e. mandated.
 
+### S14c — follow-ups merged; Endless quit loses nothing (2026-09-13)
+
+`chore/followups` merged (Endless on §12.2 pause, `ModalSheet`, `withAlpha`,
+`gameplay.goal.line` rename, FtueOverlay repeat test, RNGH mock) — no auditor
+under the tightened bar; the agent mutation-tested items 1/5/6 and self-caught
+one touch of an off-limits file, reverted. That convergence surfaced a real
+pre-existing bug, fixed as **PRD v1.25**: quitting or restarting Endless
+mid-run skipped the end-of-run path, so a record set then quit was lost and
+the run never reached analytics. Now a run ends exactly once however it ends.
+544 mobile tests.
+
 ### S14b — Remote Config sanity bounds on the client (2026-09-13)
 
 Last carried PRD-AMENDMENT-NEEDED from the WP-1 audit, ruled as **PRD v1.24**.
