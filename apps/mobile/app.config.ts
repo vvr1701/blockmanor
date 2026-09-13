@@ -52,6 +52,7 @@ const firebasePlugins: NonNullable<ExpoConfig['plugins']> =
         '@react-native-firebase/crashlytics',
       ]
     : [];
+const EAS_PROJECT_ID = '38d85265-4670-4f6b-95c2-76c1efebd319';
 const config: ExpoConfig = {
   name: 'Block Manor',
   slug: 'blockmanor',
@@ -85,8 +86,14 @@ const config: ExpoConfig = {
     ...(hasIosFirebase ? { googleServicesFile: googleServicesPlist } : {}),
   },
   owner: 'vvr1701',
+  // §4.1 EAS Update: the channels in eas.json only do anything with
+  // expo-updates installed and a runtime version to match updates to binaries.
+  // `fingerprint` changes whenever native code or config does, so an OTA bundle
+  // can never land on a binary it was not built against.
+  runtimeVersion: { policy: 'fingerprint' },
+  updates: { url: `https://u.expo.dev/${EAS_PROJECT_ID}` },
   extra: {
-    eas: { projectId: '38d85265-4670-4f6b-95c2-76c1efebd319' },
+    eas: { projectId: EAS_PROJECT_ID },
   },
 };
 
