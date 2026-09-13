@@ -77,3 +77,15 @@ describe('app.config.ts Firebase wiring', () => {
     expect(config.ios?.googleServicesFile).toBe(`${process.cwd()}/app.config.ts`);
   });
 });
+
+describe('app.config.ts EAS Update wiring (§4.1)', () => {
+  it('points updates at this EAS project and pins runtimes by fingerprint', async () => {
+    const config = (await loadConfig()) as {
+      runtimeVersion?: unknown;
+      updates?: { url?: string };
+      extra?: { eas?: { projectId?: string } };
+    };
+    expect(config.runtimeVersion).toStrictEqual({ policy: 'fingerprint' });
+    expect(config.updates?.url).toBe(`https://u.expo.dev/${config.extra?.eas?.projectId}`);
+  });
+});
