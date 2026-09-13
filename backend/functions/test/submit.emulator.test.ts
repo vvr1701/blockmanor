@@ -24,6 +24,8 @@ import {
   engineVersion,
   parseDailyBoardDoc,
   type DailyBoardDoc,
+  DAILY_MOVE_LOGS_SUBCOLLECTION,
+  DAILY_STALE_AFTER_MS,
 } from '@blockmanor/shared';
 import {
   applyPlacement,
@@ -58,7 +60,7 @@ vi.mock('firebase-admin/remote-config', () => ({
 const publish = await import('../src/daily/publish');
 const { publishDailyBoard, OPS_ALERTS_COLLECTION } = publish;
 const { startDailyAttempt } = await import('../src/daily/playStart');
-const { submitDailyAttempt, ENGINE_DRIFT_ALERT } = await import('../src/daily/submit');
+const { submitDailyAttempt, ENGINE_DRIFT_ALERT, moveLogHash } = await import('../src/daily/submit');
 const { attemptSeed, dailySeed, openSequence, sealSequence } = await import('../src/daily/seal');
 const { nextStreak, previousUtcDate } = await import('../src/daily/streak');
 
@@ -730,5 +732,95 @@ describe('§8.6 nextStreak (pure)', () => {
       streak: 4,
       lastStreakDate: '2026-08-01',
     });
+  });
+});
+
+describe('§0 v1.26(b) move-log dedupe, and the §8.5 re-audit test gaps', () => {
+  const submit = (uid: string, run: { moves: Move[]; score: number }, at = NOON) =>
+    submitDailyAttempt(uid, { date: DATE, moves: run.moves, claimedScore: run.score }, SALT, at);
+
+  it('stores the move-log hash, and the first accepted log counts for the percentile', async () => {
+    const run = await honestRun(DATE, 12);
+    await expect(submit(UID, run)).resolves.toMatchObject({ countsForPercentile: true });
+
+    const doc = await attemptRef().get();
+    expect(doc.get('movesHash')).toBe(moveLogHash(run.moves));
+    expect(doc.get('countsForPercentile')).toBe(true);
+    const owner = await db()
+      .collection(DAILY_BOARDS_COLLECTION)
+      .doc(DATE)
+      .collection(DAILY_MOVE_LOGS_SUBCOLLECTION)
+      .doc(moveLogHash(run.moves))
+      .get();
+    expect(owner.get('uid')).toBe(UID);
+  });
+
+  it('a copied top log is accepted for the copier but never counts for the percentile', async () => {
+    // The board is identical for everyone (§8.1), so any log replays for anyone
+    // who started. Accepted — the copier did start the day — but excluded.
+    const top = await honestRun(DATE, 14, 'topplayer');
+    await expect(submit('topplayer', top)).resolves.toMatchObject({ countsForPercentile: true });
+
+    await startDailyAttempt('copycat', DATE, SALT, NOON);
+    await expect(submit('copycat', top, NOON + 1_000)).resolves.toMatchObject({
+      score: top.score,
+      countsForPercentile: false,
+    });
+    expect((await attemptRef(DATE, 'copycat').get()).get('countsForPercentile')).toBe(false);
+  });
+
+  it('never logs daily_cheat_rejected for an honest submission on a drifted board', async () => {
+    const { logger } = await import('firebase-functions/v2');
+    const warn = vi.spyOn(logger, 'warn');
+    try {
+      const run = await honestRun();
+      await db()
+        .collection(DAILY_BOARDS_COLLECTION)
+        .doc(DATE)
+        .update({ engineVersion: 'daily-sim-v2+deadbeef' });
+      await expect(submit(UID, run)).resolves.toMatchObject({ streakGranted: true });
+      expect(warn.mock.calls.filter(([msg]) => msg === 'daily_cheat_rejected')).toHaveLength(0);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('refuses every attempt status other than exactly "started"', async () => {
+    const run = await honestRun(DATE, 12);
+    for (const status of ['STARTED', 'abandoned', '', null, 1, ['started'], ' started']) {
+      await attemptRef().set({ date: DATE, status });
+      await expect(submit(UID, run)).rejects.toMatchObject({ details: { reason: 'not-started' } });
+    }
+  });
+
+  it('accepts at exactly activatesAt + 36h and refuses one millisecond later', async () => {
+    const run = await honestRun(DATE, 12);
+    await expect(submit(UID, run, ACTIVATES_AT + DAILY_STALE_AFTER_MS + 1)).rejects.toMatchObject({
+      details: { reason: 'stale-date' },
+    });
+    await expect(submit(UID, run, ACTIVATES_AT + DAILY_STALE_AFTER_MS)).resolves.toMatchObject({
+      score: run.score,
+    });
+  });
+
+  it('logs a not-started submission as daily_cheat_rejected', async () => {
+    const { logger } = await import('firebase-functions/v2');
+    const warn = vi.spyOn(logger, 'warn');
+    try {
+      const run = await honestRun(DATE, 12, 'leaker');
+      await expect(submit(UID, run)).rejects.toMatchObject({ details: { reason: 'not-started' } });
+      expect(warn).toHaveBeenCalledWith(
+        'daily_cheat_rejected',
+        expect.objectContaining({ reason: 'not-started', uid: UID }),
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('stores streakGranted=false on the submission for a run below daily_streak_min_moves', async () => {
+    const run = await honestRun(DATE, REMOTE_CONFIG_DEFAULTS.daily_streak_min_moves - 1);
+    await expect(submit(UID, run)).resolves.toMatchObject({ streakGranted: false });
+    expect((await attemptRef().get()).get('streakGranted')).toBe(false);
   });
 });

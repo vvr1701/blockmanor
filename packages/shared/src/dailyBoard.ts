@@ -53,6 +53,23 @@ export const USERS_COLLECTION = 'users';
 export const DAILY_ATTEMPTS_SUBCOLLECTION = 'submissions';
 
 /**
+ * §8.5: a submission for a board more than 36h past its `activatesAt` is
+ * rejected. Shared because play-start's §0 v1.26(a) pending-attempt gate must
+ * use the SAME window — an attempt that can no longer be submitted must never
+ * block a new day.
+ */
+export const DAILY_STALE_AFTER_MS = 36 * 3_600_000;
+
+/**
+ * §0 v1.26(b): `dailyBoards/{date}/moveLogs/{sha256 of the move log}` records
+ * the FIRST accepted submission of each distinct log for that day. §8.4's
+ * histogram counts only submissions that created their entry, so a replayed
+ * copy of someone else's log cannot copy its rank. Server-written only; not
+ * client-readable under firestore.rules.
+ */
+export const DAILY_MOVE_LOGS_SUBCOLLECTION = 'moveLogs';
+
+/**
  * §8.2 publication boundary. Day D's board is generated at D-1 23:45 UTC and
  * becomes live at D 00:00:00.000 UTC.
  *

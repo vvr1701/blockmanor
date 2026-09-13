@@ -162,6 +162,9 @@ export const REMOTE_CONFIG_BOUNDS = {
   // §8.2 re-rolls. Each costs 200 bot playouts (~2s), so the ceiling is the
   // function timeout, not taste. 0 is legal and means "no re-roll".
   daily_reroll_cap: { min: 0, max: 20, integer: true },
+  // §8.6 streak threshold. 0 would make `moves.length >= 0` always true — the
+  // streak for opening the board and quitting (§0 v1.19(v)) — so 1 is the floor.
+  daily_streak_min_moves: { min: 1, max: 1_000, integer: true },
   // §8.7 local push hour: a clock hour, nothing else is meaningful.
   daily_push_hour: { min: 0, max: 23, integer: true },
   // §7.6 Endless gate: a level number.

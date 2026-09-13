@@ -29,7 +29,9 @@ import { type PieceId } from '@blockmanor/engine';
 import {
   DAILY_ATTEMPTS_SUBCOLLECTION,
   DAILY_BOARDS_COLLECTION,
+  DAILY_STALE_AFTER_MS,
   USERS_COLLECTION,
+  dailyActivatesAt,
   parseDailyBoardDoc,
 } from '@blockmanor/shared';
 import { getApps, initializeApp } from 'firebase-admin/app';
@@ -74,7 +76,8 @@ export interface PlayStartResult {
 }
 
 /** Distinct `HttpsError.details.reason` values, so the client can route each. */
-export type PlayStartRejection = 'not-published' | 'not-yet-live' | 'closed' | 'attempt-consumed';
+export type PlayStartRejection =
+  'not-published' | 'not-yet-live' | 'closed' | 'attempt-consumed' | 'pending-attempt';
 
 const reject = (
   reason: PlayStartRejection,
@@ -128,11 +131,37 @@ export async function startDailyAttempt(
   // the legitimate play-at-23:59 / submit-at-00:01 case work).
   if (now >= board.activatesAt + DAY_MS) throw reject('closed', 'That board has closed');
 
-  const attempt = db
+  const attempts = db
     .collection(USERS_COLLECTION)
     .doc(uid)
-    .collection(DAILY_ATTEMPTS_SUBCOLLECTION)
-    .doc(date);
+    .collection(DAILY_ATTEMPTS_SUBCOLLECTION);
+
+  // §0 v1.26(a): an older attempt that is still `'started'` and still inside its
+  // §8.5 submission window must be submitted first. Streak crediting is a single
+  // forward pass, so a run killed at 23:59 and submitted AFTER the next day had
+  // been credited would arrive after the day-gap was applied and reset an honest
+  // streak. Before `create()`, so a refused start consumes nothing. An attempt
+  // past its window cannot be submitted at all, so it never blocks. The single
+  // equality filter uses Firestore's automatic index; a player's own attempts
+  // are few, so the date filter runs here.
+  const open = await attempts.where('status', '==', 'started').get();
+  const pendingDate = open.docs
+    .map((d) => d.id)
+    .filter((d) => d < date && now <= dailyActivatesAt(d) + DAILY_STALE_AFTER_MS)
+    .sort()[0];
+  if (pendingDate) {
+    logger.info('daily_play_start: older attempt must be submitted first', {
+      uid,
+      date,
+      pendingDate,
+    });
+    throw new HttpsError('failed-precondition', 'Submit your unfinished board first', {
+      reason: 'pending-attempt' satisfies PlayStartRejection,
+      pendingDate,
+    });
+  }
+
+  const attempt = attempts.doc(date);
   try {
     await attempt.create({
       date,

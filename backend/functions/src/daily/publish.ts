@@ -317,14 +317,11 @@ export async function publishDailyBoard(
  * `activatesAt`, enforced in `firestore.rules`.
  *
  * No §14 analytics event fires here. §14's taxonomy is client Firebase Analytics
- * and marks exactly one server event (`daily_missed`); there is no generation
- * event in it. `daily_missed` is DEFERRED and deliberately unimplemented in
- * this work package: no section says when or where it fires, and it is being
- * amended into §8.7 alongside the streak-risk scan, which already needs the
- * scheduled per-user sweep it would share. Inventing a second sweep here would
- * be a permanent §14 API name placed by guess. Inventing one would be a new permanent
- * API name and needs a PRD amendment first (§14, §0.1) — so generation reports
- * through structured logs and, on failure, through `opsAlerts`.
+ * and marks exactly one server event, `daily_missed`, which PRD v1.22(d) places
+ * in §8.7's streak-risk scan — that scan is already the scheduled per-user sweep
+ * the event needs, so it does not belong in generation. A generation event would
+ * be a new permanent §14 name and needs a PRD amendment first (§14, §0.1), so
+ * generation reports through structured logs and, on failure, `opsAlerts`.
  */
 export const generateDailyBoardScheduled = onSchedule(
   {

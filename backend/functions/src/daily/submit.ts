@@ -30,6 +30,8 @@
 import {
   DAILY_ATTEMPTS_SUBCOLLECTION,
   DAILY_BOARDS_COLLECTION,
+  DAILY_MOVE_LOGS_SUBCOLLECTION,
+  DAILY_STALE_AFTER_MS,
   USERS_COLLECTION,
   dailyGameConfig,
   dailyPlaySeed,
@@ -40,6 +42,7 @@ import {
   type DailySubmission,
 } from '@blockmanor/shared';
 import { IllegalMoveError, simulate, type FinalResult } from '@blockmanor/engine';
+import { createHash } from 'node:crypto';
 import { getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions/v2';
@@ -49,12 +52,12 @@ import { attemptSeed, dailySeed, openSequence } from './seal';
 import { nextStreak, streakMinMoves, type StreakState } from './streak';
 
 /**
- * §8.5: "submission for a past date >36h old" is rejected. Measured from the
- * board's `activatesAt`, i.e. from the start of its own UTC day, which leaves a
- * player who died at 23:59 twelve hours to get back online and submit — the
- * §8.3 app-kill path the window exists for.
+ * §8.5: "submission for a past date >36h old" is rejected, measured from the
+ * board's `activatesAt` — twelve hours for a player who died at 23:59 to get
+ * back online. The value lives in `@blockmanor/shared` because play-start's
+ * pending-attempt gate (§0 v1.26(a)) must agree with it exactly.
  */
-const STALE_AFTER_MS = 36 * 3_600_000;
+const STALE_AFTER_MS = DAILY_STALE_AFTER_MS;
 
 /** Distinct `HttpsError.details.reason` values — §8.5 rejects each separately. */
 export type SubmitRejection =
@@ -83,7 +86,18 @@ export interface SubmitResult {
   /** §8.6, server-authoritative. */
   streak: number;
   streakGranted: boolean;
+  /**
+   * §0 v1.26(b): false when an identical move log was already accepted for this
+   * day. The submission still counts for the attempt and the streak, but §8.4's
+   * histogram excludes it and the client shows no percentile.
+   */
+  countsForPercentile: boolean;
 }
+
+/** §0 v1.26(b): stable identity of a move log. Moves are plain numbers, so
+ * JSON is canonical; sha256 keeps the document id fixed-length and opaque. */
+export const moveLogHash = (moves: DailySubmission['moves']): string =>
+  createHash('sha256').update(JSON.stringify(moves)).digest('hex');
 
 /** §8.2 v1.12/v1.14: the published board was generated under a different engine. */
 export const ENGINE_DRIFT_ALERT = 'daily_engine_drift';
@@ -264,11 +278,19 @@ export async function submitDailyAttempt(
   const earnsStreak = payload.moves.length >= minMoves;
 
   const userRef = db.collection(USERS_COLLECTION).doc(uid);
+  const movesHash = moveLogHash(payload.moves);
+  const logRef = db
+    .collection(DAILY_BOARDS_COLLECTION)
+    .doc(payload.date)
+    .collection(DAILY_MOVE_LOGS_SUBCOLLECTION)
+    .doc(movesHash);
   const streakState = await db.runTransaction(async (tx) => {
-    // Re-read inside the transaction: two submissions racing both pass the
-    // pre-check above, and only one may be recorded (§8.5 ">1 submission/user/
-    // day"). Firestore aborts and retries the loser, which then sees
-    // `'submitted'`.
+    // THE concurrency guard for §8.5 ">1 submission/user/day": this read is
+    // inside the transaction, so Firestore aborts and retries a racing loser,
+    // which then sees `'submitted'`. The later reads of `userRef` and `logRef`
+    // happen to serialize same-user transactions too — do not rely on that. A
+    // refactor that moves THIS read outside the transaction reopens the race
+    // even if those other reads still mask it in tests.
     const attempt = await tx.get(attemptRef);
     const status = attempt.get('status');
 
@@ -304,6 +326,14 @@ export async function submitDailyAttempt(
       typeof last === 'string' ? { streak, lastStreakDate: last } : { streak };
     const after = earnsStreak ? nextStreak(before, payload.date) : before;
 
+    // §0 v1.26(b): first accepted submission of this exact log for this day
+    // owns it. Read before any write (Firestore transactions require it); a
+    // racing identical log serializes on this document.
+    const countsForPercentile = !(await tx.get(logRef)).exists;
+    if (countsForPercentile) {
+      tx.create(logRef, { uid, submittedAt: new Date(now).toISOString() });
+    }
+
     // `update`, not `set(..., {merge: true})`: the guard above proves a
     // `'started'` document is there, so an update that finds nothing is a bug
     // worth failing on rather than a document worth conjuring.
@@ -318,9 +348,11 @@ export async function submitDailyAttempt(
       boardHash: result.boardHash,
       streakGranted: earnsStreak && after.streak !== before.streak,
       engineVersionAtSubmit: engineVersion(),
+      movesHash,
+      countsForPercentile,
     });
     tx.set(userRef, after, { merge: true });
-    return { before, after };
+    return { before, after, countsForPercentile };
   });
 
   logger.info('daily_submit: accepted', {
@@ -341,6 +373,7 @@ export async function submitDailyAttempt(
     moves: payload.moves.length,
     streak: streakState.after.streak,
     streakGranted: streakState.after.streak !== streakState.before.streak,
+    countsForPercentile: streakState.countsForPercentile,
   };
 }
 

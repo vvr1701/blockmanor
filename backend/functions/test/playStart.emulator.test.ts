@@ -17,6 +17,7 @@
 import {
   DAILY_ATTEMPTS_SUBCOLLECTION,
   DAILY_BOARDS_COLLECTION,
+  DAILY_STALE_AFTER_MS,
   REMOTE_CONFIG_DEFAULTS,
   USERS_COLLECTION,
   parseDailyBoardDoc,
@@ -123,8 +124,10 @@ describe('§8.3 play-start — the sequence', () => {
   it("hands out this day's sequence, not another day's", async () => {
     await publishDailyBoard('2026-08-10', SALT, '2026-08-09T23:45:00.000Z');
     const today = await startDailyAttempt(UID, DATE, SALT, middayOf(ACTIVATES_AT));
+    // A different player: §0 v1.26(a) refuses the same player a new day while
+    // today's attempt is still open, and this test is about seals, not that gate.
     const tomorrow = await startDailyAttempt(
-      UID,
+      'bob',
       '2026-08-10',
       SALT,
       middayOf(Date.UTC(2026, 7, 10)),
@@ -247,5 +250,61 @@ describe('§8.3 malformed input', () => {
     await expect(
       startDailyAttempt(UID, '2026-08-12', SALT, Date.UTC(2026, 7, 12, 12)),
     ).rejects.toMatchObject({ code: 'internal' });
+  });
+});
+
+describe('§0 v1.26(a) an older open attempt must be submitted first', () => {
+  // Without this gate a run killed at 23:59 and submitted after the next day
+  // had been credited arrives after the day-gap is applied, and an honest
+  // streak resets to 1.
+  const TOMORROW = '2026-08-10';
+  const TOMORROW_AT = Date.UTC(2026, 7, 10);
+
+  beforeEach(async () => {
+    await publishDailyBoard(TOMORROW, SALT, '2026-08-09T23:45:00.000Z');
+  });
+
+  it('refuses a new day while an older attempt is still started, naming the pending date', async () => {
+    await startDailyAttempt(UID, DATE, SALT, middayOf(ACTIVATES_AT));
+    await expect(
+      startDailyAttempt(UID, TOMORROW, SALT, TOMORROW_AT + 60_000),
+    ).rejects.toMatchObject({ details: { reason: 'pending-attempt', pendingDate: DATE } });
+  });
+
+  it('consumes nothing when it refuses', async () => {
+    await startDailyAttempt(UID, DATE, SALT, middayOf(ACTIVATES_AT));
+    await expect(
+      startDailyAttempt(UID, TOMORROW, SALT, TOMORROW_AT + 60_000),
+    ).rejects.toMatchObject({ details: { reason: 'pending-attempt' } });
+    expect((await attemptRef(TOMORROW).get()).exists).toBe(false);
+  });
+
+  it('lets the new day start once the older attempt has been submitted', async () => {
+    await startDailyAttempt(UID, DATE, SALT, middayOf(ACTIVATES_AT));
+    await attemptRef(DATE).update({ status: 'submitted' });
+    await expect(
+      startDailyAttempt(UID, TOMORROW, SALT, TOMORROW_AT + 60_000),
+    ).resolves.toMatchObject({ date: TOMORROW });
+  });
+
+  it("blocks up to and including the older attempt's last submittable instant", async () => {
+    await startDailyAttempt(UID, DATE, SALT, middayOf(ACTIVATES_AT));
+    await expect(
+      startDailyAttempt(UID, TOMORROW, SALT, ACTIVATES_AT + DAILY_STALE_AFTER_MS),
+    ).rejects.toMatchObject({ details: { reason: 'pending-attempt' } });
+  });
+
+  it('never blocks on an attempt past its submission window — it can no longer be submitted', async () => {
+    await startDailyAttempt(UID, DATE, SALT, middayOf(ACTIVATES_AT));
+    await expect(
+      startDailyAttempt(UID, TOMORROW, SALT, ACTIVATES_AT + DAILY_STALE_AFTER_MS + 1),
+    ).resolves.toMatchObject({ date: TOMORROW });
+  });
+
+  it("another player's open attempt never blocks you", async () => {
+    await startDailyAttempt('bob', DATE, SALT, middayOf(ACTIVATES_AT));
+    await expect(
+      startDailyAttempt(UID, TOMORROW, SALT, TOMORROW_AT + 60_000),
+    ).resolves.toMatchObject({ date: TOMORROW });
   });
 });
