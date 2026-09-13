@@ -41,7 +41,7 @@ import {
   type DailyBoardDoc,
   type DailySubmission,
 } from '@blockmanor/shared';
-import { IllegalMoveError, simulate, type FinalResult } from '@blockmanor/engine';
+import { IllegalMoveError, TRAY_SIZE, simulate, type FinalResult } from '@blockmanor/engine';
 import { createHash } from 'node:crypto';
 import { getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
@@ -94,10 +94,22 @@ export interface SubmitResult {
   countsForPercentile: boolean;
 }
 
-/** §0 v1.26(b): stable identity of a move log. Moves are plain numbers, so
- * JSON is canonical; sha256 keeps the document id fixed-length and opaque. */
-export const moveLogHash = (moves: DailySubmission['moves']): string =>
-  createHash('sha256').update(JSON.stringify(moves)).digest('hex');
+/**
+ * §0 v1.26(b)/v1.27: stable identity of a move log. A daily tray yields exactly
+ * `TRAY_SIZE` placements before refilling (§6.3), and its used slots stay put,
+ * so placements from one tray can often be replayed in any order for the same
+ * score. Each tray's placements are sorted by slot before hashing, so a
+ * reordered copy is the same log. Moves are rebuilt with a fixed key order, so
+ * JSON is canonical; sha256 keeps the document id fixed-length and opaque.
+ */
+export const moveLogHash = (moves: DailySubmission['moves']): string => {
+  const canonical = moves.map(({ pieceIndex, r, c }) => ({ pieceIndex, r, c }));
+  for (let i = 0; i < canonical.length; i += TRAY_SIZE) {
+    const tray = canonical.slice(i, i + TRAY_SIZE).sort((a, b) => a.pieceIndex - b.pieceIndex);
+    canonical.splice(i, tray.length, ...tray);
+  }
+  return createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
+};
 
 /** §8.2 v1.12/v1.14: the published board was generated under a different engine. */
 export const ENGINE_DRIFT_ALERT = 'daily_engine_drift';

@@ -31,6 +31,8 @@ import {
   applyPlacement,
   createGame,
   getLegalPlacements,
+  simulate,
+  TRAY_SIZE,
   type Move,
   type PieceId,
 } from '@blockmanor/engine';
@@ -767,6 +769,75 @@ describe('§0 v1.26(b) move-log dedupe, and the §8.5 re-audit test gaps', () =>
       countsForPercentile: false,
     });
     expect((await attemptRef(DATE, 'copycat').get()).get('countsForPercentile')).toBe(false);
+  });
+
+  it('two different logs both count for the percentile', async () => {
+    // Without this, a hash that ignored the moves would drop everyone after the
+    // day's first submission out of §8.4's histogram and still pass the suite.
+    const a = await honestRun(DATE, 5, 'alice');
+    const b = await honestRun(DATE, 8, 'bob');
+    await expect(submit('alice', a)).resolves.toMatchObject({ countsForPercentile: true });
+    await expect(submit('bob', b)).resolves.toMatchObject({ countsForPercentile: true });
+  });
+
+  it('a copy with moves reordered inside a tray is the same log (§0 v1.27)', async () => {
+    const top = await honestRun(DATE, Number.POSITIVE_INFINITY, 'topplayer');
+    await submit('topplayer', top);
+    const config = dailyGameConfig(top.doc.engineConfig, top.sequence, DATE);
+    let reordered: Move[] | undefined;
+    for (let i = 0; i + 1 < top.moves.length && !reordered; i++) {
+      if (i % TRAY_SIZE === TRAY_SIZE - 1) continue; // i and i+1 straddle a refill
+      const swapped = top.moves.slice();
+      [swapped[i], swapped[i + 1]] = [swapped[i + 1]!, swapped[i]!];
+      try {
+        if (simulate(config, dailyPlaySeed(DATE), swapped).score === top.score) reordered = swapped;
+      } catch {
+        // illegal in this order; try the next pair
+      }
+    }
+    expect(reordered, 'an in-tray swap that replays to the same score').toBeDefined();
+    expect(moveLogHash(reordered!)).toBe(moveLogHash(top.moves));
+
+    await startDailyAttempt('copycat', DATE, SALT, NOON);
+    await expect(
+      submitDailyAttempt(
+        'copycat',
+        { date: DATE, moves: reordered!, claimedScore: top.score },
+        SALT,
+        NOON + 1_000,
+      ),
+    ).resolves.toMatchObject({ score: top.score, countsForPercentile: false });
+  });
+
+  it('the move-log hash sorts within a tray, never across trays', () => {
+    const m = (pieceIndex: number, r: number, c: number): Move => ({ pieceIndex, r, c });
+    const log = [m(0, 0, 0), m(1, 1, 1), m(2, 2, 2), m(0, 3, 3), m(1, 4, 4)];
+    expect(moveLogHash([m(2, 2, 2), m(0, 0, 0), m(1, 1, 1), m(1, 4, 4), m(0, 3, 3)])).toBe(
+      moveLogHash(log),
+    );
+    // The same placements moved into another tray are a different game.
+    expect(moveLogHash([m(0, 3, 3), m(1, 1, 1), m(2, 2, 2), m(0, 0, 0), m(1, 4, 4)])).not.toBe(
+      moveLogHash(log),
+    );
+    expect(moveLogHash([m(0, 0, 0), m(1, 1, 1), m(2, 2, 2), m(0, 3, 3), m(1, 4, 5)])).not.toBe(
+      moveLogHash(log),
+    );
+  });
+
+  it('first accepted wins under real concurrency, and owns the move log', async () => {
+    const top = await honestRun(DATE, Number.POSITIVE_INFINITY, 'u0');
+    const uids = ['u0', 'u1', 'u2', 'u3', 'u4', 'u5', 'u6', 'u7'];
+    for (const u of uids.slice(1)) await startDailyAttempt(u, DATE, SALT, NOON);
+    const results = await Promise.all(uids.map((u) => submit(u, top)));
+    const winners = uids.filter((_, i) => results[i]!.countsForPercentile);
+    expect(winners).toHaveLength(1);
+    const owner = await db()
+      .collection(DAILY_BOARDS_COLLECTION)
+      .doc(DATE)
+      .collection(DAILY_MOVE_LOGS_SUBCOLLECTION)
+      .doc(moveLogHash(top.moves))
+      .get();
+    expect(owner.get('uid')).toBe(winners[0]);
   });
 
   it('never logs daily_cheat_rejected for an honest submission on a drifted board', async () => {
