@@ -19,7 +19,7 @@
  * Same reasoning that keeps `daily_reroll_cap` out of the snapshot.
  */
 
-import { REMOTE_CONFIG_DEFAULTS } from '@blockmanor/shared';
+import { REMOTE_CONFIG_DEFAULTS, isWithinBounds } from '@blockmanor/shared';
 import { getRemoteConfig } from 'firebase-admin/remote-config';
 import { logger } from 'firebase-functions/v2';
 
@@ -49,7 +49,7 @@ export async function streakMinMoves(): Promise<number> {
     // the board and quitting would earn the day. That is the one outcome §8.6's
     // threshold exists to refuse, so 0 is out of band. An operator who really
     // wants "any submission counts" sets 1, which is legible as a choice.
-    if (!Number.isInteger(n) || n < 1 || n > 1_000) {
+    if (!isWithinBounds('daily_streak_min_moves', n)) {
       logger.error('daily_submit: daily_streak_min_moves out of bounds, using §13 default', {
         rejected: n,
         fallback,
