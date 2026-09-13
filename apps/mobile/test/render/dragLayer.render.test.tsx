@@ -209,6 +209,22 @@ describe('DragLayer — §7.3 v1.9 release outcomes', () => {
     vi.restoreAllMocks();
   });
 
+  it('configures the pan gesture to start on first touch and never cancel on leaving the hitbox', () => {
+    // Previously swallowed by the mock (`minDistance`/`shouldCancelWhenOutside`
+    // both returned `gesture` without recording their argument), so a test
+    // could see that SOME pan gesture existed but not what DragLayer actually
+    // asked RNGH to do with it. `minDistance(0)`: a drag must lift on the
+    // very first touch, not after some threshold of movement (§7.3 — waiting
+    // would make the piece visually stick to the finger's start point instead
+    // of tracking it from frame one). `shouldCancelWhenOutside(false)`: the
+    // finger may wander outside the tray hitbox mid-drag (the piece is
+    // already lifted and tracking the finger by then) without RNGH cancelling
+    // the gesture underneath it.
+    const { gesture } = mount(emptyBoardState());
+    expect(gesture.__minDistance).toBe(0);
+    expect(gesture.__shouldCancelWhenOutside).toBe(false);
+  });
+
   it('BLOCKER 1: a plain tap (begin -> finalize, no update) does not strand the piece', () => {
     const state = emptyBoardState();
     const { gesture, onDragIndexChange, onPlace, toBoardEvent } = mount(state);
