@@ -29,6 +29,7 @@ import { EndlessHud } from '../../src/screens/EndlessScreen/EndlessHud';
 import { EndlessResultSheet } from '../../src/screens/EndlessScreen/EndlessResultSheet';
 import { EndlessScreen } from '../../src/screens/EndlessScreen';
 import { GameplayScreen } from '../../src/screens/GameplayScreen';
+import { PauseSheet } from '../../src/screens/PauseSheet';
 import { track } from '../../src/services/analytics';
 import { useConfigStore } from '../../src/state/useConfigStore';
 import { useMetaStore } from '../../src/state/useMetaStore';
@@ -64,6 +65,10 @@ function press(node: ReactTestInstance): void {
   });
 }
 
+/** Stand-in for `GameplayScreen`'s own `openPause` where a test's own press
+ * is what matters, not the header's `openPause` wiring itself. */
+function NOOP(): void {}
+
 /** Synthesizes a terminal (`status: 'lost'`) `GameState` off a real mounted
  * one, only touching the fields `EndlessScreen.handleEvent` reads. */
 function endedState(base: GameState, score: number): GameState {
@@ -71,7 +76,7 @@ function endedState(base: GameState, score: number): GameState {
 }
 
 type OnEvent = (e: readonly GameEvent[], s: GameState) => void;
-type HeaderProp = (s: GameState) => React.ReactElement;
+type HeaderProp = (s: GameState, openPause: () => void) => React.ReactElement;
 
 /** Mounts the screen and hands back the pieces every test needs. */
 function mount(onExit = vi.fn()): {
@@ -201,34 +206,53 @@ describe('EndlessScreen (PRD §7.6)', () => {
   });
 });
 
-describe('EndlessScreen exits (PRD §12.9 "invitations, never dead ends")', () => {
-  it('a close affordance is on screen DURING the run, not only after game over', () => {
+describe('EndlessScreen exits, converged onto §12.2 pause (PRD §12.9 "invitations, never dead ends")', () => {
+  it('a pause affordance is on screen DURING the run, opens PauseSheet, and its "Exit to map" leaves', () => {
     const { renderer, onExit } = mount();
     expect(renderer.root.findAllByType(EndlessResultSheet).length).toBe(0);
-    const exit = byLabel(renderer.root, 'Exit to Home');
-    expect(exit).toBeDefined();
-    press(exit!);
+    const openPause = byLabel(renderer.root, 'Pause the game');
+    expect(openPause).toBeDefined();
+    press(openPause!);
+
+    expect(renderer.root.findAllByType(PauseSheet).length).toBe(1);
+    expect(onExit).not.toHaveBeenCalled();
+
+    // Endless has no goals, so PauseSheet's >50%-done confirm can never fire
+    // (`goalsPastHalf([])` is false) — one press leaves straight away.
+    press(byLabel(renderer.root, 'Exit to map')!);
     expect(onExit).toHaveBeenCalledTimes(1);
   });
 
-  it('the in-run exit is a >=44dp touch target with a button role (§15 a11y)', () => {
+  it('the in-run pause affordance is a >=44dp touch target with a button role (§15 a11y)', () => {
     const { renderer } = mount();
-    const exit = byLabel(renderer.root, 'Exit to Home')!;
-    const style = flattenStyle(exit.props.style);
+    const openPause = byLabel(renderer.root, 'Pause the game')!;
+    const style = flattenStyle(openPause.props.style);
     expect(Number(style.minWidth)).toBeGreaterThanOrEqual(44);
     expect(Number(style.minHeight)).toBeGreaterThanOrEqual(44);
-    expect(exit.props.accessibilityRole).toBe('button');
+    expect(openPause.props.accessibilityRole).toBe('button');
   });
 
-  it('Android hardware back returns to Home instead of killing the app', () => {
-    const { onExit } = mount();
+  it('Android hardware back opens the pause sheet instead of killing the app', () => {
+    const { renderer, onExit } = mount();
     let consumed = false;
     act(() => {
       consumed = MockBackHandler.__press();
     });
     // `false` here is real Android exiting the process mid-run.
     expect(consumed).toBe(true);
-    expect(onExit).toHaveBeenCalledTimes(1);
+    expect(renderer.root.findAllByType(PauseSheet).length).toBe(1);
+    expect(onExit).not.toHaveBeenCalled();
+  });
+
+  it('"Restart" on the pause sheet deals a fresh run (a new GameplayScreen instance)', () => {
+    const { renderer } = mount();
+    press(byLabel(renderer.root, 'Pause the game')!);
+    const restartRow = renderer.root.findAll((n) =>
+      String(n.props.accessibilityLabel ?? '').startsWith('Restart level'),
+    )[0]!;
+    press(restartRow);
+    expect(renderer.root.findAllByType(PauseSheet).length).toBe(0);
+    expect(renderer.root.findAllByType(GameplayScreen).length).toBe(1);
   });
 
   it('the hardware-back subscription is released on unmount', () => {
@@ -256,11 +280,11 @@ describe('EndlessScreen in-run HUD (mockup panel 10.2)', () => {
     useMetaStore.setState({ endlessBest: 12480 });
     const { base, header } = mount();
 
-    const behind = render(header()({ ...base, score: 9240 }));
+    const behind = render(header()({ ...base, score: 9240 }, NOOP));
     expect(texts(behind.root)).toContain('Best 12,480');
     expect(texts(behind.root)).toContain('Best line');
 
-    const ahead = render(header()({ ...base, score: 13920 }));
+    const ahead = render(header()({ ...base, score: 13920 }, NOOP));
     expect(texts(ahead.root)).toContain('Best 12,480 — passed!');
     expect(texts(ahead.root)).toContain('13,920');
   });
@@ -276,7 +300,7 @@ describe('EndlessScreen in-run HUD (mockup panel 10.2)', () => {
     useMetaStore.setState({ endlessBest: 12480 });
     const { base, end, header } = mount();
     end(13920);
-    expect(texts(render(header()({ ...base, score: 13920 })).root)).toContain(
+    expect(texts(render(header()({ ...base, score: 13920 }, NOOP)).root)).toContain(
       'Best 12,480 — passed!',
     );
   });

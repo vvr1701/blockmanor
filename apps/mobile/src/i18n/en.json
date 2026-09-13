@@ -108,7 +108,6 @@
   "home.endless.bestA11y": "Your best {{best}}",
   "home.endless.cta.a11y": "Play Endless. {{best}}",
   "endless.hud.mode": "ENDLESS",
-  "endless.hud.exit": "Exit to Home",
   "endless.hud.scoreA11y": "Score {{score}}",
   "endless.hud.best": "Best {{best}}",
   "endless.hud.bestPassed": "Best {{best}} — passed!",

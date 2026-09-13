@@ -57,6 +57,10 @@ import { PauseSheet } from '../PauseSheet';
 /** CLAUDE.md a11y rule — every interactive element ≥44dp. */
 const MIN_TOUCH_TARGET = 44;
 
+/** Stable no-op handed to a caller-supplied `header` when `!canPause`, so it
+ * never needs its own dep-array churn to stay referentially stable. */
+function NOOP(): void {}
+
 /**
  * Tiny non-Skia color swatch for the HUD goal bar — the board itself is where
  * the §15 "differ by SHAPE" rule is load-bearing (full sprite motifs, §7.8).
@@ -139,8 +143,13 @@ export interface GameplayScreenProps {
    * inside this screen's existing render, it costs nothing extra.
    * `hudVisible`/`hudFadeIn` do not apply to it — a caller that supplies a
    * header owns its own visibility.
+   *
+   * Also receives this screen's own `openPause` — gated the same way the
+   * default HUD's pause glyph is (a no-op once `canPause` is false) — since a
+   * caller-supplied header replaces the default HUD row entirely and would
+   * otherwise have no way to reach this screen's `PauseSheet` at all.
    */
-  header?: (state: GameState) => React.ReactNode;
+  header?: (state: GameState, openPause: () => void) => React.ReactNode;
   /** §7.1: lets a caller (the FTUE step machine) observe every placement's
    * events/resulting state without this screen knowing anything about FTUE —
    * same `applyPlacement` return value `JuiceLayer` already consumes, just
@@ -380,7 +389,7 @@ export function GameplayScreen({
     <SafeAreaView style={styles.safe}>
       <StatusBar style="light" />
       {header ? (
-        header(state)
+        header(state, canPause ? openPause : NOOP)
       ) : (
         <Animated.View style={hudAnimatedStyle} pointerEvents={hudVisible ? 'auto' : 'none'}>
           <View style={styles.hudRow}>

@@ -23,15 +23,29 @@
  * sites onto one "own a GameState, forward events, expose an ended result"
  * hook — deliberately not done here to avoid guessing that unmerged
  * branch's shape.
+ *
+ * §12.2 convergence (was its own bespoke close button + `BackHandler`; both
+ * deleted once `GameplayScreen`'s `pause` prop existed to share): `onRestart`
+ * is `playAgain` and `onQuit` goes straight to `onExit`, ignoring the `moves`
+ * count `PauseControls.onQuit` hands up — Endless has no `level_quit` event
+ * to attach it to (§14 only names `endless_end{score,best}`, fired by
+ * `handleEvent` on a natural game-over, not on a mid-run quit). Endless has
+ * no goals, so `PauseSheet`'s ">50% done" confirm can never fire here — a
+ * mid-run exit always leaves immediately, forfeiting the live score with no
+ * confirmation. Whether that deserves its own confirm is a §7.6 amendment,
+ * not this refactor's call (`PauseSheet`'s own header flagged this exact
+ * question). `onOpenSettings` is optional, same "no-op seam until the caller
+ * wires a real destination" shape `HomeScreen`'s `HudBar` already uses —
+ * `App.tsx` is out of scope for this change and does not pass one.
  */
 
 import { createGame, type GameConfig, type GameEvent, type GameState } from '@blockmanor/engine';
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BackHandler, StyleSheet, View } from 'react-native';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
 import { track } from '../../services/analytics';
 import { useEngineTuning } from '../../game/useEngineTuning';
 import { useMetaStore } from '../../state/useMetaStore';
-import { GameplayScreen } from '../GameplayScreen';
+import { GameplayScreen, type PauseControls } from '../GameplayScreen';
 import { EndlessHud } from './EndlessHud';
 import { EndlessResultSheet } from './EndlessResultSheet';
 
@@ -45,6 +59,10 @@ function newRunSeed(): string {
   return `endless-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+/** Stable no-op for `pauseControls.onOpenSettings` when no caller supplies
+ * one — same "seam, no-op when unset" shape `HomeScreen`'s `HudBar` uses. */
+function NOOP(): void {}
+
 interface EndlessResult {
   score: number;
   /** Personal best BEFORE this run — what 10.3a's delta and 10.3b's
@@ -57,9 +75,13 @@ export interface EndlessScreenProps {
    * way it already reaches the dev board) — this is that seam back to Home,
    * not a §7.11 navigation concept. */
   onExit: () => void;
+  /** §12.2's "settings shortcut" -> §12.1's `SettingsScreen`. Optional, same
+   * no-op-when-unset seam `HomeScreen`'s `HudBar` already uses — no current
+   * caller wires a real destination. */
+  onOpenSettings?: () => void;
 }
 
-export function EndlessScreen({ onExit }: EndlessScreenProps): React.JSX.Element {
+export function EndlessScreen({ onExit, onOpenSettings }: EndlessScreenProps): React.JSX.Element {
   const tuning = useEngineTuning();
   // One run = one seed + the personal best as it stood when that run STARTED.
   // The best is snapshotted, not subscribed: `handleEvent` raises the stored
@@ -95,24 +117,32 @@ export function EndlessScreen({ onExit }: EndlessScreenProps): React.JSX.Element
     setRun({ seed: newRunSeed(), best: useMetaStore.getState().endlessBest });
   }, []);
 
-  // §12.9 "invitations, never dead ends": Android's hardware back must leave
-  // the mode, not the app. Without this the default handler pops an empty
-  // navigation stack and Android kills the process mid-run — the same trap
-  // the in-run close button (`EndlessHud`) covers for the on-screen path.
-  useEffect(() => {
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      onExit();
-      return true;
-    });
-    return () => sub.remove();
-  }, [onExit]);
+  // §12.2 convergence: `GameplayScreen` owns the single `BackHandler`
+  // subscription for any caller passing `pause` (§12.9 "invitations, never
+  // dead ends" — Android's hardware back opens the pause sheet rather than
+  // popping an empty navigation stack and killing the app mid-run). Restart
+  // deals a fresh run; quit skips `PauseSheet`'s confirm (Endless has no
+  // goals, so it can never pass the >50% gate) and leaves straight to Home.
+  const pauseControls = useMemo<PauseControls>(
+    () => ({
+      onRestart: playAgain,
+      onQuit: () => onExit(),
+      onOpenSettings: onOpenSettings ?? NOOP,
+    }),
+    [playAgain, onExit, onOpenSettings],
+  );
 
   // Rendered by `GameplayScreen` inside its own render pass (see its `header`
   // prop) — that is what keeps the live score off this component's state and
-  // out of §4.5's one-render-per-placement budget.
+  // out of §4.5's one-render-per-placement budget. `openPause` is
+  // `GameplayScreen`'s own, already gated on `canPause` by that screen — this
+  // header replaces the default HUD row (with its own pause glyph) entirely,
+  // so it is the only way back to the sheet.
   const renderHud = useCallback(
-    (state: GameState) => <EndlessHud score={state.score} best={run.best} onExit={onExit} />,
-    [run.best, onExit],
+    (state: GameState, openPause: () => void) => (
+      <EndlessHud score={state.score} best={run.best} onOpenPause={openPause} />
+    ),
+    [run.best],
   );
 
   return (
@@ -122,6 +152,7 @@ export function EndlessScreen({ onExit }: EndlessScreenProps): React.JSX.Element
         initialState={initialState}
         header={renderHud}
         onEvent={handleEvent}
+        pause={pauseControls}
       />
       {result ? (
         <EndlessResultSheet
