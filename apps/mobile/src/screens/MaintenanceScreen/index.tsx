@@ -29,7 +29,7 @@
 import React, { useCallback, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { GoldButton } from '../../components/GoldButton';
-import { colors, fontFamily, fontSize, radius, spacing } from '../../components/tokens';
+import { colors, fontFamily, fontSize, radius, spacing, withAlpha } from '../../components/tokens';
 import { t } from '../../i18n';
 
 export interface MaintenanceScreenProps {
@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   body: {
-    color: 'rgba(19,24,48,0.7)', // colors.night @ 70% — 5.98:1 on cream, the repo's on-light ink
+    color: withAlpha(colors.night, 0.7), // 5.98:1 on cream, the repo's on-light ink
     fontSize: fontSize.sm,
     fontWeight: '700',
     textAlign: 'center',

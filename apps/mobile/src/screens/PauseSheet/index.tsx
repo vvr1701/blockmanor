@@ -103,7 +103,7 @@ import React, { useCallback } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { GoldButton } from '../../components/GoldButton';
 import { ModalSheet } from '../../components/ModalSheet';
-import { colors, fontFamily, fontSize, radius, spacing } from '../../components/tokens';
+import { colors, fontFamily, fontSize, radius, spacing, withAlpha } from '../../components/tokens';
 import { GOAL_LABEL_KEY, goalsPastHalf, type GoalBarEntry } from '../../game/goalBar';
 import { t } from '../../i18n';
 
@@ -303,7 +303,7 @@ export function PauseSheet({
 
 /** `colors.night` @ 70% on cream — 5.98:1, the repo's established on-light
  * ink (`GhostButton.onLight`, `ChestSheet`). */
-const INK_70 = 'rgba(19,24,48,0.7)';
+const INK_70 = withAlpha(colors.night, 0.7);
 
 const styles = StyleSheet.create({
   title: {
@@ -336,16 +336,16 @@ const styles = StyleSheet.create({
     borderRadius: radius.card + 2,
     padding: spacing.sm + 2,
     // `colors.night` @ 7% on cream — the panel's faint row wash.
-    backgroundColor: 'rgba(19,24,48,0.07)',
+    backgroundColor: withAlpha(colors.night, 0.07),
   },
-  rowPressed: { backgroundColor: 'rgba(19,24,48,0.14)' },
+  rowPressed: { backgroundColor: withAlpha(colors.night, 0.14) },
   rowIcon: {
     width: 36,
     height: 36,
     borderRadius: radius.card,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(19,24,48,0.1)',
+    backgroundColor: withAlpha(colors.night, 0.1),
   },
   rowGlyph: { color: colors.night, fontSize: fontSize.md },
   rowText: { flex: 1 },

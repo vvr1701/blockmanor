@@ -17,7 +17,7 @@
  */
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
-import { colors, radius, spacing } from './tokens';
+import { colors, radius, spacing, withAlpha } from './tokens';
 
 export interface ModalSheetProps {
   /** Rendered inside the cream sheet, inside the brass frame. */
@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: spacing.lg,
     // `colors.night` @ 82% — the mockup's dark scrim, no new hex.
-    backgroundColor: 'rgba(19,24,48,0.82)',
+    backgroundColor: withAlpha(colors.night, 0.82),
   },
   /** The mockup's brass frame around the cream sheet. */
   frame: {

@@ -26,7 +26,7 @@
 
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, fontSize, radius, spacing } from '../../components/tokens';
+import { colors, fontSize, radius, spacing, withAlpha } from '../../components/tokens';
 import { t } from '../../i18n';
 import { formatScore } from '../../i18n/format';
 
@@ -131,8 +131,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: radius.card,
     borderWidth: 1,
-    borderColor: 'rgba(233,196,106,0.45)',
-    backgroundColor: 'rgba(233,196,106,0.16)',
+    borderColor: withAlpha(colors.gold, 0.45),
+    backgroundColor: withAlpha(colors.gold, 0.16),
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
   },
@@ -153,6 +153,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: spacing.xs,
   },
-  bestLine: { height: 3, borderRadius: 2, backgroundColor: 'rgba(233,196,106,0.35)' },
+  bestLine: { height: 3, borderRadius: 2, backgroundColor: withAlpha(colors.gold, 0.35) },
   bestLinePassed: { backgroundColor: colors.gold },
 });

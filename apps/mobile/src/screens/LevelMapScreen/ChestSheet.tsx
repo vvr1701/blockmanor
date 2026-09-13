@@ -42,7 +42,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { GoldButton } from '../../components/GoldButton';
 import { ModalSheet } from '../../components/ModalSheet';
-import { colors, fontFamily, fontSize, radius, spacing } from '../../components/tokens';
+import { colors, fontFamily, fontSize, radius, spacing, withAlpha } from '../../components/tokens';
 import { playCue } from '../../game/sfx';
 import { t } from '../../i18n';
 
@@ -145,7 +145,7 @@ const styles = StyleSheet.create({
   eyebrow: {
     // `colors.night` @ 70% on cream — 5.98:1, the same pair `GhostButton`'s
     // `onLight` variant uses (§7.5 re-audit item 1).
-    color: 'rgba(19,24,48,0.7)',
+    color: withAlpha(colors.night, 0.7),
     fontSize: fontSize.xs,
     fontWeight: '900',
     letterSpacing: 1.6,
@@ -185,7 +185,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.block - 2,
     backgroundColor: colors.cream,
   },
-  teaser: { color: 'rgba(19,24,48,0.7)', fontSize: fontSize.sm, textAlign: 'center' },
+  teaser: { color: withAlpha(colors.night, 0.7), fontSize: fontSize.sm, textAlign: 'center' },
   rewardCard: {
     alignSelf: 'stretch',
     alignItems: 'center',
@@ -194,7 +194,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.goldDeep,
     // `colors.gold` @ 18% on cream — the panel's warm loot card.
-    backgroundColor: 'rgba(233,196,106,0.18)',
+    backgroundColor: withAlpha(colors.gold, 0.18),
     padding: spacing.md,
   },
   frameSwatch: {
@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   rewardKind: {
-    color: 'rgba(19,24,48,0.7)',
+    color: withAlpha(colors.night, 0.7),
     fontSize: fontSize.xs,
     fontWeight: '800',
     letterSpacing: 1.2,

@@ -19,6 +19,7 @@ import {
   fontSize,
   radius,
   spacing,
+  withAlpha,
 } from '../../components/tokens';
 import { t } from '../../i18n';
 
@@ -134,7 +135,7 @@ const styles = StyleSheet.create({
     width: '100%',
     borderRadius: radius.card,
     borderWidth: 2,
-    borderColor: 'rgba(233,196,106,0.5)',
+    borderColor: withAlpha(colors.gold, 0.5),
     backgroundColor: 'rgba(255,255,255,0.06)',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,

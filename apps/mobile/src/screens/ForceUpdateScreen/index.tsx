@@ -40,7 +40,7 @@
 import React, { useCallback } from 'react';
 import { Linking, StyleSheet, Text, View } from 'react-native';
 import { GoldButton } from '../../components/GoldButton';
-import { colors, fontFamily, fontSize, radius, spacing } from '../../components/tokens';
+import { colors, fontFamily, fontSize, radius, spacing, withAlpha } from '../../components/tokens';
 import { getStoreUrl } from '../../services/appInfo';
 import { t } from '../../i18n';
 
@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   body: {
-    color: 'rgba(19,24,48,0.7)', // colors.night @ 70% — 5.98:1 on cream, the repo's on-light ink
+    color: withAlpha(colors.night, 0.7), // 5.98:1 on cream, the repo's on-light ink
     fontSize: fontSize.sm,
     fontWeight: '700',
     textAlign: 'center',

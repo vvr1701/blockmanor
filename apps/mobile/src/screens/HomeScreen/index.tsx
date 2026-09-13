@@ -5,7 +5,7 @@ import { StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useShallow } from 'zustand/react/shallow';
 import { GoldButton } from '../../components/GoldButton';
-import { colors, spacing } from '../../components/tokens';
+import { colors, spacing, withAlpha } from '../../components/tokens';
 import { t } from '../../i18n';
 import { useConfigStore } from '../../state/useConfigStore';
 import { selectBadges, useMetaStore } from '../../state/useMetaStore';
@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 30,
     borderRadius: 4,
-    backgroundColor: 'rgba(233,196,106,0.12)',
+    backgroundColor: withAlpha(colors.gold, 0.12),
   },
   manorWindow1: { left: '18%', bottom: '30%' },
   manorWindow2: { left: '46%', bottom: '26%' },

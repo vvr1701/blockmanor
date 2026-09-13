@@ -56,3 +56,21 @@ export const radius = {
   card: 12,
   sheet: 20,
 } as const;
+
+/**
+ * Alpha-composites a §15 `colors` hex token into an `rgba()` string. Replaces
+ * the hand-built `rgba(R,G,B,a) // colors.X @ a%` literals that had spread
+ * (GhostButton's `onLight`/`onDark`, PauseSheet's `INK_70`, FailScreen's
+ * dimmed texts, and others) — each one a manual, uncheckable transcription of
+ * a token's RGB triple that could silently drift from the token it claimed to
+ * be. Takes the token itself, not its RGB, so it cannot.
+ *
+ * `hex` must be a 7-character `#RRGGBB` token — every `colors` value is one.
+ */
+export function withAlpha(hex: string, alpha: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const r = (n >> 16) & 0xff;
+  const g = (n >> 8) & 0xff;
+  const b = n & 0xff;
+  return `rgba(${r},${g},${b},${alpha})`;
+}

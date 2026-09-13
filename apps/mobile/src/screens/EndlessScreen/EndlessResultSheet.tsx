@@ -29,7 +29,7 @@
 
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, fontFamily, fontSize, radius, spacing } from '../../components/tokens';
+import { colors, fontFamily, fontSize, radius, spacing, withAlpha } from '../../components/tokens';
 import { t } from '../../i18n';
 import { formatScore } from '../../i18n/format';
 
@@ -118,9 +118,9 @@ export function EndlessResultSheet({
 
 /** `colors.night` at the alphas the cream sheet's secondary text/fills use —
  * all verified against the §15 contrast floors in `endlessScreen.render.test`. */
-const INK_70 = 'rgba(19,24,48,0.7)';
-const INK_55 = 'rgba(19,24,48,0.55)';
-const INK_12 = 'rgba(19,24,48,0.12)';
+const INK_70 = withAlpha(colors.night, 0.7);
+const INK_55 = withAlpha(colors.night, 0.55);
+const INK_12 = withAlpha(colors.night, 0.12);
 
 const styles = StyleSheet.create({
   overlay: {

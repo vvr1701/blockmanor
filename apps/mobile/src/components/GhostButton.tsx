@@ -30,18 +30,19 @@
 import React, { useCallback } from 'react';
 import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
 import { playCue } from '../game/sfx';
-import { fontSize, radius, spacing } from './tokens';
+import { colors, fontSize, radius, spacing, withAlpha } from './tokens';
 
 export type GhostButtonVariant = 'onDark' | 'onLight';
 
 const VARIANT_COLORS: Record<GhostButtonVariant, { border: string; label: string }> = {
   onDark: {
-    border: 'rgba(243,234,215,0.28)', // colors.cream @ 28%
-    label: 'rgba(243,234,215,0.7)', // colors.cream @ 70%
+    border: withAlpha(colors.cream, 0.28),
+    label: withAlpha(colors.cream, 0.7),
   },
   onLight: {
-    border: 'rgba(19,24,48,0.7)', // colors.night @ 70% — 5.98:1 on cream (needs 3:1)
-    label: 'rgba(19,24,48,0.7)', // colors.night @ 70% — 5.98:1 on cream (needs 4.5:1)
+    // 5.98:1 on cream — needs 3:1 (border) / 4.5:1 (label); both clear it.
+    border: withAlpha(colors.night, 0.7),
+    label: withAlpha(colors.night, 0.7),
   },
 };
 

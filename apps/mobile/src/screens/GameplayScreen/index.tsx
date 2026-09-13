@@ -49,7 +49,7 @@ import { JuiceLayer } from '../../game/JuiceLayer';
 import { spriteForObstacle } from '../../game/obstacleSprites';
 import { TrayCanvas } from '../../game/TrayCanvas';
 import { playCue } from '../../game/sfx';
-import { colors, fontSize, radius, spacing } from '../../components/tokens';
+import { colors, fontSize, radius, spacing, withAlpha } from '../../components/tokens';
 import { t } from '../../i18n';
 import { formatScore } from '../../i18n/format';
 import { PauseSheet } from '../PauseSheet';
@@ -551,7 +551,7 @@ const styles = StyleSheet.create({
   scoreChip: {
     backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: 1,
-    borderColor: 'rgba(233,196,106,0.3)',
+    borderColor: withAlpha(colors.gold, 0.3),
     borderRadius: 13,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
@@ -573,7 +573,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     backgroundColor: 'rgba(58,42,28,0.6)',
     borderWidth: 1,
-    borderColor: 'rgba(233,196,106,0.22)',
+    borderColor: withAlpha(colors.gold, 0.22),
     borderRadius: radius.card,
     padding: spacing.sm,
   },
