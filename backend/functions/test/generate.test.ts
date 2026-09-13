@@ -207,27 +207,40 @@ describe('§8.2(a) prefill', () => {
     }
   });
 
-  it('no template is a solvability trap', () => {
+  it('no template is a solvability trap, in any of its 8 orientations', () => {
     // Deterministic: fixed sequences and the bot's own seeded tiebreaks, so
-    // this cannot flake. A template that failed §8.2's gate on most sequences
-    // would burn re-rolls every time it was drawn. Fewer trials than the real
-    // gate keeps the suite fast; a pass on 2 of 3 sequences is the bar.
+    // this cannot flake. Production draws every orientation (`drawPrefill`), so
+    // every orientation is probed. A template that failed §8.2's gate on most
+    // rolls would burn re-rolls every time it was drawn. Fewer trials than the
+    // real gate keeps the suite fast; the bar is an aggregate pass rate, which
+    // has more power than a per-orientation vote of 3.
     const PROBE_DATE = '2026-01-01';
     const PROBE_TRIALS = 11;
+    const SEQUENCES = 3;
+    const MIN_PASS_RATE = 0.75;
+    const sequences = Array.from({ length: SEQUENCES }, (_, k) =>
+      drawSequence(`template-probe|${k}`, REMOTE_CONFIG_DEFAULTS.daily_piece_count),
+    );
+    const rates: string[] = [];
     for (const t of PREFILL_TEMPLATES) {
-      const prefill = t.cells.map(({ r, c }) => ({ r, c, color: 0 }));
       let passes = 0;
-      for (let k = 0; k < 3; k++) {
-        const sequence = drawSequence(
-          `template-probe|${t.id}|${k}`,
-          REMOTE_CONFIG_DEFAULTS.daily_piece_count,
-        );
-        const config = dailyGameConfig({ tuning: TUNING, prefill }, sequence, PROBE_DATE);
-        if (solvabilityMedian(config, PROBE_DATE, PROBE_TRIALS) >= SOLVABILITY_MIN_MOVES) passes++;
+      for (let o = 0; o < TEMPLATE_ORIENTATIONS; o++) {
+        const prefill = orient(t.cells, o).map(({ r, c }) => ({ r, c, color: 0 }));
+        for (const sequence of sequences) {
+          const config = dailyGameConfig({ tuning: TUNING, prefill }, sequence, PROBE_DATE);
+          if (solvabilityMedian(config, PROBE_DATE, PROBE_TRIALS) >= SOLVABILITY_MIN_MOVES)
+            passes++;
+        }
       }
-      expect(passes, `${t.id} passed ${passes}/3 probe sequences`).toBeGreaterThanOrEqual(2);
+      const rolls = TEMPLATE_ORIENTATIONS * SEQUENCES;
+      rates.push(`${t.id} ${passes}/${rolls}`);
+      expect(
+        passes / rolls,
+        `${t.id} passed ${passes}/${rolls} probe rolls`,
+      ).toBeGreaterThanOrEqual(MIN_PASS_RATE);
     }
-  }, 180_000);
+    if (process.env.PROBE_RATES) console.log(rates.join('\n'));
+  }, 300_000);
 
   it('assertTemplates rejects an out-of-band template', () => {
     expect(() => assertTemplates([{ id: 'tiny', cells: [{ r: 0, c: 0 }] }])).toThrow(/6–14/);

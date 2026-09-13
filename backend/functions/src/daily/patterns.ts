@@ -345,7 +345,7 @@ export const PREFILL_TEMPLATES: readonly PrefillTemplate[] = [
 /**
  * The 8 symmetries of the square (D4). Multiplying the 30 curated templates by 8
  * orientations is what keeps boards from repeating a silhouette for months,
- * without hand-authoring 96 grids.
+ * without hand-authoring 240 grids.
  */
 export const TEMPLATE_ORIENTATIONS = 8;
 
