@@ -101,18 +101,39 @@ export function EndlessScreen({ onExit, onOpenSettings }: EndlessScreenProps): R
   // suspenders) — guards `endless_end`/`setEndlessBest` to exactly once/run.
   const endedRef = useRef(false);
 
-  const handleEvent = useCallback((_events: readonly GameEvent[], state: GameState) => {
-    if (state.status === 'playing' || endedRef.current) return;
+  // The live score, so a run the player abandons can still be ended with it.
+  // A ref, not state: §4.5's one-render-per-placement budget is untouched and
+  // `GameplayScreen` still owns the score.
+  const scoreRef = useRef(0);
+
+  // §7.6 / §0 v1.25: a run ENDS exactly once — when the board fills, or when
+  // the player quits or restarts it. Either way the score folds into the
+  // personal best and `endless_end` fires. Before this, quitting a
+  // record-setting run discarded the record and the run never reached
+  // analytics. Returns the best as it stood before the run, or null if the
+  // run had already ended.
+  const endRun = useCallback((score: number): number | null => {
+    if (endedRef.current) return null;
     endedRef.current = true;
     const prevBest = useMetaStore.getState().endlessBest;
-    const best = Math.max(prevBest, state.score);
-    useMetaStore.getState().setEndlessBest(state.score);
-    track('endless_end', { score: state.score, best });
-    setResult({ score: state.score, prevBest });
+    useMetaStore.getState().setEndlessBest(score);
+    track('endless_end', { score, best: Math.max(prevBest, score) });
+    return prevBest;
   }, []);
+
+  const handleEvent = useCallback(
+    (_events: readonly GameEvent[], state: GameState) => {
+      scoreRef.current = state.score;
+      if (state.status === 'playing') return;
+      const prevBest = endRun(state.score);
+      if (prevBest !== null) setResult({ score: state.score, prevBest });
+    },
+    [endRun],
+  );
 
   const playAgain = useCallback(() => {
     endedRef.current = false;
+    scoreRef.current = 0;
     setResult(null);
     setRun({ seed: newRunSeed(), best: useMetaStore.getState().endlessBest });
   }, []);
@@ -122,14 +143,23 @@ export function EndlessScreen({ onExit, onOpenSettings }: EndlessScreenProps): R
   // dead ends" — Android's hardware back opens the pause sheet rather than
   // popping an empty navigation stack and killing the app mid-run). Restart
   // deals a fresh run; quit skips `PauseSheet`'s confirm (Endless has no
-  // goals, so it can never pass the >50% gate) and leaves straight to Home.
+  // goals, so it can never pass the >50% gate) and leaves straight to Home —
+  // safe without a confirm, because leaving ENDS the run and keeps its score.
   const pauseControls = useMemo<PauseControls>(
     () => ({
-      onRestart: playAgain,
-      onQuit: () => onExit(),
+      // Abandoning a live run still ends it (§0 v1.25). `endRun` is a no-op if
+      // the board had already filled.
+      onRestart: () => {
+        endRun(scoreRef.current);
+        playAgain();
+      },
+      onQuit: () => {
+        endRun(scoreRef.current);
+        onExit();
+      },
       onOpenSettings: onOpenSettings ?? NOOP,
     }),
-    [playAgain, onExit, onOpenSettings],
+    [playAgain, onExit, onOpenSettings, endRun],
   );
 
   // Rendered by `GameplayScreen` inside its own render pass (see its `header`

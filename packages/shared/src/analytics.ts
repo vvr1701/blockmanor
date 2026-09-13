@@ -82,8 +82,9 @@ export interface LevelQuitParams {
 }
 
 /**
- * §7.6 Endless mode: fired once per run when the board fills (§6.7 game
- * over — Endless has no goals, so `state.status` never reaches `'won'`).
+ * §7.6 Endless mode: fired exactly once per run, however the run ends — the
+ * board fills (§6.7 game over; Endless has no goals, so `state.status` never
+ * reaches `'won'`), or the player quits or restarts it mid-play (§0 v1.25).
  */
 export interface EndlessEndParams {
   /** This run's final score. */
