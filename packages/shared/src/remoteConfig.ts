@@ -125,3 +125,54 @@ export type RemoteConfigSnapshot = {
 
 /** PRD §13: RC fetch TTL — cold start plus this interval. */
 export const REMOTE_CONFIG_TTL_MS = 6 * 60 * 60 * 1000;
+
+/** A sanity bound on one numeric Remote Config key. */
+export interface NumberBound {
+  min: number;
+  max: number;
+  integer: boolean;
+}
+
+/**
+ * Sanity bounds for Remote Config numbers, shared by the §8.2 generator (which
+ * freezes values into an immutable daily board) and the app's live snapshot.
+ * ONE table, so the server and the client can never disagree about what a
+ * valid push looks like.
+ *
+ * Deliberately wide: a typo/corruption guard, not balance policy. Balance lives
+ * in Remote Config (§13) and anything inside a bound is honoured verbatim. The
+ * failure these exist for is concrete — the admin SDK's `asNumber()` renders an
+ * unparseable value as 0, and a console typo like `-5` is finite, so neither is
+ * caught by a finiteness check alone.
+ *
+ * Only keys something actually reads today are bounded. Stage-2 economy/ads/IAP
+ * keys have no reader yet; bound them in the PR that adds one.
+ */
+export const REMOTE_CONFIG_BOUNDS = {
+  // §6.4 probabilities.
+  mercy_threshold: { min: 0, max: 1, integer: false },
+  mercy_small_prob: { min: 0, max: 1, integer: false },
+  // §6.6 scoring. `score_clear_base: 0` would make every clear worth nothing,
+  // which is exactly the `asNumber()` failure mode, so 0 is out of band.
+  score_clear_base: { min: 1, max: 10_000, integer: false },
+  combo_step: { min: 0, max: 10, integer: false },
+  perfect_clear_bonus: { min: 0, max: 1_000_000, integer: false },
+  // §8.2 sequence length. Must be a positive integer or `drawSequence` throws.
+  daily_piece_count: { min: 1, max: 1_000, integer: true },
+  // §8.2 re-rolls. Each costs 200 bot playouts (~2s), so the ceiling is the
+  // function timeout, not taste. 0 is legal and means "no re-roll".
+  daily_reroll_cap: { min: 0, max: 20, integer: true },
+  // §8.7 local push hour: a clock hour, nothing else is meaningful.
+  daily_push_hour: { min: 0, max: 23, integer: true },
+  // §7.6 Endless gate: a level number.
+  endless_unlock_level: { min: 1, max: 1_000, integer: true },
+  // §14 queue cap: 0 would drop every event ever tracked.
+  analytics_queue_cap: { min: 1, max: 100_000, integer: true },
+} as const satisfies Partial<Record<RemoteConfigKey, NumberBound>>;
+
+/** True unless `key` has a bound that `value` violates. Unbounded keys pass. */
+export function isWithinBounds(key: RemoteConfigKey, value: number): boolean {
+  const bound = (REMOTE_CONFIG_BOUNDS as Partial<Record<RemoteConfigKey, NumberBound>>)[key];
+  if (!bound) return true;
+  return value >= bound.min && value <= bound.max && (!bound.integer || Number.isInteger(value));
+}

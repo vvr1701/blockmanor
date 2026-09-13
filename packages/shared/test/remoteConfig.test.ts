@@ -1,7 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { REMOTE_CONFIG_DEFAULTS } from '../src/remoteConfig';
+import {
+  REMOTE_CONFIG_BOUNDS,
+  REMOTE_CONFIG_DEFAULTS,
+  isWithinBounds,
+  type RemoteConfigKey,
+} from '../src/remoteConfig';
 
 /**
  * Drift guard for CLAUDE.md rule 3 / PRD §13: "every key listed here MUST exist
@@ -29,6 +34,28 @@ describe('Remote Config registry (PRD §13)', () => {
       missingFromCode: [],
       missingFromPrd: [],
     });
+  });
+
+  it('every sanity bound names a numeric registry key whose own default is in bounds', () => {
+    for (const [key, bound] of Object.entries(REMOTE_CONFIG_BOUNDS)) {
+      const fallback = (REMOTE_CONFIG_DEFAULTS as Record<string, unknown>)[key];
+      expect(typeof fallback, key).toBe('number');
+      expect(bound.min, key).toBeLessThanOrEqual(bound.max);
+      // A default outside its own bound would be "rejected" back to itself and
+      // hide a typo in the table.
+      expect(isWithinBounds(key as RemoteConfigKey, fallback as number), key).toBe(true);
+    }
+  });
+
+  it('isWithinBounds enforces min, max and integer independently', () => {
+    expect(isWithinBounds('daily_push_hour', 0)).toBe(true);
+    expect(isWithinBounds('daily_push_hour', 23)).toBe(true);
+    expect(isWithinBounds('daily_push_hour', -1)).toBe(false);
+    expect(isWithinBounds('daily_push_hour', 24)).toBe(false);
+    expect(isWithinBounds('daily_push_hour', 8.5)).toBe(false);
+    expect(isWithinBounds('mercy_threshold', 0.55)).toBe(true);
+    // An unbounded key passes anything finite.
+    expect(isWithinBounds('coins_chest', -1)).toBe(true);
   });
 
   it('defaults every key to a defined primitive', () => {

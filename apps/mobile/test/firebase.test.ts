@@ -256,6 +256,25 @@ describe('§13 Remote Config', () => {
     expect(Object.keys(snapshot).sort()).toEqual(Object.keys(REMOTE_CONFIG_DEFAULTS).sort());
   });
 
+  it('an out-of-bounds push keeps the compiled default; an in-bounds one is honoured', async () => {
+    firebaseMock.configured = true;
+    firebaseMock.remote = {
+      analytics_queue_cap: { value: '-5' }, // finite, so isFinite alone passes it
+      mercy_threshold: { value: '99' }, // a probability
+      daily_push_hour: { value: '8.5' }, // not a clock hour
+      score_clear_base: { value: '0' }, // the admin SDK's unparseable value
+      daily_piece_count: { value: '72' }, // in bounds
+    };
+    await syncRemoteConfig();
+
+    const snapshot = useConfigStore.getState().snapshot;
+    expect(snapshot.analytics_queue_cap).toBe(REMOTE_CONFIG_DEFAULTS.analytics_queue_cap);
+    expect(snapshot.mercy_threshold).toBe(REMOTE_CONFIG_DEFAULTS.mercy_threshold);
+    expect(snapshot.daily_push_hour).toBe(REMOTE_CONFIG_DEFAULTS.daily_push_hour);
+    expect(snapshot.score_clear_base).toBe(REMOTE_CONFIG_DEFAULTS.score_clear_base);
+    expect(snapshot.daily_piece_count).toBe(72);
+  });
+
   it('the app-wide analyticsQueue singleton reads its cap from the fetched snapshot', async () => {
     firebaseMock.configured = true;
     firebaseMock.remote = { analytics_queue_cap: { value: '2' } };

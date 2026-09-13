@@ -9,6 +9,7 @@ import {
 import { fetchAndActivate, getAll, getRemoteConfig } from '@react-native-firebase/remote-config';
 import {
   REMOTE_CONFIG_DEFAULTS,
+  isWithinBounds,
   REMOTE_CONFIG_TTL_MS,
   type RemoteConfigKey,
   type RemoteConfigSnapshot,
@@ -109,6 +110,9 @@ function coerceSnapshot(
       // the default, not silently zero out a price or a threshold.
       const parsed = raw.trim() === '' ? Number.NaN : Number(raw);
       if (!Number.isFinite(parsed)) continue;
+      // A finite typo is still a typo: `-5` queue cap or a `99` probability
+      // keeps the compiled default, from the same table §8.2 uses server-side.
+      if (!isWithinBounds(key, parsed)) continue;
       out[key] = parsed;
     } else if (typeof fallback === 'boolean') {
       // Same truthy set as RNFB's `Value.asBoolean()`, so a flag typed as
