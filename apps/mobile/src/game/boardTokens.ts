@@ -20,6 +20,15 @@ export const CELL_RADIUS_RATIO = 0.26;
 /** Radius floor so tiny cells (very narrow devices) don't render as circles. */
 export const CELL_RADIUS_MIN = 3;
 
+/*
+ * FRAME GEOMETRY NOT YET PAINTED. `BOARD_PANEL_RADIUS`, `BOARD_INNER_RADIUS`,
+ * `TRAY_ROW_RADIUS` and `TRAY_SLOT_GAP` have no reader: the layout reserves the
+ * frame's padding (`BOARD_PANEL_PADDING`, `TRAY_ROW_PADDING_V`, both used by
+ * `boardLayout.ts`) but neither canvas draws the rounded panel or tray-row card
+ * the mockup shows. Kept on purpose — they are the mockup's measurements for
+ * that frame. Do not delete them in a dead-code sweep; see BUILD_STATE.md
+ * Follow-ups ("board/tray frame").
+ */
 /** Padding between the board panel's frame and the first/last cell (mockup `padding:11px`). */
 export const BOARD_PANEL_PADDING = 11;
 /** Outer rounded-card radius of the board panel (mockup outer frame `border-radius:24px`). */

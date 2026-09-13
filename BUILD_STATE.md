@@ -1236,6 +1236,20 @@ follow-up refactors (Endless pause convergence, ModalSheet, withAlpha,
 
 ## Follow-ups (tracked, not blocking)
 
+- **Board/tray frame not painted (§7.2 visual fidelity).** Found by the S14 caller
+  sweep: `BOARD_PANEL_RADIUS` (24), `BOARD_INNER_RADIUS` (16), `TRAY_ROW_RADIUS`
+  (20) and `TRAY_SLOT_GAP` (18) have no reader. The layout RESERVES the frame's
+  padding (`BOARD_PANEL_PADDING`, `TRAY_ROW_PADDING_V` are used by
+  `boardLayout.ts`) but neither `BoardCanvas` nor `TrayCanvas` paints the rounded
+  panel / tray-row card, and `GameplayScreen`'s `boardWrap` has no radius or
+  fill. No literal is inlined anywhere, so this is an unimplemented frame, not a
+  rule violation. Deliberately NOT done blind: the mockup's gameplay frame uses
+  gradients + inset shadows that need a screenshot against the approved panel
+  ("03 Level Gameplay") to verify. Paint it inside the canvases when a device
+  build is available; tray slot spacing currently comes from `boardLayout`'s
+  width division, so adopting the 18px gap must keep `test/boardLayout.test.ts`'s
+  3x-widest-piece fit green.
+
 - ~~Wire `PauseSheet`'s settings row to `SettingsScreen` when §12.1 lands.~~ — **DONE** in §12.1. It currently renders
   disabled by design — §16.1 lists `SettingsScreen` as Stage 1, so it is a not-yet, and
   dropping one of §12.2's four clauses silently is the failure mode four audits died on.
