@@ -1,3 +1,4 @@
+import * as Application from 'expo-application';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
@@ -51,9 +52,15 @@ export function isBelowMinVersion(installed: string, minSupportedVersion: string
  * `'1'` rather than inventing a number. Honest either way: "matches the
  * running build" holds because it reads the same `Constants` object a real
  * device build would populate, never a hardcoded literal.
- * ponytail: no build-number wiring in app.config.ts yet — read it for real once EAS's remote version source is surfaced to the JS bundle.
  */
 export function getBuildLabel(): string {
+  // The installed binary's own build number — the only source that is right
+  // under `eas.json`'s `appVersionSource: "remote"` + `autoIncrement`, where EAS
+  // writes the number into the native project at build time and never into
+  // `app.config.ts`, so `Constants.expoConfig` does not carry it. `null` in Expo
+  // Go and non-native runtimes, where the config fields below are the best left.
+  const native = Application.nativeBuildVersion;
+  if (typeof native === 'string' && native.length > 0) return native;
   const android = Constants.expoConfig?.android?.versionCode;
   const ios = Constants.expoConfig?.ios?.buildNumber;
   if (typeof android === 'number') return String(android);
