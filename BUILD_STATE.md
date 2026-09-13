@@ -1205,6 +1205,17 @@ already correct. Fix BLOCKERs and MAJORs; defer NITs to a follow-up list.
 Applies from the §12.1 branch onward. The §8.5 re-audit already in flight
 stands — it is daily-board, i.e. mandated.
 
+### S14b — Remote Config sanity bounds on the client (2026-09-13)
+
+Last carried PRD-AMENDMENT-NEEDED from the WP-1 audit, ruled as **PRD v1.24**.
+The §8.2 generator bounded Remote Config numbers; the app applied any finite
+push verbatim (`-5` queue cap, `99` probability). Now ONE `REMOTE_CONFIG_BOUNDS`
+table in `packages/shared`, read by both `publish.ts` and the client coercion.
+Proof there is one table: loosening a single shared value reds the client AND
+server tests. Only keys with a reader today are bounded. `daily_streak_min_moves`
+has its own bounds inside `streak.ts` on the unmerged §8.5 branch — fold it into
+the shared table when §8.5 merges.
+
 ### S14 — dead code from the §12 batch, wired (2026-09-13)
 
 Operator: "fix all the issues you have found". A caller sweep over what I
