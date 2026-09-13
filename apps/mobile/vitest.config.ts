@@ -40,6 +40,7 @@ export default defineConfig({
       '@react-native-firebase/remote-config': path.resolve(mocks, 'react-native-firebase.ts'),
       '@react-native-firebase/crashlytics': path.resolve(mocks, 'react-native-firebase.ts'),
       'expo-store-review': path.resolve(mocks, 'expo-store-review.ts'),
+      'expo-application': path.resolve(mocks, 'expo-application.ts'),
     },
   },
 });

@@ -6,6 +6,7 @@
  * this file only proves the comparison primitive itself.
  */
 import Constants from 'expo-constants';
+import { __setNativeBuildVersion } from './mocks/expo-application';
 import { Platform } from 'react-native';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
@@ -106,6 +107,25 @@ describe('getBuildLabel (PRD §12.1 — "the version/build footer matches the ru
   afterEach(() => {
     delete Constants.expoConfig!.android!.versionCode;
     delete Constants.expoConfig!.ios!.buildNumber;
+  });
+
+  it("prefers the installed binary's native build number over app.config fields", () => {
+    // EAS remote versioning writes the number into the native project, not into
+    // app.config.ts — so a config field can be stale or absent while the binary
+    // is right. The footer must show what is actually installed.
+    Constants.expoConfig!.android!.versionCode = 42;
+    __setNativeBuildVersion('317');
+    try {
+      expect(getBuildLabel()).toBe('317');
+    } finally {
+      __setNativeBuildVersion(null);
+    }
+  });
+
+  it('falls back to app.config fields when there is no native build number (Expo Go)', () => {
+    __setNativeBuildVersion(null);
+    Constants.expoConfig!.android!.versionCode = 42;
+    expect(getBuildLabel()).toBe('42');
   });
 
   it('reads android.versionCode when present', () => {
