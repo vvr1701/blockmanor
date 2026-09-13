@@ -1205,9 +1205,27 @@ already correct. Fix BLOCKERs and MAJORs; defer NITs to a follow-up list.
 Applies from the §12.1 branch onward. The §8.5 re-audit already in flight
 stands — it is daily-board, i.e. mandated.
 
+### S14 — dead code from the §12 batch, wired (2026-09-13)
+
+Operator: "fix all the issues you have found". A caller sweep over what I
+built in the §12 batch found four pieces with ZERO callers — the same defect
+a QA audit flagged on WP-1's `recordError`, reproduced in my own work:
+ProfileScreen unrouted (avatar a no-op button); §12.10's review prompt fully
+inert (winStreak never advanced, so it could never fire); §12.3's lines and
+longest-streak never written; the post-L60 CTA labelled with a congratulation.
+Plus a real §12.10 semantics bug: `recentFails` never reset, so old fails
+suppressed the prompt forever. All fixed on `fix/unwired-12x`, 9 mutations
+each red. **Lesson:** tests on a component prove the component; only a caller
+sweep (or an App-level test) proves it is reachable. Run one before merging a
+batch.
+
+In parallel: the §8.5 re-audit (mandated) and an agent clearing the tracked
+follow-up refactors (Endless pause convergence, ModalSheet, withAlpha,
+`fail.goalLine` rename, FtueOverlay repeat test, RNGH mock).
+
 ## Follow-ups (tracked, not blocking)
 
-- Wire `PauseSheet`'s settings row to `SettingsScreen` when §12.1 lands. It currently renders
+- ~~Wire `PauseSheet`'s settings row to `SettingsScreen` when §12.1 lands.~~ — **DONE** in §12.1. It currently renders
   disabled by design — §16.1 lists `SettingsScreen` as Stage 1, so it is a not-yet, and
   dropping one of §12.2's four clauses silently is the failure mode four audits died on.
 - Extract `ModalSheet(brass frame)` into `src/components`. It IS in §15's component list and
