@@ -1205,6 +1205,34 @@ already correct. Fix BLOCKERs and MAJORs; defer NITs to a follow-up list.
 Applies from the §12.1 branch onward. The §8.5 re-audit already in flight
 stands — it is daily-board, i.e. mandated.
 
+### S15 — §8.5 merged; v1.26 hardening, 30 templates, real build number (2026-09-13)
+
+- **§8.5 merged** after its re-audit PASSED (no blockers). Two MAJORs became
+  **PRD v1.26**: (a) play-start refuses a new day while an older `'started'`
+  attempt is still submittable, so an app-kill resubmission cannot reset an
+  honest streak; (b) a day's move-log hash counts once in the percentile, so a
+  replayed copy of the top log cannot copy its rank.
+- **`fix/8.x-v1.26-hardening` @ 6e2e90f — UNDER SCOPED AUDIT (mandated).**
+  Implements v1.26(a)/(b) and closes the re-audit gaps (in-tx concurrency guard
+  documented, drift-never-cheat-log, non-`'started'` statuses, exact 36h
+  boundary, not-started cheat log, stored `streakGranted`, `onCall` auth
+  wrappers via `CallableFunction.run`). 9 emulator mutations each red. One
+  existing test deliberately changed: "tomorrow" now starts as a second player,
+  because the new gate refuses the same player.
+- **`feat/17-daily-templates` @ d96ea70 — emulator suites running.** 12 -> 30
+  templates. The new "no solvability trap" test caught a real one in my own set
+  (`scatter-ring`, 1/3 probe sequences); replaced by `notch-block` (3/3), chosen
+  by probing candidates. `DAILY_GENERATOR_VERSION` 1 -> 2. No test pins a board,
+  so not a fixture change. The first "rotated duplicate" mutation was not a real
+  rotation and proved nothing; redone with `orient()` and it reds.
+- **`feat/12.1-real-build-number` MERGED.** The Settings footer showed a literal
+  `1` on every real build: EAS remote versioning writes the build number into
+  the native project, never into `app.config.ts`. Now `expo-application`'s
+  `nativeBuildVersion`, config fields kept as the Expo Go fallback.
+- **Gotcha:** two Firestore emulators can coexist — a throwaway firebase config
+  on alternate ports (firestore/hub/logging/websocket) isolates a second run
+  from an audit already using 8080. Delete the temp config afterwards.
+
 ### S14c — follow-ups merged; Endless quit loses nothing (2026-09-13)
 
 `chore/followups` merged (Endless on §12.2 pause, `ModalSheet`, `withAlpha`,
