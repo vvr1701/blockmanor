@@ -35,6 +35,8 @@ describe('§8.4 percentile (§0 v1.28)', () => {
   it('floors, counts only strictly higher buckets, and shares ties', () => {
     // 150 above, 50 tied (incl. this one), 800 below: floor(100 * 151 / 1000) = 15.
     expect(dailyTopPercent(histogram({ 30: 150, 20: 50, 5: 800 }), 1_010)).toBe(15);
+    // 1 above, 120 total: 100 * 2 / 120 = 1.67 -> 1. Rounding would show 2.
+    expect(dailyTopPercent(histogram({ 30: 1, 20: 1, 5: 118 }), 1_010)).toBe(1);
     // Every tie in the bucket gets the same rank, whatever its exact score.
     expect(dailyTopPercent(histogram({ 30: 150, 20: 50, 5: 800 }), 1_049)).toBe(15);
   });

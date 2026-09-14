@@ -369,7 +369,7 @@ export async function submitDailyAttempt(
       const stored: unknown = (await tx.get(histogramRef)).get('buckets');
       buckets =
         Array.isArray(stored) && stored.length === DAILY_HISTOGRAM_BUCKETS
-          ? stored.map((n) => (typeof n === 'number' ? n : 0))
+          ? stored.map((n) => (Number.isInteger(n) && (n as number) >= 0 ? (n as number) : 0))
           : Array.from({ length: DAILY_HISTOGRAM_BUCKETS }, () => 0);
       const bucket = dailyHistogramBucket(result.score);
       buckets[bucket] = (buckets[bucket] ?? 0) + 1;
@@ -391,8 +391,8 @@ export async function submitDailyAttempt(
     tx.update(attemptRef, {
       status: 'submitted',
       submittedAt: new Date(now).toISOString(),
-      // The RE-SIMULATED score. §8.4's histogram (WP-4b) reads this field, so
-      // a claimed number must never reach it.
+      // The RE-SIMULATED score, the same one the §8.4 histogram above was
+      // bucketed from — a claimed number must never reach either.
       score: result.score,
       engineStatus: result.status,
       moveCount: payload.moves.length,
