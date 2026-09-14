@@ -213,6 +213,28 @@ describe('DailySession (PRD §8.3)', () => {
     expect(gate(r).props.status).toStrictEqual({ kind: 'unavailable', reason: 'not-yet-live' });
   });
 
+  it('clears a pending older day with its empty log, then starts today (§0 v1.26(a))', async () => {
+    submitReturns(null);
+    let starts = 0;
+    firebaseMock.callables['dailyPlayStart'] = () => {
+      starts += 1;
+      if (starts === 1) {
+        throw Object.assign(new Error('pending'), {
+          code: 'functions/failed-precondition',
+          details: { reason: 'pending-attempt', pendingDate: '2026-08-08' },
+        });
+      }
+      return { date: DATE, sequence: SEQUENCE, startedAt: '2026-08-09T12:00:00.000Z' };
+    };
+    const r = await mount();
+    await pressPlay(r);
+    const submits = firebaseMock.calls.filter((c) => c.name === 'dailySubmit');
+    expect(submits).toStrictEqual([
+      { name: 'dailySubmit', data: { date: '2026-08-08', moves: [], claimedScore: 0 } },
+    ]);
+    expect(r.root.findByType(GameplayScreen).props.initialState.config.mode).toBe('daily');
+  });
+
   it('offline play keeps the gate playable and offers a retry toast', async () => {
     firebaseMock.configured = false;
     const r = await mount();
