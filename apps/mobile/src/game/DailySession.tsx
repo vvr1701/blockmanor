@@ -13,8 +13,14 @@
  * pause sheet ends the run the same way — there is no restart (one attempt).
  */
 
-import { createGame, type GameEvent, type GameState } from '@blockmanor/engine';
-import { dailyPlaySeed } from '@blockmanor/shared';
+import {
+  applyPlacement,
+  createGame,
+  type Board,
+  type GameEvent,
+  type GameState,
+} from '@blockmanor/engine';
+import { dailyGameConfig, dailyPlaySeed } from '@blockmanor/shared';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { RetryToast } from '../components/RetryToast';
@@ -30,12 +36,16 @@ import {
   submitPendingRun,
   type DailySubmitOutcome,
 } from '../services/dailyClient';
+import { shareDailyCard, type ShareChannel } from '../services/share';
+import { useConfigStore } from '../state/useConfigStore';
 import { useMetaStore } from '../state/useMetaStore';
 import { DailyGateScreen, type DailyGateStatus } from '../screens/DailyGateScreen';
 import { DailyResultScreen } from '../screens/DailyResultScreen';
 import { GameplayScreen, type PauseControls } from '../screens/GameplayScreen';
 import { StreakScreen } from '../screens/StreakScreen';
 import { DailyHud } from './DailyHud';
+import { renderShareCard } from './renderShareCard';
+import { shareCardModel, shareMessage } from './shareCard';
 import { StreakMilestoneSheet } from './StreakMilestoneSheet';
 import { streakEvents } from './streak';
 
@@ -47,8 +57,30 @@ export const utcDate = (ms: number): string => new Date(ms).toISOString().slice(
 type Phase =
   | { kind: 'gate'; status: DailyGateStatus }
   | { kind: 'playing'; state: GameState }
-  | { kind: 'result'; score: number; percentile: number | null; streak: number }
+  | {
+      kind: 'result';
+      score: number;
+      percentile: number | null;
+      streak: number;
+      /** §8.7: the run's final board for the share card; null if unknown. */
+      board: Board | null;
+    }
   | { kind: 'streak'; playedDates: ReadonlySet<string> | null };
+
+/** §8.7 / §0 v1.31(c): a run submitted on next open has no live board, so it
+ * is rebuilt from its stored log. Null if the log cannot replay. */
+function replayBoard(run: NonNullable<ReturnType<typeof readPendingRun>>): Board | null {
+  try {
+    let state = createGame(
+      dailyGameConfig(run.engineConfig, run.sequence, run.date),
+      dailyPlaySeed(run.date),
+    );
+    for (const move of run.moves) state = applyPlacement(state, move).state;
+    return state.board;
+  } catch {
+    return null;
+  }
+}
 
 export interface DailySessionProps {
   onExit: () => void;
@@ -74,6 +106,10 @@ export function DailySession({
   // §8.6: set when the server credits day 7/30/100; cleared by its sheet.
   const [milestone, setMilestone] = useState<number | null>(null);
   const endedRef = useRef(false);
+  // §8.7: the latest board, kept off state (§4.5's one render per placement).
+  const boardRef = useRef<Board | null>(null);
+  const shareEnabled = useConfigStore((s) => s.value('flag_share_card'));
+  const installUrl = useConfigStore((s) => s.value('share_install_url'));
 
   const playedToday = (): boolean => readLastResult()?.date === utcDate(now());
   const [phase, setPhase] = useState<Phase>(() => ({
@@ -104,6 +140,7 @@ export function DailySession({
             score: result.score,
             percentile: result.percentile,
             streak: result.streak,
+            board: boardRef.current,
           });
           return;
         }
@@ -125,6 +162,7 @@ export function DailySession({
     track('daily_view', {});
     const pending = readPendingRun();
     if (pending) {
+      boardRef.current = replayBoard(pending);
       // A run for TODAY that was killed mid-play shows its result; an older one
       // only clears the way (§0 v1.26(a)).
       void submitPendingRun().then((o) => settle(o, pending.date === utcDate(now())));
@@ -181,6 +219,23 @@ export function DailySession({
     });
   }, [now]);
 
+  const share = useCallback(
+    (channel: ShareChannel) => {
+      if (phase.kind !== 'result') return;
+      const model = shareCardModel({
+        board: phase.board ?? { kinds: [], colors: [] },
+        score: phase.score,
+        percentile: phase.percentile,
+        streak: phase.streak,
+        installUrl,
+      });
+      // No board, no picture: an empty grid would misstate the run.
+      const base64 = phase.board ? renderShareCard(model) : null;
+      void shareDailyCard({ base64, message: shareMessage(model) }, channel);
+    },
+    [phase, installUrl],
+  );
+
   const finish = useCallback(async () => {
     if (endedRef.current) return;
     endedRef.current = true;
@@ -189,6 +244,7 @@ export function DailySession({
 
   const handleEvent = useCallback(
     (events: readonly GameEvent[], state: GameState) => {
+      boardRef.current = state.board;
       for (const e of events) {
         if (e.type === 'PIECE_PLACED')
           recordDailyMove({ pieceIndex: e.pieceIndex, r: e.r, c: e.c });
@@ -230,6 +286,7 @@ export function DailySession({
             percentile={phase.percentile}
             streak={phase.streak}
             onContinue={onLevels}
+            {...(shareEnabled ? { onShare: share } : {})}
           />
           {milestone !== null ? (
             <StreakMilestoneSheet streak={milestone} onContinue={() => setMilestone(null)} />

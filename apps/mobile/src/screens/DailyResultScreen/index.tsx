@@ -14,12 +14,13 @@
  */
 
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GoldButton } from '../../components/GoldButton';
 import { colors, fontFamily, fontSize, radius, spacing, withAlpha } from '../../components/tokens';
 import { t } from '../../i18n';
 import { formatScore } from '../../i18n/format';
+import type { ShareChannel } from '../../services/share';
 
 export interface DailyResultScreenProps {
   /** The server's re-simulated score (§8.5). */
@@ -29,6 +30,8 @@ export interface DailyResultScreenProps {
   /** §8.6 server-authoritative streak after this submission. */
   streak: number;
   onContinue: () => void;
+  /** §8.7 (§0 v1.31(a)); omitted while `flag_share_card` is off. */
+  onShare?: (channel: ShareChannel) => void;
 }
 
 export function DailyResultScreen({
@@ -36,6 +39,7 @@ export function DailyResultScreen({
   percentile,
   streak,
   onContinue,
+  onShare,
 }: DailyResultScreenProps): React.JSX.Element {
   return (
     <SafeAreaView style={styles.safe}>
@@ -55,6 +59,26 @@ export function DailyResultScreen({
           </View>
         ) : null}
         <View style={styles.spacer} />
+        {onShare ? (
+          <View style={styles.shareRow}>
+            <Pressable
+              style={[styles.share, styles.whatsapp]}
+              onPress={() => onShare('whatsapp')}
+              accessibilityRole="button"
+              accessibilityLabel={t('daily.result.shareWhatsApp')}
+            >
+              <Text style={styles.shareText}>{t('daily.result.shareWhatsApp')}</Text>
+            </Pressable>
+            <Pressable
+              style={styles.share}
+              onPress={() => onShare('sheet')}
+              accessibilityRole="button"
+              accessibilityLabel={t('daily.result.shareMore')}
+            >
+              <Text style={styles.shareText}>{t('daily.result.shareMore')}</Text>
+            </Pressable>
+          </View>
+        ) : null}
         <GoldButton label={t('daily.result.continue')} onPress={onContinue} size="lg" />
       </View>
     </SafeAreaView>
@@ -99,4 +123,17 @@ const styles = StyleSheet.create({
   },
   streakText: { color: colors.gold, fontSize: fontSize.sm, fontWeight: '900' },
   spacer: { flex: 1 },
+  shareRow: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md },
+  share: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: withAlpha(colors.cream, 0.4),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  // WhatsApp's own green, the only non-token colour here: it IS the channel.
+  whatsapp: { backgroundColor: '#1F7A4D', borderColor: '#1F7A4D' },
+  shareText: { color: colors.cream, fontSize: fontSize.sm, fontWeight: '800' },
 });

@@ -200,5 +200,11 @@
   "streak.milestone.continue": "Continue",
   "daily.gate.openStreak": "Open your streak calendar",
   "pause.confirmDaily.title": "End today's board?",
-  "pause.confirmDaily.body": "This is your only attempt. Leaving submits your board as it stands."
+  "pause.confirmDaily.body": "This is your only attempt. Leaving submits your board as it stands.",
+  "share.top": "Top {{percent}}%",
+  "share.streak": "🔥{{n}}",
+  "share.brand": "Block Manor",
+  "share.footer": "Play today's board · {{url}}",
+  "daily.result.shareWhatsApp": "Share to WhatsApp",
+  "daily.result.shareMore": "Share"
 }

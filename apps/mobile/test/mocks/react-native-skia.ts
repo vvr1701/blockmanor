@@ -54,3 +54,9 @@ export function vec(x: number, y: number): { x: number; y: number } {
 export function matchFont(): SkFont {
   return { measureText: () => ({ width: 8, height: 10 }) };
 }
+
+/** §8.7 offscreen drawing: no GPU in the test loop, so there is no surface —
+ * `renderShareCard` returns null and the share falls back to text + link. */
+export const Skia = {
+  Surface: { MakeOffscreen: (): null => null },
+};

@@ -34,7 +34,9 @@ import { StreakScreen } from '../../src/screens/StreakScreen';
 import { StreakMilestoneSheet } from '../../src/game/StreakMilestoneSheet';
 import { track } from '../../src/services/analytics';
 import { clearPendingRun, readPendingRun, savePendingRun } from '../../src/services/dailyClient';
+import { useConfigStore } from '../../src/state/useConfigStore';
 import { useMetaStore } from '../../src/state/useMetaStore';
+import { resetShareMock, shareMock } from '../mocks/react-native-share';
 import { firebaseMock, resetFirebaseMock } from '../mocks/react-native-firebase';
 
 const trackMock = vi.mocked(track);
@@ -126,7 +128,9 @@ beforeEach(() => {
     startedAt: '2026-08-09T12:00:00.000Z',
   });
   clearPendingRun();
+  resetShareMock();
   act(() => {
+    useConfigStore.setState({ snapshot: { ...REMOTE_CONFIG_DEFAULTS }, fetchedAt: null });
     useMetaStore.setState({ streak: 3, bestDailyPercentile: 0, badges: { dailyUnplayed: true } });
   });
 });
@@ -300,5 +304,39 @@ describe('DailySession (PRD §8.3)', () => {
       (calendar.props.onBack as () => void)();
     });
     expect(r.root.findAllByType(DailyGateScreen)).toHaveLength(1);
+  });
+
+  it('§8.7: the result shares to WhatsApp with the score, rank, streak and install link', async () => {
+    submitReturns(11, 4);
+    const r = await mount();
+    await pressPlay(r);
+    await endRun(r);
+    const result = r.root.findByType(DailyResultScreen);
+    await act(async () => (result.props.onShare as (c: string) => void)('whatsapp'));
+    expect(shareMock.calls).toHaveLength(1);
+    expect(shareMock.calls[0]).toMatchObject({
+      method: 'shareSingle',
+      options: { social: 'whatsapp' },
+    });
+    expect(shareMock.calls[0]?.options['message']).toBe(
+      `99 · Top 11% · 🔥4 · Block Manor\n${REMOTE_CONFIG_DEFAULTS.share_install_url}`,
+    );
+  });
+
+  it('§8.7: flag_share_card off hides sharing entirely', async () => {
+    act(() => {
+      useConfigStore.setState({
+        snapshot: {
+          ...REMOTE_CONFIG_DEFAULTS,
+          flag_share_card: false,
+        } as unknown as typeof REMOTE_CONFIG_DEFAULTS,
+        fetchedAt: null,
+      });
+    });
+    submitReturns(11, 4);
+    const r = await mount();
+    await pressPlay(r);
+    await endRun(r);
+    expect(r.root.findByType(DailyResultScreen).props.onShare).toBeUndefined();
   });
 });

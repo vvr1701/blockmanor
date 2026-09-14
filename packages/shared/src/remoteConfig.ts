@@ -103,6 +103,8 @@ export const REMOTE_CONFIG_DEFAULTS = {
   // --- App lifecycle (§12.5, §12.10, §12.11) ---
   min_supported_version: '0.1.0',
   latest_version: '0.1.0',
+  // §8.7 / §0 v1.31: the share card's install link until an MMP link replaces it.
+  share_install_url: 'https://blockmanor.game',
   maintenance_mode: false,
   review_prompt_enabled: true,
 } as const satisfies Record<string, RemoteConfigValue>;

@@ -1,6 +1,6 @@
 # BLOCK MANOR — Product Requirements Document (Source of Truth)
 
-**Version:** 1.30 · **Date:** 2026-09-13 · **Status:** Approved for build
+**Version:** 1.31 · **Date:** 2026-09-13 · **Status:** Approved for build
 **Product type:** Hybrid-casual mobile puzzle game · **Platforms:** Android + iOS
 **Stack:** React Native + Expo + react-native-skia · TypeScript everywhere · Firebase backend
 
@@ -52,6 +52,7 @@
 | 1.28 | 2026-09-13 | **§8.4 — the histogram's buckets and the rank formula**, left open by §8.4's one line ("100 buckets" over an unbounded score). Ruled from a measured distribution (greedy bot, 10 generated boards × 30 seeds: p50 796, p99 2920, max 3480): **(i)** bucket = `min(99, floor(score / 50))` — 50 points wide, so 0–4,999 is resolved and anything higher shares the top bucket. The width is a constant, not `[RC]`: a mid-day change would make one day's buckets mean two things, and the width is stored on each day's histogram so a later change cannot misread old days. **(ii)** Only a submission with `countsForPercentile` (§0 v1.26(b)) enters the histogram, in the same transaction that accepts it. **(iii)** "Top X%" = `max(1, floor(100 × (above + 1) / total))`, where `above` counts histogram entries in strictly higher buckets and `total` includes this submission, so ties within a bucket share the better rank. **(iv)** While `total < 100` the percentile is absent and the client shows "Early bird! 🌅"; a submission excluded by (ii) also has no percentile. The rank is fixed at submission ("rank vs all submissions so far") and stored on the attempt. |
 | 1.29 | 2026-09-14 | **§8.3/§14 — two client clarifications from the daily client service.** **(a) Board before attempt.** The client reads `dailyBoards/{date}` (already client-readable after `activatesAt` under the rules) BEFORE calling play-start, because play-start consumes the attempt; an unreadable board must never burn the one attempt. A rules refusal is routed as not-yet-live. **(b) `daily_complete.percentile` is omitted, not null,** when §8.4 returns no percentile (Early bird, or a log excluded by §0 v1.26(b)): Firebase Analytics has no null parameter value. |
 | 1.30 | 2026-09-14 | **§12.2 — quitting a Daily Board run always confirms.** §12.2's quit confirm fires only past 50% of goals, and the Daily Board has no goals (§8.2), so quitting from the pause sheet ended the player's ONE attempt (§8.3) on a single tap — the only irreversible quit in the game. Ruled by the operator: in a Daily run the quit confirm always appears, with copy that says the attempt ends and the run is submitted as it stands. Levels keep the >50% rule unchanged. |
+| 1.31 | 2026-09-14 | **§8.7 share card — three implementation rulings.** **(a) WhatsApp first.** The result screen offers "Share to WhatsApp" (a direct WhatsApp share) plus the native share sheet; when WhatsApp is not installed or refuses, the sheet opens instead, so the button is never a dead end (§12.9). "Share to Story" from the mockup is not built: it needs a Meta app registration and PRD names only WhatsApp. **(b) Install link before attribution.** §8.7 wants a Branch/AppsFlyer link, but no MMP account exists yet (§17 operator item). Until it does the card and message carry `share_install_url [RC, https://blockmanor.game]`, swappable to the MMP link from Remote Config with no release; `install_attributed` stays unfired until the MMP lands. **(c) The card is a 1080×1080 PNG drawn offscreen with Skia** from the run's final board (colours only, §8.7 spoiler-free), shared as base64. A run submitted on next open (§8.3) has no live board, so it is replayed from its stored log through the engine to draw the same grid. |
 
 ---
 
@@ -515,6 +516,8 @@ Sky Race (async ladder vs matched ghost), 72h collection events (special tiles o
 **IAP (S2):** `starter_pack_trigger_level 15 · starter_pack_offer_ttl_h 24 · starter_pack_repeat_level 25 · remove_ads_prompt_cooldown_d 7 · streak_freeze_max 2 · iap_pending_timeout_s 10`
 **Analytics (§14):** `analytics_queue_cap 500` — cap on the on-device event dispatch queue; over-cap events are dropped oldest-first with a dropped-event counter kept alongside so funnel denominators are never silently wrong.
 **App lifecycle:** `min_supported_version · latest_version · maintenance_mode false · review_prompt_enabled true`
+
+**Share (§8.7, §0 v1.31):** `share_install_url https://blockmanor.game` (replaced by the MMP link once one exists)
 Rules: fetch on cold start + 6h TTL; snapshot into `useConfigStore`; A/B experiments via Firebase A/B on these keys only. **Sanity bounds (§0 v1.24):** a fetched number that is non-finite, outside its registry sanity bound, or fractional where an integer is required keeps its compiled default — on the client exactly as §8.2 already does on the server, from ONE shared table in `packages/shared`. Bounds are a typo guard, not balance policy.
 **Registry completeness rule:** every `[RC]` marker anywhere in this document MUST carry an explicit key name and appear in this registry with its default. An unnamed `[RC]` is a spec defect — flag it as PRD-AMENDMENT-NEEDED rather than inventing a key at the call site.
 
@@ -612,4 +615,4 @@ Content ops: 60 levels balanced (§7.9 report) · 30 daily-board pattern templat
 | Clone competition | speed + daily ritual moat + India localization; ship Stage 1 in 6 weeks |
 | Scope creep from Stage 3/4 dreams | §0 rules 2 + 2a: stage gates are hard; only specced layout reservations cross a stage line |
 
-*End of PRD v1.30 — amendments require a changelog entry (§0).*
+*End of PRD v1.31 — amendments require a changelog entry (§0).*
