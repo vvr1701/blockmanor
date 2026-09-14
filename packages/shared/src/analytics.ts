@@ -122,6 +122,17 @@ export interface StreakBrokenParams {
   n: number;
 }
 
+/** §8.7 a share affordance was tapped (§14 `share_tap{surface}`). */
+export interface ShareTapParams {
+  surface: 'daily_result';
+}
+
+/** §8.7 the share left the app (§14 `share_complete{channel}`). `sheet` = the
+ * native share sheet, whose final target the OS does not report. */
+export interface ShareCompleteParams {
+  channel: 'whatsapp' | 'sheet';
+}
+
 /** Keyed by §14 event name; extend per-section as each PRD subsection lands. */
 export interface AnalyticsEvents {
   ftue_step: FtueStepParams;
@@ -136,6 +147,8 @@ export interface AnalyticsEvents {
   daily_complete: DailyCompleteParams;
   streak_milestone: StreakMilestoneParams;
   streak_broken: StreakBrokenParams;
+  share_tap: ShareTapParams;
+  share_complete: ShareCompleteParams;
 }
 
 export type AnalyticsEventName = keyof AnalyticsEvents;
