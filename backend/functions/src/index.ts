@@ -17,6 +17,7 @@
 export { generateDailyBoardScheduled, regenerateDailyBoard } from './daily/publish';
 export { dailyPlayStart } from './daily/playStart';
 export { dailySubmit } from './daily/submit';
+export { registerPush, sendPushScheduled } from './push/push';
 
 // The SECRET half of the §8.2 seam: seed derivation and sequence sealing. These
 // stay server-side forever (§16 — the salt lives only in Functions config), and
