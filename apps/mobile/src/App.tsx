@@ -11,6 +11,7 @@ import { LevelSession } from './game/LevelSession';
 import { DailySession } from './game/DailySession';
 import { getInstalledVersion, isBelowMinVersion } from './services/appInfo';
 import { initFirebase, syncRemoteConfig } from './services/firebase';
+import { syncPushRegistration, watchPush } from './services/push';
 import { EndlessScreen } from './screens/EndlessScreen';
 import { ForceUpdateScreen } from './screens/ForceUpdateScreen';
 import { FtueScreen } from './screens/FtueScreen';
@@ -60,6 +61,12 @@ export default function App(): React.JSX.Element {
   const [showEndless, setShowEndless] = useState(false);
   // §8.3 Daily Board flow — the same local-state seam as Endless (no router).
   const [dailyOpen, setDailyOpen] = useState(false);
+  // §8.7 (§0 v1.32): every push deep-links to the Daily gate, and an opted-in
+  // device re-registers on every open so a new offset or token reaches the server.
+  useEffect(() => {
+    void syncPushRegistration();
+    return watchPush(() => setDailyOpen(true));
+  }, []);
   // §12.1: Home's HUD gear AND (via `LevelSession`) `PauseSheet`'s settings
   // shortcut both reach the same local-state seam. Rendered as an OVERLAY
   // sibling (like `AnalyticsDebugOverlay`), not a replacement branch of the

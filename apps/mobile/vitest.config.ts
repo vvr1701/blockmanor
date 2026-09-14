@@ -41,6 +41,7 @@ export default defineConfig({
       '@react-native-firebase/crashlytics': path.resolve(mocks, 'react-native-firebase.ts'),
       '@react-native-firebase/firestore': path.resolve(mocks, 'react-native-firebase.ts'),
       '@react-native-firebase/functions': path.resolve(mocks, 'react-native-firebase.ts'),
+      '@react-native-firebase/messaging': path.resolve(mocks, 'react-native-firebase.ts'),
       'expo-store-review': path.resolve(mocks, 'expo-store-review.ts'),
       'expo-application': path.resolve(mocks, 'expo-application.ts'),
       'react-native-share': path.resolve(mocks, 'react-native-share.ts'),
