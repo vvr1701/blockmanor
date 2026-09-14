@@ -111,6 +111,17 @@ export interface DailyCompleteParams {
   moves: number;
 }
 
+/** §8.6 a server-credited streak reached 7, 30 or 100 (§14 `streak_milestone{n}`). */
+export interface StreakMilestoneParams {
+  n: number;
+}
+
+/** §8.6 a missed UTC day reset the streak (§14 `streak_broken{n}`); `n` is the
+ * streak that was lost, as last shown on this device. */
+export interface StreakBrokenParams {
+  n: number;
+}
+
 /** Keyed by §14 event name; extend per-section as each PRD subsection lands. */
 export interface AnalyticsEvents {
   ftue_step: FtueStepParams;
@@ -123,6 +134,8 @@ export interface AnalyticsEvents {
   daily_view: DailyViewParams;
   daily_start: DailyStartParams;
   daily_complete: DailyCompleteParams;
+  streak_milestone: StreakMilestoneParams;
+  streak_broken: StreakBrokenParams;
 }
 
 export type AnalyticsEventName = keyof AnalyticsEvents;
