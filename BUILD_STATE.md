@@ -1214,7 +1214,13 @@ stands — it is daily-board, i.e. mandated.
   `expo-updates`. Added it, `runtimeVersion: { policy: 'fingerprint' }`, and
   `updates.url`. expo-doctor 21/21; config test reds without runtimeVersion.
   Needs a device build to prove an OTA actually lands (operator side).
-- **`feat/8.4-percentile` @ 7b7a854 — UNDER SCOPED AUDIT (mandated).** PRD
+- **`feat/8.4-percentile` MERGED** (9ce4aa7). Audit FAIL → one MAJOR: `floor`→`round`
+  survived; a 1.67→1 case now pins it. Stored buckets must be non-negative
+  integers. Open NIT: width 50 is from bot scores — recheck on beta data.
+- **`feat/8.3-daily-client-service` — IN PROGRESS.** Board read before
+  play-start, rejection routing, MMKV run log, replayed claimed score, typed
+  daily events. Adds RNFB firestore + functions (needs a new native build).
+- Was: `feat/8.4-percentile` @ 7b7a854 — under scoped audit. PRD
   v1.28 rules §8.4's open "100 buckets": 50-point buckets (measured bot scores
   p50 796 / p99 2920 / max 3480), open top bucket, only `countsForPercentile`
   counted in the accepting transaction, Top X% = `max(1, floor(100·(above+1)/total))`,
