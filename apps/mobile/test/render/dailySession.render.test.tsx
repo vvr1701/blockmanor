@@ -32,6 +32,7 @@ import { DailyResultScreen } from '../../src/screens/DailyResultScreen';
 import { GameplayScreen } from '../../src/screens/GameplayScreen';
 import { StreakScreen } from '../../src/screens/StreakScreen';
 import { StreakMilestoneSheet } from '../../src/game/StreakMilestoneSheet';
+import { PushSoftAskSheet } from '../../src/game/PushSoftAskSheet';
 import { track } from '../../src/services/analytics';
 import { clearPendingRun, readPendingRun, savePendingRun } from '../../src/services/dailyClient';
 import { useConfigStore } from '../../src/state/useConfigStore';
@@ -131,7 +132,12 @@ beforeEach(() => {
   resetShareMock();
   act(() => {
     useConfigStore.setState({ snapshot: { ...REMOTE_CONFIG_DEFAULTS }, fetchedAt: null });
-    useMetaStore.setState({ streak: 3, bestDailyPercentile: 0, badges: { dailyUnplayed: true } });
+    useMetaStore.setState({
+      streak: 3,
+      bestDailyPercentile: 0,
+      badges: { dailyUnplayed: true },
+      pushOptIn: 'declined',
+    });
   });
 });
 
@@ -338,5 +344,60 @@ describe('DailySession (PRD §8.3)', () => {
     await pressPlay(r);
     await endRun(r);
     expect(r.root.findByType(DailyResultScreen).props.onShare).toBeUndefined();
+  });
+
+  it('§7.1 step 5: the push soft-ask appears once, on the result, for a player never asked', async () => {
+    act(() => {
+      useMetaStore.setState({ pushOptIn: 'unasked' });
+    });
+    submitReturns(20, 4);
+    const r = await mount();
+    expect(r.root.findAllByType(PushSoftAskSheet)).toHaveLength(0); // not on the gate
+    await pressPlay(r);
+    await endRun(r);
+    const ask = r.root.findByType(PushSoftAskSheet);
+    await act(async () => (ask.props.onAnswer as (a: boolean) => void)(false));
+    expect(useMetaStore.getState().pushOptIn).toBe('declined');
+    expect(r.root.findAllByType(PushSoftAskSheet)).toHaveLength(0);
+  });
+
+  it('§7.1 step 5: a milestone celebration comes first; the soft-ask waits for it', async () => {
+    act(() => {
+      useMetaStore.setState({ pushOptIn: 'unasked', streak: 6 });
+    });
+    submitReturns(20, 7);
+    const r = await mount();
+    await pressPlay(r);
+    await endRun(r);
+    expect(r.root.findAllByType(StreakMilestoneSheet)).toHaveLength(1);
+    expect(r.root.findAllByType(PushSoftAskSheet)).toHaveLength(0);
+    act(() => {
+      (r.root.findByType(StreakMilestoneSheet).props.onContinue as () => void)();
+    });
+    expect(r.root.findAllByType(PushSoftAskSheet)).toHaveLength(1);
+  });
+
+  it('§7.1 step 5: never asked again once answered, and never while flag_push is off', async () => {
+    submitReturns(20, 4);
+    const declined = await mount();
+    await pressPlay(declined);
+    await endRun(declined);
+    expect(declined.root.findAllByType(PushSoftAskSheet)).toHaveLength(0);
+
+    act(() => {
+      useMetaStore.setState({ pushOptIn: 'unasked' });
+      useConfigStore.setState({
+        snapshot: {
+          ...REMOTE_CONFIG_DEFAULTS,
+          flag_push: false,
+        } as unknown as typeof REMOTE_CONFIG_DEFAULTS,
+        fetchedAt: null,
+      });
+    });
+    clearPendingRun();
+    const flagOff = await mount();
+    await pressPlay(flagOff);
+    await endRun(flagOff);
+    expect(flagOff.root.findAllByType(PushSoftAskSheet)).toHaveLength(0);
   });
 });

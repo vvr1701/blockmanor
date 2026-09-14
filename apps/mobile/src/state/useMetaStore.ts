@@ -102,6 +102,10 @@ interface MetaState {
    * a different initial value from (§7.1's soft-ask is OS permission, a
    * separate concern from this in-app preference). */
   notificationPrefs: { dailyDrop: boolean; streakRisk: boolean };
+  /** §7.1 step 5 / §0 v1.32(d): the one-time push soft-ask. `granted` = the OS
+   * permission was given and the device registers with `registerPush`. */
+  pushOptIn: 'unasked' | 'granted' | 'declined';
+  setPushOptIn: (state: 'granted' | 'declined') => void;
   setCurrentLevel: (level: number) => void;
   setStreak: (streak: number) => void;
   setBadge: (badge: keyof MetaState['badges'], on: boolean) => void;
@@ -222,6 +226,13 @@ export function migrateMetaState(persisted: unknown, version: number): unknown {
       next = { ...next, bestDailyPercentile: 0 };
     }
   }
+  // v8 -> v9 (§7.1 step 5, §0 v1.32(d)): the push soft-ask has never been
+  // shown to an existing save, so it starts `unasked` like a fresh install.
+  if (version < 9) {
+    if (next.pushOptIn !== 'granted' && next.pushOptIn !== 'declined') {
+      next = { ...next, pushOptIn: 'unasked' };
+    }
+  }
   return next;
 }
 
@@ -251,6 +262,8 @@ export const useMetaStore = create<MetaState>()(
       totalLines: 0,
       bestDailyPercentile: 0,
       notificationPrefs: { dailyDrop: true, streakRisk: true },
+      pushOptIn: 'unasked',
+      setPushOptIn: (pushOptIn) => set({ pushOptIn }),
       setCurrentLevel: (currentLevel) => set({ currentLevel }),
       // §12.3: `longestStreak` rides on the ONE streak writer, so no §8.6
       // client path can update the current streak and forget the best.
@@ -322,7 +335,7 @@ export const useMetaStore = create<MetaState>()(
     {
       name: 'meta',
       storage: createJSONStorage(() => mmkvStorage),
-      version: 8,
+      version: 9,
       migrate: migrateMetaState,
     },
   ),

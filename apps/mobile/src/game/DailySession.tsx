@@ -37,6 +37,7 @@ import {
   type DailySubmitOutcome,
 } from '../services/dailyClient';
 import { shareDailyCard, type ShareChannel } from '../services/share';
+import { answerPushSoftAsk } from '../services/push';
 import { useConfigStore } from '../state/useConfigStore';
 import { useMetaStore } from '../state/useMetaStore';
 import { DailyGateScreen, type DailyGateStatus } from '../screens/DailyGateScreen';
@@ -44,6 +45,7 @@ import { DailyResultScreen } from '../screens/DailyResultScreen';
 import { GameplayScreen, type PauseControls } from '../screens/GameplayScreen';
 import { StreakScreen } from '../screens/StreakScreen';
 import { DailyHud } from './DailyHud';
+import { PushSoftAskSheet } from './PushSoftAskSheet';
 import { renderShareCard } from './renderShareCard';
 import { shareCardModel, shareMessage } from './shareCard';
 import { StreakMilestoneSheet } from './StreakMilestoneSheet';
@@ -110,6 +112,9 @@ export function DailySession({
   const boardRef = useRef<Board | null>(null);
   const shareEnabled = useConfigStore((s) => s.value('flag_share_card'));
   const installUrl = useConfigStore((s) => s.value('share_install_url'));
+  // §7.1 step 5 / §0 v1.32(d): asked once, on the first result a player reaches.
+  const pushFlag = useConfigStore((s) => s.value('flag_push'));
+  const pushOptIn = useMetaStore((s) => s.pushOptIn);
 
   const playedToday = (): boolean => readLastResult()?.date === utcDate(now());
   const [phase, setPhase] = useState<Phase>(() => ({
@@ -290,6 +295,9 @@ export function DailySession({
           />
           {milestone !== null ? (
             <StreakMilestoneSheet streak={milestone} onContinue={() => setMilestone(null)} />
+          ) : null}
+          {milestone === null && pushFlag && pushOptIn === 'unasked' ? (
+            <PushSoftAskSheet onAnswer={(accepted) => void answerPushSoftAsk(accepted)} />
           ) : null}
         </>
       ) : phase.kind === 'streak' ? (

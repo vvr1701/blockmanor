@@ -61,6 +61,8 @@ export const AccessibilityInfo = {
  */
 export const Platform = {
   OS: 'android' as 'android' | 'ios',
+  /** Android API level; 33+ needs the runtime POST_NOTIFICATIONS grant. */
+  Version: 34 as number | string,
   select<T>(spec: { android?: T; ios?: T; default?: T }): T | undefined {
     return spec[Platform.OS] ?? spec.default;
   },
@@ -202,3 +204,15 @@ export function FlatList(props: FlatListLikeProps<unknown>): ReactElement {
   );
   return createElement('RNFlatList', rest, ...items);
 }
+
+/** §8.7 Android 13+ notification permission. `__result` is what `request` answers. */
+export const PermissionsAndroid = {
+  PERMISSIONS: { POST_NOTIFICATIONS: 'android.permission.POST_NOTIFICATIONS' },
+  RESULTS: { GRANTED: 'granted', DENIED: 'denied' },
+  __result: 'granted' as string,
+  __requests: [] as string[],
+  async request(permission: string): Promise<string> {
+    PermissionsAndroid.__requests.push(permission);
+    return PermissionsAndroid.__result;
+  },
+};

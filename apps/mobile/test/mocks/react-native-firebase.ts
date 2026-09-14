@@ -40,6 +40,13 @@ export const firebaseMock = {
   /** §8.3 callables by name; throw `{ code, details }` to model an HttpsError. */
   callables: {} as Record<string, (data: unknown) => unknown>,
   calls: [] as { name: string; data: unknown }[],
+  /** §8.7 messaging: iOS permission answer (1 authorized, 0 denied), token, and
+   * the notification the app was opened from. */
+  messagingAuth: 1,
+  fcmToken: 'fcm-token-1',
+  initialNotification: null as { data?: Record<string, string> } | null,
+  openedHandlers: [] as ((m: { data?: Record<string, string> }) => void)[],
+  tokenRefreshHandlers: [] as ((token: string) => void)[],
 };
 
 export function resetFirebaseMock(): void {
@@ -57,6 +64,11 @@ export function resetFirebaseMock(): void {
   firebaseMock.docError = null;
   firebaseMock.callables = {};
   firebaseMock.calls = [];
+  firebaseMock.messagingAuth = 1;
+  firebaseMock.fcmToken = 'fcm-token-1';
+  firebaseMock.initialNotification = null;
+  firebaseMock.openedHandlers = [];
+  firebaseMock.tokenRefreshHandlers = [];
 }
 
 // --- app ---
@@ -251,4 +263,37 @@ export async function getDocs(q: {
       ),
     );
   return { docs };
+}
+
+// --- messaging (§8.7) ---
+
+export function getMessaging(): { readonly __messaging: true } {
+  return { __messaging: true };
+}
+
+export async function requestPermission(_m: unknown): Promise<number> {
+  return firebaseMock.messagingAuth;
+}
+
+export async function getToken(_m: unknown): Promise<string> {
+  return firebaseMock.fcmToken;
+}
+
+export function onTokenRefresh(_m: unknown, handler: (token: string) => void): () => void {
+  firebaseMock.tokenRefreshHandlers.push(handler);
+  return () => undefined;
+}
+
+export async function getInitialNotification(
+  _m: unknown,
+): Promise<{ data?: Record<string, string> } | null> {
+  return firebaseMock.initialNotification;
+}
+
+export function onNotificationOpenedApp(
+  _m: unknown,
+  handler: (m: { data?: Record<string, string> }) => void,
+): () => void {
+  firebaseMock.openedHandlers.push(handler);
+  return () => undefined;
 }

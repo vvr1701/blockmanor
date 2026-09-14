@@ -53,6 +53,7 @@ import { Toggle } from '../../components/Toggle';
 import { colors, fontFamily, fontSize, radius, spacing } from '../../components/tokens';
 import { playCue } from '../../game/sfx';
 import { t } from '../../i18n';
+import { syncPushRegistration } from '../../services/push';
 import { getBuildLabel, getInstalledVersion } from '../../services/appInfo';
 import { useMetaStore } from '../../state/useMetaStore';
 import { SETTINGS_RESERVED_ROW_HEIGHT } from './settingsTokens';
@@ -157,12 +158,18 @@ export function SettingsScreen({ onExit }: SettingsScreenProps): React.JSX.Eleme
         <ToggleRow
           label={t('settings.notifications.dailyDrop')}
           value={notificationPrefs.dailyDrop}
-          onValueChange={(v) => setNotificationPref('dailyDrop', v)}
+          onValueChange={(v) => {
+            setNotificationPref('dailyDrop', v);
+            void syncPushRegistration();
+          }}
         />
         <ToggleRow
           label={t('settings.notifications.streakRisk')}
           value={notificationPrefs.streakRisk}
-          onValueChange={(v) => setNotificationPref('streakRisk', v)}
+          onValueChange={(v) => {
+            setNotificationPref('streakRisk', v);
+            void syncPushRegistration();
+          }}
         />
 
         {/* S3 — language (§11.4 localization). Reserved, see file header. */}
