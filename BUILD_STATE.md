@@ -1205,6 +1205,33 @@ already correct. Fix BLOCKERs and MAJORs; defer NITs to a follow-up list.
 Applies from the §12.1 branch onward. The §8.5 re-audit already in flight
 stands — it is daily-board, i.e. mandated.
 
+### S18 — §8.3 Daily Board client merged: service + gate/session/result (2026-09-14)
+
+- **`feat/8.3-daily-client-service` MERGED** (27e7b96). PRD **v1.29**: board read
+  BEFORE play-start (an unreadable board never burns the one attempt);
+  `daily_complete.percentile` omitted when null. Adds RNFB **firestore +
+  functions 26.4.0 — native, needs a new EAS build** before any device check.
+  Audit 1 FAIL → BLOCKER: no local log for `pendingDate` locked the player out
+  until D+36h; fixed with `resolvePendingAttempt` (empty log, valid per §8.6).
+  MAJORs fixed: `already-submitted` recovers the stored result; table test pins
+  every rejection final/retryable. Delta audit → one more MAJOR (stored-log test
+  used `moves: []`, so always-empty survived); fixed with a real move.
+- **`feat/8.3-daily-screens` MERGED** (1f404e9). `DailyGateScreen`,
+  `DailySession` (gate → play-start → `GameplayScreen` → submit →
+  `DailyResultScreen`), `DailyHud`, tile/Home/App wiring, pause restart now
+  optional (daily hides it), `recordDailyPercentile`. UI bar: build + mutation
+  (no-record, restart, no-meta, no-leftover, ignore-pendingDate — all red).
+- **Open §8.3 follow-ups (not built):** 900ms score count-up; worldwide
+  distribution chart (histogram is server-only); gold board frame (device);
+  share card + push (§8.7). **Question for operator:** quitting a daily run from
+  pause ends the one attempt with no confirm — add one?
+- **Open NITs (deferred):** permission-denied conflates not-published /
+  signed-out with not-yet-live; `engineStatus` cast unchecked; recovery read
+  failing offline drops the result display.
+- **Flake watch:** one mobile test failed once under full turbo load on the
+  screens branch and did not reproduce in 4 reruns (2 standalone, 2 turbo). No
+  name captured; rerun with `--reporter=verbose` if it recurs.
+
 ### S17 — daily hardening + EAS Update merged; §8.4 under audit (2026-09-14)
 
 - **`fix/8.x-v1.26-hardening` MERGED** (delta audit PASS on 48ae96a): v1.26
