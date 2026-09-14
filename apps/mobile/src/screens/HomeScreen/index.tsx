@@ -98,6 +98,8 @@ export interface HomeScreenProps {
   onOpenSettings?: () => void;
   /** §12.3 `ProfileScreen` — same shape as `onOpenSettings`. */
   onOpenProfile?: () => void;
+  /** §8.3: the Daily Board tile opens the gate. */
+  onPlayDaily?: () => void;
 }
 
 export function HomeScreen({
@@ -107,6 +109,7 @@ export function HomeScreen({
   now = Date.now(),
   onOpenSettings,
   onOpenProfile,
+  onPlayDaily,
 }: HomeScreenProps): React.JSX.Element {
   const currentLevel = useMetaStore((s) => s.currentLevel);
   const endlessBest = useMetaStore((s) => s.endlessBest);
@@ -213,6 +216,7 @@ export function HomeScreen({
               offline={!online}
               onRetry={() => reportNetworkResult(true)}
               unplayed={badges.dailyUnplayed}
+              {...(onPlayDaily ? { onPress: onPlayDaily } : {})}
               streak={streak}
               pulseOnMount={pulseThisEntry}
             />
