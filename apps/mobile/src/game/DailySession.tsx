@@ -199,7 +199,11 @@ export function DailySession({
   );
 
   const pauseControls = useMemo<PauseControls>(
-    () => ({ onQuit: () => void finish(), onOpenSettings: onOpenSettings ?? NOOP }),
+    () => ({
+      onQuit: () => void finish(),
+      onOpenSettings: onOpenSettings ?? NOOP,
+      confirmQuit: 'daily',
+    }),
     [finish, onOpenSettings],
   );
 

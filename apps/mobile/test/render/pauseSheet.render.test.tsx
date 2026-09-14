@@ -301,6 +301,51 @@ describe('PauseSheet — §12.2 quit-to-map, the >50% confirm boundary', () => {
   });
 });
 
+describe('PauseSheet — §0 v1.30 a Daily run always confirms quitting', () => {
+  function dailyQuit() {
+    const onQuit = vi.fn();
+    const renderer = render(
+      <Sheet
+        goals={[]}
+        moves={2}
+        onResume={noop}
+        onOpenSettings={noop}
+        onQuit={onQuit}
+        confirmQuit="daily"
+      />,
+    );
+    press(byLabel(renderer, en['pause.quit']));
+    return { renderer, onQuit };
+  }
+
+  it('a goal-less Daily run still confirms, with the one-attempt copy, and does not leave yet', () => {
+    const { renderer, onQuit } = dailyQuit();
+    expect(texts(renderer)).toContain(en['pause.confirmDaily.title']);
+    expect(texts(renderer)).toContain(en['pause.confirmDaily.body']);
+    expect(texts(renderer)).not.toContain(en['pause.confirm.title']);
+    expect(onQuit).not.toHaveBeenCalled();
+  });
+
+  it('"Leave anyway" then ends the run, once; "Keep playing" returns to the sheet', () => {
+    const { renderer, onQuit } = dailyQuit();
+    press(byLabel(renderer, en['pause.confirm.stay']));
+    expect(texts(renderer)).toContain(en['pause.title']);
+    press(byLabel(renderer, en['pause.quit']));
+    press(byLabel(renderer, en['pause.confirm.leave']));
+    expect(onQuit).toHaveBeenCalledTimes(1);
+  });
+
+  it('a Daily run has no restart row (one attempt)', () => {
+    const { renderer } = dailyQuit();
+    press(byLabel(renderer, en['pause.confirm.stay']));
+    expect(
+      renderer.root.findAll((n) =>
+        String(n.props.accessibilityLabel ?? '').startsWith(en['pause.restart']),
+      ),
+    ).toHaveLength(0);
+  });
+});
+
 describe('PauseSheet — a11y and contrast (§15, CLAUDE.md a11y rules)', () => {
   function full() {
     return render(

@@ -201,6 +201,8 @@ export interface PauseSheetProps {
   /** §12.2 quit-to-map. Called only AFTER the confirm when §12.2's threshold
    * says one is needed. */
   onQuit: () => void;
+  /** §0 v1.30: `'daily'` always confirms, with the one-attempt copy. */
+  confirmQuit?: 'daily' | undefined;
   /** Which LAYER of the sheet is showing: the pause menu (`false`) or the
    * quit confirm (`true`). Controlled by `GameplayScreen` because that screen
    * owns the single Android `BackHandler` subscription and back must pop one
@@ -218,6 +220,7 @@ export function PauseSheet({
   onRestart,
   onOpenSettings,
   onQuit,
+  confirmQuit,
   confirming,
   onConfirmingChange,
 }: PauseSheetProps): React.JSX.Element {
@@ -225,9 +228,9 @@ export function PauseSheet({
     // §12.2: "quit-to-map (confirm if goals >50% done)". At or below half the
     // player has invested little enough that a second tap is friction, not
     // protection (§1 P6) — leave immediately.
-    if (goalsPastHalf(goals)) onConfirmingChange(true);
+    if (confirmQuit === 'daily' || goalsPastHalf(goals)) onConfirmingChange(true);
     else onQuit();
-  }, [goals, onQuit, onConfirmingChange]);
+  }, [confirmQuit, goals, onQuit, onConfirmingChange]);
 
   const status = [
     ...(levelId === undefined ? [] : [t('gameplay.level', { id: levelId })]),
@@ -245,8 +248,12 @@ export function PauseSheet({
     <ModalSheet>
       {confirming ? (
         <>
-          <Text style={styles.title}>{t('pause.confirm.title')}</Text>
-          <Text style={styles.confirmBody}>{t('pause.confirm.body')}</Text>
+          <Text style={styles.title}>
+            {t(confirmQuit === 'daily' ? 'pause.confirmDaily.title' : 'pause.confirm.title')}
+          </Text>
+          <Text style={styles.confirmBody}>
+            {t(confirmQuit === 'daily' ? 'pause.confirmDaily.body' : 'pause.confirm.body')}
+          </Text>
           <GoldButton
             label={t('pause.confirm.stay')}
             onPress={() => onConfirmingChange(false)}
