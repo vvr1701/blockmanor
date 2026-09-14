@@ -45,6 +45,7 @@ export interface PendingDailyRun {
 }
 
 const PENDING_KEY = 'daily.pendingRun';
+const LAST_RESULT_KEY = 'daily.lastResult';
 const storage = new MMKV({ id: 'blockmanor' });
 
 const REJECTIONS: readonly PlayStartRejection[] = [
@@ -233,6 +234,7 @@ async function sendSubmission(
 
 function accept(data: SubmitResult): DailySubmitOutcome {
   if (readPendingRun()?.date === data.date) clearPendingRun();
+  storage.set(LAST_RESULT_KEY, JSON.stringify({ date: data.date, percentile: data.percentile }));
   track('daily_complete', {
     score: data.score,
     moves: data.moves,
@@ -266,6 +268,23 @@ async function readStoredResult(date: string): Promise<SubmitResult | null> {
     };
   } catch (error) {
     recordError(error, 'daily_result_recover');
+    return null;
+  }
+}
+
+/** The last accepted submission — the gate's "yesterday's percentile" (§8.3)
+ * and its "already played today" hint. Written by every accepted outcome. */
+export interface LastDailyResult {
+  date: string;
+  percentile: number | null;
+}
+
+export function readLastResult(): LastDailyResult | null {
+  const raw = storage.getString(LAST_RESULT_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as LastDailyResult;
+  } catch {
     return null;
   }
 }

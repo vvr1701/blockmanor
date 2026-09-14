@@ -8,6 +8,7 @@ import { colors } from './components/tokens';
 import { DEV_BOARD_ENABLED, FTUE_FORCE_REPLAY } from './game/devFlag';
 import { createDemoGameState } from './game/demoGameState';
 import { LevelSession } from './game/LevelSession';
+import { DailySession } from './game/DailySession';
 import { getInstalledVersion, isBelowMinVersion } from './services/appInfo';
 import { initFirebase, syncRemoteConfig } from './services/firebase';
 import { EndlessScreen } from './screens/EndlessScreen';
@@ -57,6 +58,8 @@ export default function App(): React.JSX.Element {
   // (none exists yet, same gap `devBoard` above already works around) — same
   // local-state seam, not a preview of §7.11's eventual real navigation.
   const [showEndless, setShowEndless] = useState(false);
+  // §8.3 Daily Board flow — the same local-state seam as Endless (no router).
+  const [dailyOpen, setDailyOpen] = useState(false);
   // §12.1: Home's HUD gear AND (via `LevelSession`) `PauseSheet`'s settings
   // shortcut both reach the same local-state seam. Rendered as an OVERLAY
   // sibling (like `AnalyticsDebugOverlay`), not a replacement branch of the
@@ -135,6 +138,15 @@ export default function App(): React.JSX.Element {
                   }}
                   onExit={() => setMapOpen(false)}
                 />
+              ) : dailyOpen ? (
+                <DailySession
+                  onExit={() => setDailyOpen(false)}
+                  onLevels={() => {
+                    setDailyOpen(false);
+                    setMapOpen(true);
+                  }}
+                  onOpenSettings={() => setSettingsOpen(true)}
+                />
               ) : showEndless ? (
                 <EndlessScreen onExit={() => setShowEndless(false)} />
               ) : (
@@ -142,6 +154,7 @@ export default function App(): React.JSX.Element {
                   <HomeScreen
                     onPlay={() => setPlaying(true)}
                     onPlayEndless={() => setShowEndless(true)}
+                    onPlayDaily={() => setDailyOpen(true)}
                     onOpenMap={() => setMapOpen(true)}
                     onOpenSettings={() => setSettingsOpen(true)}
                     onOpenProfile={() => setProfileOpen(true)}

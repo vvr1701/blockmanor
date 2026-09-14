@@ -193,8 +193,8 @@ export interface PauseSheetProps {
   moves: number;
   onResume: () => void;
   /** §12.2 restart. FREE in Stage 1; §9.2's life cost is Stage 2 and is not
-   * modelled, reserved or referenced here. */
-  onRestart: () => void;
+   * modelled, reserved or referenced here. `undefined` hides the row (§8.3). */
+  onRestart?: (() => void) | undefined;
   /** §12.2's "settings shortcut" — routes to §12.1's `SettingsScreen`
    * (divergence 2). */
   onOpenSettings: () => void;
@@ -270,12 +270,14 @@ export function PauseSheet({
 
           <GoldButton label={t('pause.resume')} onPress={onResume} size="lg" style={styles.cta} />
 
-          <SheetRow
-            glyph="↻"
-            title={t('pause.restart')}
-            subtitle={t('pause.restartHint')}
-            onPress={onRestart}
-          />
+          {onRestart ? (
+            <SheetRow
+              glyph="↻"
+              title={t('pause.restart')}
+              subtitle={t('pause.restartHint')}
+              onPress={onRestart}
+            />
+          ) : null}
 
           {/* §12.2's "settings shortcut" -> §12.1's `SettingsScreen`.
               See divergence 2. */}

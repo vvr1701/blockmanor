@@ -57,6 +57,9 @@ export interface DailyBoardTileProps {
   /** §12.4's "with retry". Required whenever `offline` is true, or the state
    * would be a dead end. */
   onRetry?: () => void;
+  /** §8.3: opens the Daily gate. Inert while offline (§12.4 replaces the play
+   * affordance with retry). */
+  onPress?: () => void;
 }
 
 export function DailyBoardTile({
@@ -65,6 +68,7 @@ export function DailyBoardTile({
   pulseOnMount = true,
   offline = false,
   onRetry,
+  onPress,
 }: DailyBoardTileProps): React.JSX.Element {
   const reducedMotion = useReducedMotion();
   const scale = useSharedValue(1);
@@ -81,7 +85,7 @@ export function DailyBoardTile({
 
   const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
-  return (
+  const card = (
     <Animated.View style={[styles.card, style]}>
       {unplayed && !offline ? (
         <BadgeDot label={t('home.dailyBoard.badgeLabel')} style={styles.badgeDot} />
@@ -115,6 +119,19 @@ export function DailyBoardTile({
         </View>
       ) : null}
     </Animated.View>
+  );
+
+  // §12.4: offline, the retry is the ONLY affordance — no tappable card
+  // around it that could not be honoured.
+  if (offline || !onPress) return card;
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={t('home.dailyBoard.title')}
+    >
+      {card}
+    </Pressable>
   );
 }
 

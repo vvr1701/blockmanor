@@ -106,8 +106,9 @@ function GoalRow({ goal }: { goal: GoalBarEntry }): React.JSX.Element {
  */
 export interface PauseControls {
   /** §12.2 restart. FREE in Stage 1 — §9.2's life cost is Stage 2 and is
-   * neither modelled nor reserved here. */
-  onRestart: () => void;
+   * neither modelled nor reserved here. Omitted by a mode with no second try
+   * (§8.3's Daily Board: "One attempt means one"), which hides the row. */
+  onRestart?: () => void;
   /** §12.2 quit-to-map. `moves` is `GameState.placements` at the moment of
    * the quit, for §14's `level_quit{id,moves}`; this screen is the only
    * holder of that number, so it hands it up rather than making the caller
@@ -315,7 +316,7 @@ export function GameplayScreen({
     // that does NOT remount it. `LevelSession` does remount (its `key`
     // carries `attempt`, §0 v1.17), which makes this a no-op there.
     closePause();
-    pause?.onRestart();
+    pause?.onRestart?.();
   }, [closePause, pause]);
 
   const handleQuit = useCallback(() => {
@@ -508,7 +509,7 @@ export function GameplayScreen({
           goals={goals}
           moves={state.placements}
           onResume={closePause}
-          onRestart={handleRestart}
+          onRestart={pause.onRestart ? handleRestart : undefined}
           onOpenSettings={pause.onOpenSettings}
           onQuit={handleQuit}
           confirming={confirming}

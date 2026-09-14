@@ -116,6 +116,9 @@ interface MetaState {
   /** Monotonic: only ever raises `endlessBest`, never lowers it — enforced
    * here (single source of truth) rather than trusted to every call site. */
   setEndlessBest: (score: number) => void;
+  /** §12.3 best daily percentile from a counted §8.4 result. "Top X%": lower
+   * is better, and 0 means none yet, so the first result always lands. */
+  recordDailyPercentile: (percentile: number) => void;
   setSfxEnabled: (enabled: boolean) => void;
   setMusicEnabled: (enabled: boolean) => void;
   setHapticsEnabled: (enabled: boolean) => void;
@@ -285,6 +288,13 @@ export const useMetaStore = create<MetaState>()(
         }),
       setEndlessBest: (score) =>
         set((state) => ({ endlessBest: Math.max(state.endlessBest, score) })),
+      recordDailyPercentile: (percentile) =>
+        set((state) => ({
+          bestDailyPercentile:
+            state.bestDailyPercentile === 0
+              ? percentile
+              : Math.min(state.bestDailyPercentile, percentile),
+        })),
       setSfxEnabled: (sfxEnabled) => set({ sfxEnabled }),
       setMusicEnabled: (musicEnabled) => set({ musicEnabled }),
       setHapticsEnabled: (hapticsEnabled) => set({ hapticsEnabled }),
