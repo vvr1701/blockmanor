@@ -2,10 +2,20 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import {
   DAILY_BOARDS_COLLECTION,
   REMOTE_CONFIG_DEFAULTS,
+  dailyGameConfig,
+  dailyPlaySeed,
   engineVersion,
   type DailyBoardDoc,
 } from '@blockmanor/shared';
 import {
+  applyPlacement,
+  createGame,
+  getLegalPlacements,
+  type Move,
+  type PieceId,
+} from '@blockmanor/engine';
+import {
+  claimedScoreFor,
   clearPendingRun,
   readPendingRun,
   recordDailyMove,
@@ -20,7 +30,7 @@ import { firebaseMock, resetFirebaseMock } from './mocks/react-native-firebase';
  */
 
 const DATE = '2026-08-09';
-const SEQUENCE = ['P01', 'P02', 'P03'];
+const SEQUENCE: PieceId[] = ['P01', 'P02', 'P03'];
 
 /** Same minimal document `packages/shared/test/dailyBoard.test.ts` uses. */
 const board = (): DailyBoardDoc => ({
@@ -155,5 +165,25 @@ describe('§8.3 pending run log', () => {
   it('ignores a placement with no run in progress', () => {
     recordDailyMove({ pieceIndex: 0, r: 0, c: 0 });
     expect(readPendingRun()).toBeNull();
+  });
+});
+
+describe('§8.5 claimedScoreFor', () => {
+  it('replays a persisted run to the score the live game reached', () => {
+    const engineConfig = board().engineConfig;
+    let state = createGame(dailyGameConfig(engineConfig, SEQUENCE, DATE), dailyPlaySeed(DATE));
+    const moves: Move[] = [];
+    for (let i = 0; i < 3; i++) {
+      const [move] = getLegalPlacements(state, i);
+      if (!move) break;
+      moves.push(move);
+      state = applyPlacement(state, move).state;
+    }
+    expect(moves.length).toBeGreaterThan(0);
+    expect(state.score).toBeGreaterThan(0);
+    expect(claimedScoreFor({ date: DATE, engineConfig, sequence: SEQUENCE, moves })).toBe(
+      state.score,
+    );
+    expect(claimedScoreFor({ date: DATE, engineConfig, sequence: SEQUENCE, moves: [] })).toBe(0);
   });
 });

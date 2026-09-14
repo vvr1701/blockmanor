@@ -1,9 +1,10 @@
 import { doc, getDoc, getFirestore } from '@react-native-firebase/firestore';
 import { getFunctions, httpsCallable } from '@react-native-firebase/functions';
-import type { GameConfig, Move, PieceId } from '@blockmanor/engine';
+import { simulate, type GameConfig, type Move, type PieceId } from '@blockmanor/engine';
 import {
   DAILY_BOARDS_COLLECTION,
   dailyGameConfig,
+  dailyPlaySeed,
   parseDailyBoardDoc,
   type DailyEngineConfig,
   type PlayStartRejection,
@@ -121,4 +122,15 @@ export function readPendingRun(): PendingDailyRun | null {
 
 export function clearPendingRun(): void {
   storage.delete(PENDING_KEY);
+}
+
+/**
+ * §8.5 `claimedScore` for a persisted run: replayed through the SAME shared
+ * builder and seed the server re-simulates with. A run resubmitted after an
+ * app kill has no live game state to read a score from, and a claim that
+ * disagrees with the replay is rejected as `score-mismatch`.
+ */
+export function claimedScoreFor(run: PendingDailyRun): number {
+  const config = dailyGameConfig(run.engineConfig, run.sequence, run.date);
+  return simulate(config, dailyPlaySeed(run.date), run.moves).score;
 }
