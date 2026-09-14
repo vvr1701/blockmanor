@@ -1205,6 +1205,34 @@ already correct. Fix BLOCKERs and MAJORs; defer NITs to a follow-up list.
 Applies from the §12.1 branch onward. The §8.5 re-audit already in flight
 stands — it is daily-board, i.e. mandated.
 
+### S20 — daily quit confirm, §8.7 share card + push merged (2026-09-14)
+
+- **`fix/12.2-daily-quit-confirm` MERGED** (PRD **v1.30**, operator-approved):
+  a Daily run always confirms quitting, with one-attempt copy; levels keep the
+  >50% rule.
+- **`feat/8.7-share-card` MERGED** (PRD **v1.31**). Spoiler-free 1080² card
+  drawn offscreen with Skia (pure content model tested; the drawing itself is
+  device-only). `react-native-share`: direct WhatsApp, native sheet fallback.
+  Install link = RC `share_install_url` (default `https://blockmanor.game`)
+  until an MMP exists; `install_attributed` unfired until then. Story share not
+  built (needs Meta app registration).
+- **`feat/8.7-push` MERGED** (PRD **v1.32**). `registerPush` callable +
+  `sendPushScheduled` every 15 min matching exact UTC offsets (both ends when
+  +14:00 / −10:00 coincide). Streak-risk only for a live streak with today
+  unsubmitted; emits `daily_missed` as a structured server event; dead tokens
+  removed. One surviving mutation (ignore-submitted) closed with a
+  below-min-moves case.
+- **`feat/8.7-push-client` MERGED.** One-time soft-ask on the first Daily
+  result (after any milestone sheet), `flag_push`-gated; OS dialog only after
+  "Notify me" (Android 13 POST_NOTIFICATIONS / iOS messaging). Re-registers on
+  opt-in, open, token refresh, pref change. `route: daily` opens the gate.
+  `pushOptIn` persisted (meta v9).
+- **Native deps added this stage — ONE new EAS build covers all:**
+  RNFB firestore, functions, messaging; react-native-share.
+- **Operator items raised:** `blockmanor.game` domain (share link default) —
+  own it or change the RC value; MMP account for attribution; FCM needs the
+  Firebase project (Blaze) and, for iOS, an APNs key.
+
 ### S19 — §8.6 streak client merged (2026-09-14)
 
 - **`feat/8.6-streak-screen` MERGED.** `StreakScreen` (mockup 4.5): calendar
