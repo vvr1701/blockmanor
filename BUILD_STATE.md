@@ -1205,6 +1205,22 @@ already correct. Fix BLOCKERs and MAJORs; defer NITs to a follow-up list.
 Applies from the §12.1 branch onward. The §8.5 re-audit already in flight
 stands — it is daily-board, i.e. mandated.
 
+### S19 — §8.6 streak client merged (2026-09-14)
+
+- **`feat/8.6-streak-screen` MERGED.** `StreakScreen` (mockup 4.5): calendar
+  month view from the player's own SUBMITTED days on the server
+  (`readPlayedDates`, owner-readable `users/{uid}/submissions`; `null` renders
+  as loading, never as an empty month), longest streak, flame tier. Milestone
+  celebration sheet over the result at 7/30/100 (bronze/silver/gold per PRD —
+  the mockup's tier labels differ; PRD wins). §14 `streak_milestone{n}` and
+  `streak_broken{n}` fire from each accepted submission against the streak this
+  device last showed (a 1→1 reset is not reported rather than guessed). Opened
+  from the gate's streak stat. UI bar: mutations no-sheet, no-events, no-dates
+  — all red.
+- **Not built (Stage 2 / other sections):** Streak Freeze, Repair, "missed a
+  day" screen, milestone rewards (economy); "Share the streak" (§8.7);
+  "Every day since …" (server returns the count, not the start date).
+
 ### S18 — §8.3 Daily Board client merged: service + gate/session/result (2026-09-14)
 
 - **`feat/8.3-daily-client-service` MERGED** (27e7b96). PRD **v1.29**: board read
