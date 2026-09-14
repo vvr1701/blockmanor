@@ -24,6 +24,8 @@ import {
   readPendingRun,
   recordDailyMove,
   startDailyRun,
+  resolvePendingAttempt,
+  savePendingRun,
   submitPendingRun,
 } from '../src/services/dailyClient';
 import { firebaseMock, resetFirebaseMock } from './mocks/react-native-firebase';
@@ -276,5 +278,118 @@ describe('§8.3 submitPendingRun', () => {
     });
     expect(readPendingRun()).toBeNull();
     expect(trackMock.mock.calls.filter(([name]) => name === 'daily_complete')).toHaveLength(0);
+  });
+});
+
+describe('§8.3 audit fixes: pending attempts, lost accepts, final rejections', () => {
+  const rejectWith = (reason: string) => {
+    firebaseMock.callables['dailySubmit'] = () => {
+      throw Object.assign(new Error('failed-precondition'), {
+        code: 'functions/failed-precondition',
+        details: { reason },
+      });
+    };
+  };
+  const acceptAnything = () => {
+    firebaseMock.callables['dailySubmit'] = (data) => ({
+      date: (data as { date: string }).date,
+      score: 0,
+      status: 'lost',
+      moves: 0,
+      streak: 1,
+      streakGranted: false,
+      countsForPercentile: true,
+      percentile: null,
+    });
+  };
+  const run = (date = DATE) => ({
+    date,
+    engineConfig: board().engineConfig,
+    sequence: SEQUENCE,
+    moves: [] as { pieceIndex: number; r: number; c: number }[],
+  });
+
+  it('clears a pending day with the empty log when no local run is that day (§8.6)', async () => {
+    acceptAnything();
+    savePendingRun(run(DATE));
+    await expect(resolvePendingAttempt('2026-08-08')).resolves.toMatchObject({ kind: 'accepted' });
+    expect(firebaseMock.calls.at(-1)).toStrictEqual({
+      name: 'dailySubmit',
+      data: { date: '2026-08-08', moves: [], claimedScore: 0 },
+    });
+    // Today's own run is untouched.
+    expect(readPendingRun()?.date).toBe(DATE);
+  });
+
+  it("submits the stored log when it IS the pending day's", async () => {
+    acceptAnything();
+    savePendingRun({ ...run(DATE), moves: [] });
+    await resolvePendingAttempt(DATE);
+    expect(firebaseMock.calls.at(-1)?.data).toMatchObject({ date: DATE });
+    expect(readPendingRun()).toBeNull();
+  });
+
+  it('a log that cannot replay is replaced by the empty log, never kept forever', async () => {
+    acceptAnything();
+    savePendingRun({ ...run(DATE), moves: [{ pieceIndex: 9, r: 0, c: 0 }] });
+    await expect(submitPendingRun()).resolves.toMatchObject({ kind: 'accepted' });
+    expect(firebaseMock.calls.at(-1)?.data).toStrictEqual({
+      date: DATE,
+      moves: [],
+      claimedScore: 0,
+    });
+    expect(readPendingRun()).toBeNull();
+  });
+
+  it('recovers an already-accepted submission instead of losing its result', async () => {
+    firebaseMock.currentUser = { uid: 'u1' };
+    firebaseMock.docs[`users/u1/submissions/${DATE}`] = {
+      status: 'submitted',
+      score: 55,
+      engineStatus: 'lost',
+      moveCount: 3,
+      streakGranted: true,
+      countsForPercentile: true,
+      percentile: 9,
+    };
+    firebaseMock.docs['users/u1'] = { streak: 6 };
+    savePendingRun(run(DATE));
+    rejectWith('already-submitted');
+    await expect(submitPendingRun()).resolves.toStrictEqual({
+      kind: 'accepted',
+      result: {
+        date: DATE,
+        score: 55,
+        status: 'lost',
+        moves: 3,
+        streak: 6,
+        streakGranted: true,
+        countsForPercentile: true,
+        percentile: 9,
+      },
+    });
+    expect(trackMock).toHaveBeenCalledWith('daily_complete', {
+      score: 55,
+      moves: 3,
+      percentile: 9,
+    });
+    expect(readPendingRun()).toBeNull();
+  });
+
+  it.each([
+    ['not-published', true],
+    ['board-unreadable', true],
+    ['not-yet-live', true],
+    ['stale-date', false],
+    ['too-many-moves', false],
+    ['not-started', false],
+    ['already-submitted', false],
+    ['illegal-move', false],
+    ['score-mismatch', false],
+  ])('rejection %s keeps the run: %s', async (reason, kept) => {
+    savePendingRun(run(DATE));
+    rejectWith(reason);
+    await expect(submitPendingRun()).resolves.toStrictEqual({ kind: 'rejected', reason });
+    expect(readPendingRun() !== null).toBe(kept);
   });
 });

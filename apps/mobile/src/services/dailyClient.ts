@@ -1,8 +1,11 @@
 import { doc, getDoc, getFirestore } from '@react-native-firebase/firestore';
+import { getAuth } from '@react-native-firebase/auth';
 import { getFunctions, httpsCallable } from '@react-native-firebase/functions';
 import { simulate, type GameConfig, type Move, type PieceId } from '@blockmanor/engine';
 import {
+  DAILY_ATTEMPTS_SUBCOLLECTION,
   DAILY_BOARDS_COLLECTION,
+  USERS_COLLECTION,
   dailyGameConfig,
   dailyPlaySeed,
   parseDailyBoardDoc,
@@ -170,31 +173,99 @@ const RETRYABLE: readonly SubmitRejection[] = ['not-published', 'board-unreadabl
 export async function submitPendingRun(): Promise<DailySubmitOutcome> {
   const run = readPendingRun();
   if (!run) return { kind: 'none' };
+  let claimedScore: number;
+  try {
+    claimedScore = claimedScoreFor(run);
+  } catch (error) {
+    // A log that cannot even replay locally can never land; left in place it
+    // would be kept forever and block the next day (§0 v1.26(a)). Consume the
+    // attempt with the always-valid empty log instead.
+    recordError(error, 'daily_replay');
+    return sendSubmission(run.date, [], 0);
+  }
+  return sendSubmission(run.date, run.moves, claimedScore);
+}
+
+/**
+ * §8.6 / §0 v1.26(a): play-start refused with `pending-attempt` for
+ * `pendingDate`. Submits the stored log when it is that day's; otherwise —
+ * play-start's response was lost, the app died before the run was saved, or
+ * the saved run is unreadable — the empty log, which §8.6 names as valid and
+ * which always replays to 0, so it needs neither the board nor the sequence.
+ */
+export async function resolvePendingAttempt(pendingDate: string): Promise<DailySubmitOutcome> {
+  if (readPendingRun()?.date === pendingDate) return submitPendingRun();
+  return sendSubmission(pendingDate, [], 0);
+}
+
+async function sendSubmission(
+  date: string,
+  moves: Move[],
+  claimedScore: number,
+): Promise<DailySubmitOutcome> {
   if (!isFirebaseConfigured()) return { kind: 'offline' };
   try {
     const call = httpsCallable<{ date: string; moves: Move[]; claimedScore: number }, SubmitResult>(
       getFunctions(),
       'dailySubmit',
     );
-    const { data } = await call({
-      date: run.date,
-      moves: run.moves,
-      claimedScore: claimedScoreFor(run),
-    });
-    clearPendingRun();
-    track('daily_complete', {
-      score: data.score,
-      moves: data.moves,
-      ...(data.percentile === null ? {} : { percentile: data.percentile }),
-    });
-    return { kind: 'accepted', result: data };
+    const { data } = await call({ date, moves, claimedScore });
+    return accept(data);
   } catch (error) {
     const reason = (error as { details?: { reason?: unknown } } | null)?.details?.reason;
     if (SUBMIT_REJECTIONS.includes(reason as SubmitRejection)) {
-      if (!RETRYABLE.includes(reason as SubmitRejection)) clearPendingRun();
+      if (readPendingRun()?.date === date && !RETRYABLE.includes(reason as SubmitRejection)) {
+        clearPendingRun();
+      }
+      if (reason === 'already-submitted') {
+        // A retry of a submission the server already accepted (its response
+        // was lost): the result exists server-side, so recover it rather than
+        // losing the player's score, rank and `daily_complete`.
+        const stored = await readStoredResult(date);
+        if (stored) return accept(stored);
+      }
       return { kind: 'rejected', reason: reason as SubmitRejection };
     }
     recordError(error, 'daily_submit');
     return { kind: 'offline' };
+  }
+}
+
+function accept(data: SubmitResult): DailySubmitOutcome {
+  if (readPendingRun()?.date === data.date) clearPendingRun();
+  track('daily_complete', {
+    score: data.score,
+    moves: data.moves,
+    ...(data.percentile === null ? {} : { percentile: data.percentile }),
+  });
+  return { kind: 'accepted', result: data };
+}
+
+/** The accepted submission as the server stored it (owner-readable under the rules). */
+async function readStoredResult(date: string): Promise<SubmitResult | null> {
+  const uid = getAuth().currentUser?.uid;
+  if (!uid) return null;
+  try {
+    const db = getFirestore();
+    const attempt = await getDoc(
+      doc(db, `${USERS_COLLECTION}/${uid}/${DAILY_ATTEMPTS_SUBCOLLECTION}/${date}`),
+    );
+    const user = await getDoc(doc(db, `${USERS_COLLECTION}/${uid}`));
+    const a = (attempt.exists() ? attempt.data() : null) as Record<string, unknown> | null;
+    const u = (user.exists() ? user.data() : null) as Record<string, unknown> | null;
+    if (!a || a['status'] !== 'submitted' || typeof a['score'] !== 'number') return null;
+    return {
+      date,
+      score: a['score'],
+      status: a['engineStatus'] as SubmitResult['status'],
+      moves: typeof a['moveCount'] === 'number' ? a['moveCount'] : 0,
+      streak: typeof u?.['streak'] === 'number' ? u['streak'] : 0,
+      streakGranted: a['streakGranted'] === true,
+      countsForPercentile: a['countsForPercentile'] === true,
+      percentile: typeof a['percentile'] === 'number' ? a['percentile'] : null,
+    };
+  } catch (error) {
+    recordError(error, 'daily_result_recover');
+    return null;
   }
 }
