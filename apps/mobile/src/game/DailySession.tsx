@@ -24,6 +24,7 @@ import {
   readLastResult,
   readPendingRun,
   recordDailyMove,
+  resolvePendingAttempt,
   startDailyRun,
   submitPendingRun,
   type DailySubmitOutcome,
@@ -125,7 +126,14 @@ export function DailySession({
     setPhase({ kind: 'gate', status: { kind: 'busy', message: null } });
     let outcome = await startDailyRun(date);
     if (outcome.kind === 'refused' && outcome.reason === 'pending-attempt') {
-      settle(await submitPendingRun(), false);
+      // §0 v1.26(a): clear the older day first — its stored log if we have it,
+      // the empty log otherwise (`resolvePendingAttempt`).
+      settle(
+        outcome.pendingDate
+          ? await resolvePendingAttempt(outcome.pendingDate)
+          : await submitPendingRun(),
+        false,
+      );
       outcome = await startDailyRun(date);
     }
     if (outcome.kind === 'ready') {
