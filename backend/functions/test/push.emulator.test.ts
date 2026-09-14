@@ -112,6 +112,17 @@ describe('§0 v1.32(b,c) runPushScan', () => {
           push: reg({ token: 'tok-quiet', streakRisk: false }),
         });
 
+      // Submitted today below daily_streak_min_moves: no credit, but the board
+      // is spent — nothing left to nudge towards, and not a missed day.
+      await users()
+        .doc('shortrun')
+        .set({ streak: 5, lastStreakDate: YESTERDAY, push: reg({ token: 'tok-short' }) });
+      await users()
+        .doc('shortrun')
+        .collection(DAILY_ATTEMPTS_SUBCOLLECTION)
+        .doc(TODAY)
+        .set({ status: 'submitted' });
+
       const { sent, send } = sender();
       await expect(runPushScan(RISK_AT, HOUR, send)).resolves.toMatchObject({ sent: 1, missed: 2 });
       expect(sent.map((m) => [m.token, m.kind])).toStrictEqual([['tok-risk', 'streak_risk']]);
