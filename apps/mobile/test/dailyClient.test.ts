@@ -323,9 +323,21 @@ describe('§8.3 audit fixes: pending attempts, lost accepts, final rejections', 
 
   it("submits the stored log when it IS the pending day's", async () => {
     acceptAnything();
-    savePendingRun({ ...run(DATE), moves: [] });
+    // A REAL log: with `moves: []` the stored log and the empty fallback would
+    // send the very same call, and replacing a real run would go unnoticed.
+    const engineConfig = board().engineConfig;
+    const state = createGame(dailyGameConfig(engineConfig, SEQUENCE, DATE), dailyPlaySeed(DATE));
+    const [move] = getLegalPlacements(state, 0);
+    const stored = { date: DATE, engineConfig, sequence: SEQUENCE, moves: [move!] };
+    const claimedScore = claimedScoreFor(stored);
+    expect(claimedScore).toBeGreaterThan(0);
+    savePendingRun(stored);
+
     await resolvePendingAttempt(DATE);
-    expect(firebaseMock.calls.at(-1)?.data).toMatchObject({ date: DATE });
+    expect(firebaseMock.calls.at(-1)).toStrictEqual({
+      name: 'dailySubmit',
+      data: { date: DATE, moves: [move], claimedScore },
+    });
     expect(readPendingRun()).toBeNull();
   });
 
