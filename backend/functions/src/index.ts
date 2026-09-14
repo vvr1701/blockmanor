@@ -11,7 +11,7 @@
  *  - `dailySubmit` — §8.5 anti-cheat submission: re-simulates the move log from
  *    the frozen `engineConfig` snapshot, and awards the §8.6 streak.
  *
- * Still to come: §8.4's percentile histogram.
+ * §8.4's percentile histogram is maintained inside `dailySubmit`.
  */
 
 export { generateDailyBoardScheduled, regenerateDailyBoard } from './daily/publish';

@@ -30,7 +30,13 @@
 import {
   DAILY_ATTEMPTS_SUBCOLLECTION,
   DAILY_BOARDS_COLLECTION,
+  DAILY_HISTOGRAM_BUCKETS,
+  DAILY_HISTOGRAM_BUCKET_WIDTH,
+  DAILY_HISTOGRAM_DOC,
   DAILY_MOVE_LOGS_SUBCOLLECTION,
+  DAILY_STATS_SUBCOLLECTION,
+  dailyHistogramBucket,
+  dailyTopPercent,
   DAILY_STALE_AFTER_MS,
   USERS_COLLECTION,
   dailyGameConfig,
@@ -92,6 +98,8 @@ export interface SubmitResult {
    * histogram excludes it and the client shows no percentile.
    */
   countsForPercentile: boolean;
+  /** §8.4 (§0 v1.28) "Top X%", fixed at submission; null = "Early bird!" or not counted. */
+  percentile: number | null;
 }
 
 /**
@@ -296,6 +304,15 @@ export async function submitDailyAttempt(
     .doc(payload.date)
     .collection(DAILY_MOVE_LOGS_SUBCOLLECTION)
     .doc(movesHash);
+  // ponytail: one histogram document per day, and Firestore sustains about one
+  // write/s per document, so every counted submission contends on it. Fine for
+  // the closed beta; shard it into N counter documents summed on read when a
+  // day's submissions approach that rate.
+  const histogramRef = db
+    .collection(DAILY_BOARDS_COLLECTION)
+    .doc(payload.date)
+    .collection(DAILY_STATS_SUBCOLLECTION)
+    .doc(DAILY_HISTOGRAM_DOC);
   const streakState = await db.runTransaction(async (tx) => {
     // THE concurrency guard for §8.5 ">1 submission/user/day": this read is
     // inside the transaction, so Firestore aborts and retries a racing loser,
@@ -342,8 +359,30 @@ export async function submitDailyAttempt(
     // owns it. Read before any write (Firestore transactions require it); a
     // racing identical log serializes on this document.
     const countsForPercentile = !(await tx.get(logRef)).exists;
+
+    // §8.4 (§0 v1.28): counted in the SAME transaction that accepts the
+    // submission, so the histogram can neither miss an accepted run nor count a
+    // rejected one, and two racing counted submissions cannot lose an increment.
+    let percentile: number | null = null;
+    let buckets: number[] | undefined;
     if (countsForPercentile) {
+      const stored: unknown = (await tx.get(histogramRef)).get('buckets');
+      buckets =
+        Array.isArray(stored) && stored.length === DAILY_HISTOGRAM_BUCKETS
+          ? stored.map((n) => (typeof n === 'number' ? n : 0))
+          : Array.from({ length: DAILY_HISTOGRAM_BUCKETS }, () => 0);
+      const bucket = dailyHistogramBucket(result.score);
+      buckets[bucket] = (buckets[bucket] ?? 0) + 1;
+      percentile = dailyTopPercent(buckets, result.score);
+    }
+
+    if (countsForPercentile && buckets) {
       tx.create(logRef, { uid, submittedAt: new Date(now).toISOString() });
+      tx.set(histogramRef, {
+        buckets,
+        total: buckets.reduce((sum, n) => sum + n, 0),
+        bucketWidth: DAILY_HISTOGRAM_BUCKET_WIDTH,
+      });
     }
 
     // `update`, not `set(..., {merge: true})`: the guard above proves a
@@ -362,9 +401,10 @@ export async function submitDailyAttempt(
       engineVersionAtSubmit: engineVersion(),
       movesHash,
       countsForPercentile,
+      percentile,
     });
     tx.set(userRef, after, { merge: true });
-    return { before, after, countsForPercentile };
+    return { before, after, countsForPercentile, percentile };
   });
 
   logger.info('daily_submit: accepted', {
@@ -386,6 +426,7 @@ export async function submitDailyAttempt(
     streak: streakState.after.streak,
     streakGranted: streakState.after.streak !== streakState.before.streak,
     countsForPercentile: streakState.countsForPercentile,
+    percentile: streakState.percentile,
   };
 }
 
