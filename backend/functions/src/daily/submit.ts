@@ -53,6 +53,9 @@ import { getApps, initializeApp } from 'firebase-admin/app';
 import { getFirestore } from 'firebase-admin/firestore';
 import { logger } from 'firebase-functions/v2';
 import { HttpsError, onCall } from 'firebase-functions/v2/https';
+// §8.5 response + rejection types live in @blockmanor/shared: the client routes on them.
+export type { SubmitRejection, SubmitResult } from '@blockmanor/shared';
+import type { SubmitRejection, SubmitResult } from '@blockmanor/shared';
 import { DAILY_BOARD_SALT, raiseOpsAlert } from './publish';
 import { attemptSeed, dailySeed, openSequence } from './seal';
 import { nextStreak, streakMinMoves, type StreakState } from './streak';
@@ -65,42 +68,11 @@ import { nextStreak, streakMinMoves, type StreakState } from './streak';
  */
 const STALE_AFTER_MS = DAILY_STALE_AFTER_MS;
 
-/** Distinct `HttpsError.details.reason` values — §8.5 rejects each separately. */
-export type SubmitRejection =
-  | 'not-published'
-  | 'board-unreadable'
-  | 'not-yet-live'
-  | 'stale-date'
-  | 'too-many-moves'
-  | 'not-started'
-  | 'already-submitted'
-  | 'illegal-move'
-  | 'score-mismatch';
-
 const reject = (
   reason: SubmitRejection,
   message: string,
   code: 'not-found' | 'failed-precondition' | 'permission-denied' = 'failed-precondition',
 ): HttpsError => new HttpsError(code, message, { reason });
-
-export interface SubmitResult {
-  date: string;
-  /** The RE-SIMULATED score. The claimed one is never stored, only compared. */
-  score: number;
-  status: FinalResult['status'];
-  moves: number;
-  /** §8.6, server-authoritative. */
-  streak: number;
-  streakGranted: boolean;
-  /**
-   * §0 v1.26(b): false when an identical move log was already accepted for this
-   * day. The submission still counts for the attempt and the streak, but §8.4's
-   * histogram excludes it and the client shows no percentile.
-   */
-  countsForPercentile: boolean;
-  /** §8.4 (§0 v1.28) "Top X%", fixed at submission; null = "Early bird!" or not counted. */
-  percentile: number | null;
-}
 
 /**
  * §0 v1.26(b)/v1.27: stable identity of a move log. A daily tray yields exactly

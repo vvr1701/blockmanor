@@ -36,6 +36,7 @@ import {
   type GameState,
   type GameStatus,
   type Move,
+  type FinalResult,
   type PieceId,
 } from '@blockmanor/engine';
 import { z } from 'zod';
@@ -532,3 +533,66 @@ export const dailySubmissionSchema = z.object({
 });
 
 export type DailySubmission = z.infer<typeof dailySubmissionSchema>;
+
+/**
+ * §8.3 play-start response (§0 v1.19: the OPENED sequence, never the key), and
+ * its distinct rejection reasons, so the client can route each. Implemented by
+ * `backend/functions/src/daily/playStart.ts`.
+ */
+export interface PlayStartResult {
+  date: string;
+  /**
+   * The OPENED §8.2 piece sequence, not the key that opens it.
+   *
+   * The security property §8.2/§8.3 buys is that the sequence is unreadable
+   * before `activatesAt` and that the attempt is consumed before anything is
+   * handed over. Both hold identically either way: once this call has consumed
+   * the attempt and responded, plaintext discloses exactly what the key
+   * discloses. The key's only remaining advantage was payload size, and
+   * `daily_piece_count` is 60 three-character ids.
+   *
+   * Against that, handing over the key forces an AES-256-GCM implementation
+   * into React Native, where `node:crypto` does not exist — a native crypto
+   * dependency, permanently in the build, to decrypt something the server can
+   * simply send. The seal still does its whole job: it is what keeps the
+   * sequence unreadable in `dailyBoards/{date}` until this callable opens it.
+   */
+  sequence: PieceId[];
+  /** Echoed so the client's countdown/attempt badge runs off server time. */
+  startedAt: string;
+}
+
+/** Distinct `HttpsError.details.reason` values, so the client can route each. */
+export type PlayStartRejection =
+  'not-published' | 'not-yet-live' | 'closed' | 'attempt-consumed' | 'pending-attempt';
+
+/** Distinct `HttpsError.details.reason` values — §8.5 rejects each separately. */
+export type SubmitRejection =
+  | 'not-published'
+  | 'board-unreadable'
+  | 'not-yet-live'
+  | 'stale-date'
+  | 'too-many-moves'
+  | 'not-started'
+  | 'already-submitted'
+  | 'illegal-move'
+  | 'score-mismatch';
+
+export interface SubmitResult {
+  date: string;
+  /** The RE-SIMULATED score. The claimed one is never stored, only compared. */
+  score: number;
+  status: FinalResult['status'];
+  moves: number;
+  /** §8.6, server-authoritative. */
+  streak: number;
+  streakGranted: boolean;
+  /**
+   * §0 v1.26(b): false when an identical move log was already accepted for this
+   * day. The submission still counts for the attempt and the streak, but §8.4's
+   * histogram excludes it and the client shows no percentile.
+   */
+  countsForPercentile: boolean;
+  /** §8.4 (§0 v1.28) "Top X%", fixed at submission; null = "Early bird!" or not counted. */
+  percentile: number | null;
+}

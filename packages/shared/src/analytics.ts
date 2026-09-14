@@ -95,6 +95,22 @@ export interface EndlessEndParams {
   best: number;
 }
 
+/** §8.3 Daily gate shown. §14 lists no params. */
+export type DailyViewParams = Record<never, never>;
+
+/** §8.3 play-start succeeded and the run began. §14 lists no params. */
+export type DailyStartParams = Record<never, never>;
+
+/** §8.3 run submitted and accepted (§14 `daily_complete{score,percentile,moves}`). */
+export interface DailyCompleteParams {
+  /** The server's RE-SIMULATED score (§8.5), never the client's claim. */
+  score: number;
+  /** §8.4 "Top X%". Omitted, not null (Firebase has no null param), while the
+   * day is in "Early bird!" or the log was not counted (§0 v1.26(b)). */
+  percentile?: number;
+  moves: number;
+}
+
 /** Keyed by §14 event name; extend per-section as each PRD subsection lands. */
 export interface AnalyticsEvents {
   ftue_step: FtueStepParams;
@@ -104,6 +120,9 @@ export interface AnalyticsEvents {
   level_fail: LevelFailParams;
   level_quit: LevelQuitParams;
   endless_end: EndlessEndParams;
+  daily_view: DailyViewParams;
+  daily_start: DailyStartParams;
+  daily_complete: DailyCompleteParams;
 }
 
 export type AnalyticsEventName = keyof AnalyticsEvents;
