@@ -198,5 +198,7 @@
   "streak.milestone.title": "{{n}} days.",
   "streak.milestone.line": "The manor notices.",
   "streak.milestone.continue": "Continue",
-  "daily.gate.openStreak": "Open your streak calendar"
+  "daily.gate.openStreak": "Open your streak calendar",
+  "pause.confirmDaily.title": "End today's board?",
+  "pause.confirmDaily.body": "This is your only attempt. Leaving submits your board as it stands."
 }

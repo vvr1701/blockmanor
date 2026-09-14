@@ -144,6 +144,8 @@ describe('DailySession (PRD §8.3)', () => {
     expect(state.config.pieceSequence).toStrictEqual(SEQUENCE);
     // "One attempt means one": the pause sheet gets no restart.
     expect(screen.props.pause.onRestart).toBeUndefined();
+    // §0 v1.30: quitting the one attempt always asks first.
+    expect(screen.props.pause.confirmQuit).toBe('daily');
   });
 
   it('persists each placement and submits when the run ends, then shows the result', async () => {

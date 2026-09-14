@@ -118,6 +118,8 @@ export interface PauseControls {
    * has no navigation of its own (same reason it can't restart/quit itself)
    * so it hands the press straight up, unchanged. */
   onOpenSettings: () => void;
+  /** §0 v1.30: `'daily'` confirms every quit — the run is the player's one attempt. */
+  confirmQuit?: 'daily';
 }
 
 export interface GameplayScreenProps {
@@ -512,6 +514,7 @@ export function GameplayScreen({
           onRestart={pause.onRestart ? handleRestart : undefined}
           onOpenSettings={pause.onOpenSettings}
           onQuit={handleQuit}
+          confirmQuit={pause.confirmQuit}
           confirming={confirming}
           onConfirmingChange={setConfirming}
         />
