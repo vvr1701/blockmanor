@@ -69,6 +69,34 @@ export const DAILY_STALE_AFTER_MS = 36 * 3_600_000;
  */
 export const DAILY_MOVE_LOGS_SUBCOLLECTION = 'moveLogs';
 
+/** §8.4 (§0 v1.28): `dailyBoards/{date}/stats/histogram`, server-written only. */
+export const DAILY_STATS_SUBCOLLECTION = 'stats';
+export const DAILY_HISTOGRAM_DOC = 'histogram';
+export const DAILY_HISTOGRAM_BUCKETS = 100;
+/** Measured, not guessed: bot p99 is ~2,900, so 0–4,999 is resolved. */
+export const DAILY_HISTOGRAM_BUCKET_WIDTH = 50;
+/** §8.4: "Before 100 submissions exist, show 'Early bird!'". */
+export const DAILY_PERCENTILE_MIN_SUBMISSIONS = 100;
+
+/** §0 v1.28(i): the open top bucket holds every score past the resolved range. */
+export const dailyHistogramBucket = (score: number): number =>
+  Math.min(
+    DAILY_HISTOGRAM_BUCKETS - 1,
+    Math.floor(Math.max(0, score) / DAILY_HISTOGRAM_BUCKET_WIDTH),
+  );
+
+/**
+ * §0 v1.28(iii)/(iv): "Top X%" for `score`, from a histogram that ALREADY
+ * includes it. Ties within a bucket share the better rank. `null` while fewer
+ * than 100 submissions have been counted — the client shows "Early bird!".
+ */
+export function dailyTopPercent(buckets: readonly number[], score: number): number | null {
+  const total = buckets.reduce((sum, n) => sum + n, 0);
+  if (total < DAILY_PERCENTILE_MIN_SUBMISSIONS) return null;
+  const above = buckets.slice(dailyHistogramBucket(score) + 1).reduce((sum, n) => sum + n, 0);
+  return Math.max(1, Math.floor((100 * (above + 1)) / total));
+}
+
 /**
  * §8.2 publication boundary. Day D's board is generated at D-1 23:45 UTC and
  * becomes live at D 00:00:00.000 UTC.

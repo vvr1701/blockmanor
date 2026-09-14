@@ -26,6 +26,10 @@ import {
   type DailyBoardDoc,
   DAILY_MOVE_LOGS_SUBCOLLECTION,
   DAILY_STALE_AFTER_MS,
+  DAILY_HISTOGRAM_BUCKETS,
+  DAILY_HISTOGRAM_DOC,
+  DAILY_STATS_SUBCOLLECTION,
+  dailyHistogramBucket,
 } from '@blockmanor/shared';
 import {
   applyPlacement,
@@ -893,5 +897,79 @@ describe('§0 v1.26(b) move-log dedupe, and the §8.5 re-audit test gaps', () =>
     const run = await honestRun(DATE, REMOTE_CONFIG_DEFAULTS.daily_streak_min_moves - 1);
     await expect(submit(UID, run)).resolves.toMatchObject({ streakGranted: false });
     expect((await attemptRef().get()).get('streakGranted')).toBe(false);
+  });
+});
+
+describe('§8.4 percentile histogram (§0 v1.28)', () => {
+  const histogramRef = () =>
+    db()
+      .collection(DAILY_BOARDS_COLLECTION)
+      .doc(DATE)
+      .collection(DAILY_STATS_SUBCOLLECTION)
+      .doc(DAILY_HISTOGRAM_DOC);
+  const seed = (fill: Record<number, number>) =>
+    histogramRef().set({
+      buckets: Array.from({ length: DAILY_HISTOGRAM_BUCKETS }, (_, i) => fill[i] ?? 0),
+    });
+  const submit = (uid: string, run: { moves: Move[]; score: number }) =>
+    submitDailyAttempt(uid, { date: DATE, moves: run.moves, claimedScore: run.score }, SALT, NOON);
+
+  it('counts the first submission and shows no percentile before 100 (Early bird)', async () => {
+    const run = await honestRun();
+    await expect(submit(UID, run)).resolves.toMatchObject({ percentile: null });
+    const histogram = await histogramRef().get();
+    expect(histogram.get('total')).toBe(1);
+    expect(histogram.get('bucketWidth')).toBe(50);
+    expect((histogram.get('buckets') as number[])[dailyHistogramBucket(run.score)]).toBe(1);
+    expect((await attemptRef().get()).get('percentile')).toBeNull();
+  });
+
+  it('the 100th counted submission gets a rank, stored on the attempt', async () => {
+    const run = await honestRun();
+    expect(dailyHistogramBucket(run.score)).toBeGreaterThan(0);
+    await seed({ 0: 99 }); // 99 players below this run
+    await expect(submit(UID, run)).resolves.toMatchObject({ percentile: 1 });
+    expect((await attemptRef().get()).get('percentile')).toBe(1);
+    expect((await histogramRef().get()).get('total')).toBe(100);
+  });
+
+  it('ranks against strictly higher buckets: last of 100 is Top 100%', async () => {
+    const run = await honestRun();
+    expect(dailyHistogramBucket(run.score)).toBeLessThan(DAILY_HISTOGRAM_BUCKETS - 1);
+    await seed({ [DAILY_HISTOGRAM_BUCKETS - 1]: 99 });
+    await expect(submit(UID, run)).resolves.toMatchObject({ percentile: 100 });
+  });
+
+  it('a copied log is neither counted nor ranked', async () => {
+    await seed({ 0: 150 });
+    const top = await honestRun(DATE, Number.POSITIVE_INFINITY, 'topplayer');
+    await expect(submit('topplayer', top)).resolves.toMatchObject({ percentile: 1 });
+    await startDailyAttempt('copycat', DATE, SALT, NOON);
+    await expect(submit('copycat', top)).resolves.toMatchObject({
+      countsForPercentile: false,
+      percentile: null,
+    });
+    expect((await histogramRef().get()).get('total')).toBe(151);
+  });
+
+  it('a rejected submission never touches the histogram', async () => {
+    const run = await honestRun();
+    await expect(
+      submitDailyAttempt(
+        UID,
+        { date: DATE, moves: run.moves, claimedScore: run.score + 1 },
+        SALT,
+        NOON,
+      ),
+    ).rejects.toMatchObject({ details: { reason: 'score-mismatch' } });
+    expect((await histogramRef().get()).exists).toBe(false);
+  });
+
+  it('concurrent counted submissions lose no increment', async () => {
+    const uids = ['p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8'];
+    const runs = await Promise.all(uids.map((u, i) => honestRun(DATE, i + 3, u)));
+    const results = await Promise.all(uids.map((u, i) => submit(u, runs[i]!)));
+    expect(results.every((r) => r.countsForPercentile)).toBe(true);
+    expect((await histogramRef().get()).get('total')).toBe(uids.length);
   });
 });
