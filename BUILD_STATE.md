@@ -1205,6 +1205,22 @@ already correct. Fix BLOCKERs and MAJORs; defer NITs to a follow-up list.
 Applies from the §12.1 branch onward. The §8.5 re-audit already in flight
 stands — it is daily-board, i.e. mandated.
 
+### S17 — daily hardening + EAS Update merged; §8.4 under audit (2026-09-14)
+
+- **`fix/8.x-v1.26-hardening` MERGED** (delta audit PASS on 48ae96a): v1.26
+  pending-attempt gate + v1.27 per-tray move-log identity. Emulator 79/79.
+  NIT fixed pre-merge: an in-tray reorder can change the combo score.
+- **`chore/4.1-eas-update` MERGED.** `eas.json` channels were inert: no
+  `expo-updates`. Added it, `runtimeVersion: { policy: 'fingerprint' }`, and
+  `updates.url`. expo-doctor 21/21; config test reds without runtimeVersion.
+  Needs a device build to prove an OTA actually lands (operator side).
+- **`feat/8.4-percentile` @ 7b7a854 — UNDER SCOPED AUDIT (mandated).** PRD
+  v1.28 rules §8.4's open "100 buckets": 50-point buckets (measured bot scores
+  p50 796 / p99 2920 / max 3480), open top bucket, only `countsForPercentile`
+  counted in the accepting transaction, Top X% = `max(1, floor(100·(above+1)/total))`,
+  null below 100, stored on the attempt. Emulator 85/85; 3 mutations red.
+  `ponytail:` one histogram doc per day (~1 write/s); shard when a day nears it.
+
 ### S16 — 30 templates + SDK patch merged; v1.27 move-log identity (2026-09-13)
 
 - **`feat/17-daily-templates` MERGED** (audit PASS). Its MAJOR fixed first: the
