@@ -33,6 +33,13 @@ export const firebaseMock = {
   throwOnGetApps: false,
   /** §12.8: every Crashlytics report, in order. */
   crashes: [] as { message: string; context?: string }[],
+  /** §8.3 Firestore documents by path; a missing path reads as not-exists. */
+  docs: {} as Record<string, unknown>,
+  /** Set to make `getDoc` reject (e.g. `firestore/permission-denied`). */
+  docError: null as { code: string } | null,
+  /** §8.3 callables by name; throw `{ code, details }` to model an HttpsError. */
+  callables: {} as Record<string, (data: unknown) => unknown>,
+  calls: [] as { name: string; data: unknown }[],
 };
 
 export function resetFirebaseMock(): void {
@@ -46,6 +53,10 @@ export function resetFirebaseMock(): void {
   firebaseMock.logEventRejects = false;
   firebaseMock.throwOnGetApps = false;
   firebaseMock.crashes = [];
+  firebaseMock.docs = {};
+  firebaseMock.docError = null;
+  firebaseMock.callables = {};
+  firebaseMock.calls = [];
 }
 
 // --- app ---
@@ -155,4 +166,41 @@ export function recordError(_crashlytics: unknown, error: Error): void {
     ...(pendingContext ? { context: pendingContext } : {}),
   });
   pendingContext = undefined;
+}
+
+// --- firestore (§8.3) ---
+
+export function getFirestore(): { readonly __firestore: true } {
+  return { __firestore: true };
+}
+
+export function doc(_db: unknown, path: string): { path: string } {
+  return { path };
+}
+
+export async function getDoc(ref: {
+  path: string;
+}): Promise<{ exists: () => boolean; data: () => unknown }> {
+  if (firebaseMock.docError)
+    throw Object.assign(new Error(firebaseMock.docError.code), firebaseMock.docError);
+  const data = firebaseMock.docs[ref.path];
+  return { exists: () => data !== undefined, data: () => data };
+}
+
+// --- functions (§8.3) ---
+
+export function getFunctions(): { readonly __functions: true } {
+  return { __functions: true };
+}
+
+export function httpsCallable(
+  _functions: unknown,
+  name: string,
+): (data: unknown) => Promise<{ data: unknown }> {
+  return async (data) => {
+    firebaseMock.calls.push({ name, data });
+    const handler = firebaseMock.callables[name];
+    if (!handler) throw Object.assign(new Error('not-found'), { code: 'not-found' });
+    return { data: await handler(data) };
+  };
 }

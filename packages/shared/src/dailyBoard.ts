@@ -504,3 +504,35 @@ export const dailySubmissionSchema = z.object({
 });
 
 export type DailySubmission = z.infer<typeof dailySubmissionSchema>;
+
+/**
+ * §8.3 play-start response (§0 v1.19: the OPENED sequence, never the key), and
+ * its distinct rejection reasons, so the client can route each. Implemented by
+ * `backend/functions/src/daily/playStart.ts`.
+ */
+export interface PlayStartResult {
+  date: string;
+  /**
+   * The OPENED §8.2 piece sequence, not the key that opens it.
+   *
+   * The security property §8.2/§8.3 buys is that the sequence is unreadable
+   * before `activatesAt` and that the attempt is consumed before anything is
+   * handed over. Both hold identically either way: once this call has consumed
+   * the attempt and responded, plaintext discloses exactly what the key
+   * discloses. The key's only remaining advantage was payload size, and
+   * `daily_piece_count` is 60 three-character ids.
+   *
+   * Against that, handing over the key forces an AES-256-GCM implementation
+   * into React Native, where `node:crypto` does not exist — a native crypto
+   * dependency, permanently in the build, to decrypt something the server can
+   * simply send. The seal still does its whole job: it is what keeps the
+   * sequence unreadable in `dailyBoards/{date}` until this callable opens it.
+   */
+  sequence: PieceId[];
+  /** Echoed so the client's countdown/attempt badge runs off server time. */
+  startedAt: string;
+}
+
+/** Distinct `HttpsError.details.reason` values, so the client can route each. */
+export type PlayStartRejection =
+  'not-published' | 'not-yet-live' | 'closed' | 'attempt-consumed' | 'pending-attempt';

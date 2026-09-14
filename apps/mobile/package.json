@@ -21,6 +21,8 @@
     "@react-native-firebase/app": "26.4.0",
     "@react-native-firebase/auth": "26.4.0",
     "@react-native-firebase/crashlytics": "26.4.0",
+    "@react-native-firebase/firestore": "26.4.0",
+    "@react-native-firebase/functions": "26.4.0",
     "@react-native-firebase/remote-config": "26.4.0",
     "@shopify/react-native-skia": "2.6.2",
     "expo": "~57.0.22",
