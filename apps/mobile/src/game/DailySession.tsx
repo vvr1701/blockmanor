@@ -77,33 +77,36 @@ export function DailySession({
   }));
 
   /** Applies a submission outcome: meta on acceptance, then where to land. */
-  const settle = useCallback((outcome: DailySubmitOutcome, showResult: boolean) => {
-    if (outcome.kind === 'accepted') {
-      const { result } = outcome;
-      const meta = useMetaStore.getState();
-      meta.setStreak(result.streak);
-      meta.setBadge('dailyUnplayed', false);
-      if (result.percentile !== null) meta.recordDailyPercentile(result.percentile);
-      if (showResult) {
-        setPhase({
-          kind: 'result',
-          score: result.score,
-          percentile: result.percentile,
-          streak: result.streak,
-        });
-        return;
+  const settle = useCallback(
+    (outcome: DailySubmitOutcome, showResult: boolean) => {
+      if (outcome.kind === 'accepted') {
+        const { result } = outcome;
+        const meta = useMetaStore.getState();
+        meta.setStreak(result.streak);
+        meta.setBadge('dailyUnplayed', false);
+        if (result.percentile !== null) meta.recordDailyPercentile(result.percentile);
+        if (showResult) {
+          setPhase({
+            kind: 'result',
+            score: result.score,
+            percentile: result.percentile,
+            streak: result.streak,
+          });
+          return;
+        }
       }
-    }
-    if (outcome.kind === 'offline') setToast(true);
-    const played = outcome.kind === 'rejected' && outcome.reason === 'already-submitted';
-    setPhase({
-      kind: 'gate',
-      status:
-        played || readLastResult()?.date === utcDate(now())
-          ? { kind: 'played' }
-          : { kind: 'ready' },
-    });
-  }, [now]);
+      if (outcome.kind === 'offline') setToast(true);
+      const played = outcome.kind === 'rejected' && outcome.reason === 'already-submitted';
+      setPhase({
+        kind: 'gate',
+        status:
+          played || readLastResult()?.date === utcDate(now())
+            ? { kind: 'played' }
+            : { kind: 'ready' },
+      });
+    },
+    [now],
+  );
 
   useEffect(() => {
     track('daily_view', {});
