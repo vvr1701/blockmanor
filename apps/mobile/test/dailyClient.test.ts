@@ -1,4 +1,8 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('../src/services/analytics', () => ({ track: vi.fn() }));
+
+import { track } from '../src/services/analytics';
 import {
   DAILY_BOARDS_COLLECTION,
   REMOTE_CONFIG_DEFAULTS,
@@ -20,6 +24,7 @@ import {
   readPendingRun,
   recordDailyMove,
   startDailyRun,
+  submitPendingRun,
 } from '../src/services/dailyClient';
 import { firebaseMock, resetFirebaseMock } from './mocks/react-native-firebase';
 
@@ -82,7 +87,10 @@ const playStartRejects = (details: Record<string, string>) => {
   };
 };
 
+const trackMock = vi.mocked(track);
+
 beforeEach(() => {
+  trackMock.mockClear();
   resetFirebaseMock();
   firebaseMock.configured = true;
   clearPendingRun();
@@ -106,6 +114,7 @@ describe('§8.3 startDailyRun', () => {
     expect(outcome.config.level?.prefill).toStrictEqual([{ r: 0, c: 0, type: 'filled', color: 1 }]);
     expect(firebaseMock.calls).toStrictEqual([{ name: 'dailyPlayStart', data: { date: DATE } }]);
     expect(readPendingRun()).toMatchObject({ date: DATE, sequence: SEQUENCE, moves: [] });
+    expect(trackMock).toHaveBeenCalledWith('daily_start', {});
   });
 
   it('never consumes the attempt when the board cannot be read', async () => {
@@ -185,5 +194,87 @@ describe('§8.5 claimedScoreFor', () => {
       state.score,
     );
     expect(claimedScoreFor({ date: DATE, engineConfig, sequence: SEQUENCE, moves: [] })).toBe(0);
+  });
+});
+
+describe('§8.3 submitPendingRun', () => {
+  const accepted = (percentile: number | null) => {
+    firebaseMock.callables['dailySubmit'] = () => ({
+      date: DATE,
+      score: 42,
+      status: 'lost',
+      moves: 2,
+      streak: 3,
+      streakGranted: true,
+      countsForPercentile: percentile !== null,
+      percentile,
+    });
+  };
+  const rejected = (reason: string) => {
+    firebaseMock.callables['dailySubmit'] = () => {
+      throw Object.assign(new Error('failed-precondition'), {
+        code: 'functions/failed-precondition',
+        details: { reason },
+      });
+    };
+  };
+  const started = async () => {
+    publish();
+    playStartReturns();
+    await startDailyRun(DATE);
+    recordDailyMove({ pieceIndex: 0, r: 2, c: 3 });
+  };
+
+  it('does nothing without a pending run', async () => {
+    await expect(submitPendingRun()).resolves.toStrictEqual({ kind: 'none' });
+    expect(firebaseMock.calls).toHaveLength(0);
+  });
+
+  it('sends the log with its replayed score, clears it, and fires daily_complete', async () => {
+    await started();
+    accepted(12);
+    const run = readPendingRun()!;
+    await expect(submitPendingRun()).resolves.toMatchObject({ kind: 'accepted' });
+    expect(firebaseMock.calls.at(-1)).toStrictEqual({
+      name: 'dailySubmit',
+      data: { date: DATE, moves: run.moves, claimedScore: claimedScoreFor(run) },
+    });
+    expect(readPendingRun()).toBeNull();
+    expect(trackMock).toHaveBeenCalledWith('daily_complete', {
+      score: 42,
+      moves: 2,
+      percentile: 12,
+    });
+  });
+
+  it('omits percentile from daily_complete when there is none (§0 v1.29(b))', async () => {
+    await started();
+    accepted(null);
+    await submitPendingRun();
+    expect(trackMock).toHaveBeenCalledWith('daily_complete', { score: 42, moves: 2 });
+  });
+
+  it('keeps the run when offline or retryable, drops it when the rejection is final', async () => {
+    await started();
+    firebaseMock.callables['dailySubmit'] = () => {
+      throw Object.assign(new Error('unavailable'), { code: 'functions/unavailable' });
+    };
+    await expect(submitPendingRun()).resolves.toStrictEqual({ kind: 'offline' });
+    expect(readPendingRun()).not.toBeNull();
+
+    rejected('board-unreadable');
+    await expect(submitPendingRun()).resolves.toStrictEqual({
+      kind: 'rejected',
+      reason: 'board-unreadable',
+    });
+    expect(readPendingRun()).not.toBeNull();
+
+    rejected('already-submitted');
+    await expect(submitPendingRun()).resolves.toStrictEqual({
+      kind: 'rejected',
+      reason: 'already-submitted',
+    });
+    expect(readPendingRun()).toBeNull();
+    expect(trackMock.mock.calls.filter(([name]) => name === 'daily_complete')).toHaveLength(0);
   });
 });

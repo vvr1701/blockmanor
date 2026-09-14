@@ -9,8 +9,11 @@ import {
   type DailyEngineConfig,
   type PlayStartRejection,
   type PlayStartResult,
+  type SubmitRejection,
+  type SubmitResult,
 } from '@blockmanor/shared';
 import { MMKV } from 'react-native-mmkv';
+import { track } from './analytics';
 import { isFirebaseConfigured, recordError } from './firebase';
 
 /**
@@ -82,6 +85,7 @@ export async function startDailyRun(date: string): Promise<DailyStartOutcome> {
     const call = httpsCallable<{ date: string }, PlayStartResult>(getFunctions(), 'dailyPlayStart');
     const { data } = await call({ date });
     savePendingRun({ date, engineConfig, sequence: data.sequence, moves: [] });
+    track('daily_start', {});
     return {
       kind: 'ready',
       date,
@@ -133,4 +137,64 @@ export function clearPendingRun(): void {
 export function claimedScoreFor(run: PendingDailyRun): number {
   const config = dailyGameConfig(run.engineConfig, run.sequence, run.date);
   return simulate(config, dailyPlaySeed(run.date), run.moves).score;
+}
+
+export type DailySubmitOutcome =
+  | { kind: 'none' }
+  | { kind: 'accepted'; result: SubmitResult }
+  | { kind: 'rejected'; reason: SubmitRejection }
+  | { kind: 'offline' };
+
+const SUBMIT_REJECTIONS: readonly SubmitRejection[] = [
+  'not-published',
+  'board-unreadable',
+  'not-yet-live',
+  'stale-date',
+  'too-many-moves',
+  'not-started',
+  'already-submitted',
+  'illegal-move',
+  'score-mismatch',
+];
+
+/** Retrying can still land: the board is not readable or live yet. Every other
+ * rejection is final for this log, so the run is dropped rather than resent. */
+const RETRYABLE: readonly SubmitRejection[] = ['not-published', 'board-unreadable', 'not-yet-live'];
+
+/**
+ * §8.3 "submitted on next open" and the normal end of a run: send the
+ * persisted log. Kept until the server has answered for good, so an offline
+ * end or an app kill resubmits later (§0 v1.26(a) blocks the next day until
+ * it does).
+ */
+export async function submitPendingRun(): Promise<DailySubmitOutcome> {
+  const run = readPendingRun();
+  if (!run) return { kind: 'none' };
+  if (!isFirebaseConfigured()) return { kind: 'offline' };
+  try {
+    const call = httpsCallable<{ date: string; moves: Move[]; claimedScore: number }, SubmitResult>(
+      getFunctions(),
+      'dailySubmit',
+    );
+    const { data } = await call({
+      date: run.date,
+      moves: run.moves,
+      claimedScore: claimedScoreFor(run),
+    });
+    clearPendingRun();
+    track('daily_complete', {
+      score: data.score,
+      moves: data.moves,
+      ...(data.percentile === null ? {} : { percentile: data.percentile }),
+    });
+    return { kind: 'accepted', result: data };
+  } catch (error) {
+    const reason = (error as { details?: { reason?: unknown } } | null)?.details?.reason;
+    if (SUBMIT_REJECTIONS.includes(reason as SubmitRejection)) {
+      if (!RETRYABLE.includes(reason as SubmitRejection)) clearPendingRun();
+      return { kind: 'rejected', reason: reason as SubmitRejection };
+    }
+    recordError(error, 'daily_submit');
+    return { kind: 'offline' };
+  }
 }
