@@ -22,6 +22,7 @@ import {
   claimedScoreFor,
   clearPendingRun,
   readPendingRun,
+  readPlayedDates,
   recordDailyMove,
   startDailyRun,
   resolvePendingAttempt,
@@ -403,5 +404,29 @@ describe('§8.3 audit fixes: pending attempts, lost accepts, final rejections', 
     rejectWith(reason);
     await expect(submitPendingRun()).resolves.toStrictEqual({ kind: 'rejected', reason });
     expect(readPendingRun() !== null).toBe(kept);
+  });
+});
+
+describe('§8.6 readPlayedDates', () => {
+  it("returns the month's SUBMITTED days from the server", async () => {
+    firebaseMock.currentUser = { uid: 'u1' };
+    firebaseMock.docs['users/u1/submissions/2026-07-31'] = { status: 'submitted' };
+    firebaseMock.docs['users/u1/submissions/2026-08-01'] = { status: 'submitted' };
+    firebaseMock.docs['users/u1/submissions/2026-08-15'] = { status: 'started' };
+    firebaseMock.docs['users/u1/submissions/2026-08-20'] = { status: 'submitted' };
+    firebaseMock.docs['users/u2/submissions/2026-08-02'] = { status: 'submitted' };
+    await expect(readPlayedDates('2026-08')).resolves.toStrictEqual(
+      new Set(['2026-08-01', '2026-08-20']),
+    );
+  });
+
+  it('is unknown (null), never empty, when it cannot ask the server', async () => {
+    await expect(readPlayedDates('2026-08')).resolves.toBeNull(); // not signed in
+    firebaseMock.currentUser = { uid: 'u1' };
+    firebaseMock.docError = { code: 'firestore/unavailable' };
+    await expect(readPlayedDates('2026-08')).resolves.toBeNull();
+    firebaseMock.configured = false;
+    firebaseMock.docError = null;
+    await expect(readPlayedDates('2026-08')).resolves.toBeNull();
   });
 });

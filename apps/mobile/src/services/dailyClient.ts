@@ -1,4 +1,13 @@
-import { doc, getDoc, getFirestore } from '@react-native-firebase/firestore';
+import {
+  collection,
+  doc,
+  documentId,
+  getDoc,
+  getDocs,
+  getFirestore,
+  query,
+  where,
+} from '@react-native-firebase/firestore';
 import { getAuth } from '@react-native-firebase/auth';
 import { getFunctions, httpsCallable } from '@react-native-firebase/functions';
 import { simulate, type GameConfig, type Move, type PieceId } from '@blockmanor/engine';
@@ -285,6 +294,34 @@ export function readLastResult(): LastDailyResult | null {
   try {
     return JSON.parse(raw) as LastDailyResult;
   } catch {
+    return null;
+  }
+}
+
+/**
+ * §8.6 calendar month view: the UTC days in `month` (YYYY-MM) this player has
+ * a SUBMITTED attempt for, read from the server rather than a local list so a
+ * reinstall or a second device shows the same month. `null` = unknown
+ * (offline, not signed in), which the screen renders as loading, never as
+ * "nothing played".
+ */
+export async function readPlayedDates(month: string): Promise<Set<string> | null> {
+  if (!isFirebaseConfigured()) return null;
+  const uid = getAuth().currentUser?.uid;
+  if (!uid) return null;
+  try {
+    const snapshot = await getDocs(
+      query(
+        collection(getFirestore(), `${USERS_COLLECTION}/${uid}/${DAILY_ATTEMPTS_SUBCOLLECTION}`),
+        where(documentId(), '>=', `${month}-01`),
+        where(documentId(), '<=', `${month}-31`),
+      ),
+    );
+    return new Set(
+      snapshot.docs.filter((d) => d.data()['status'] === 'submitted').map((d) => d.id),
+    );
+  } catch (error) {
+    recordError(error, 'daily_calendar');
     return null;
   }
 }

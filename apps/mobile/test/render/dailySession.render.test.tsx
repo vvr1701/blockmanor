@@ -30,6 +30,8 @@ import { DailySession } from '../../src/game/DailySession';
 import { DailyGateScreen } from '../../src/screens/DailyGateScreen';
 import { DailyResultScreen } from '../../src/screens/DailyResultScreen';
 import { GameplayScreen } from '../../src/screens/GameplayScreen';
+import { StreakScreen } from '../../src/screens/StreakScreen';
+import { StreakMilestoneSheet } from '../../src/game/StreakMilestoneSheet';
 import { track } from '../../src/services/analytics';
 import { clearPendingRun, readPendingRun, savePendingRun } from '../../src/services/dailyClient';
 import { useMetaStore } from '../../src/state/useMetaStore';
@@ -241,5 +243,60 @@ describe('DailySession (PRD §8.3)', () => {
     await pressPlay(r);
     expect(gate(r).props.status).toStrictEqual({ kind: 'ready' });
     expect(r.root.findAllByType(RetryToast)).toHaveLength(1);
+  });
+
+  const endRun = async (r: ReturnType<typeof TestRenderer.create>) => {
+    const screen = r.root.findByType(GameplayScreen);
+    const state = screen.props.initialState as GameState;
+    await act(async () =>
+      (screen.props.onEvent as (e: readonly GameEvent[], s: GameState) => void)([], {
+        ...state,
+        status: 'lost',
+      }),
+    );
+  };
+
+  it('§8.6: day 7 fires streak_milestone and shows the celebration over the result', async () => {
+    act(() => {
+      useMetaStore.setState({ streak: 6 });
+    });
+    submitReturns(20, 7);
+    const r = await mount();
+    await pressPlay(r);
+    await endRun(r);
+    expect(trackMock).toHaveBeenCalledWith('streak_milestone', { n: 7 });
+    expect(r.root.findByType(StreakMilestoneSheet).props.streak).toBe(7);
+    act(() => {
+      (r.root.findByType(StreakMilestoneSheet).props.onContinue as () => void)();
+    });
+    expect(r.root.findAllByType(StreakMilestoneSheet)).toHaveLength(0);
+    expect(r.root.findAllByType(DailyResultScreen)).toHaveLength(1);
+  });
+
+  it('§8.6: a gap reset fires streak_broken with the lost streak, and no celebration', async () => {
+    act(() => {
+      useMetaStore.setState({ streak: 12 });
+    });
+    submitReturns(20, 1);
+    const r = await mount();
+    await pressPlay(r);
+    await endRun(r);
+    expect(trackMock).toHaveBeenCalledWith('streak_broken', { n: 12 });
+    expect(r.root.findAllByType(StreakMilestoneSheet)).toHaveLength(0);
+  });
+
+  it("§8.6: the gate's streak stat opens the calendar with the server's played days", async () => {
+    firebaseMock.currentUser = { uid: 'u1' };
+    firebaseMock.docs['users/u1/submissions/2026-08-03'] = { status: 'submitted' };
+    firebaseMock.docs['users/u1/submissions/2026-08-08'] = { status: 'submitted' };
+    const r = await mount();
+    await act(async () => (gate(r).props.onOpenStreak as () => void)());
+    const calendar = r.root.findByType(StreakScreen);
+    expect(calendar.props.month).toBe('2026-08');
+    expect(calendar.props.playedDates).toStrictEqual(new Set(['2026-08-03', '2026-08-08']));
+    act(() => {
+      (calendar.props.onBack as () => void)();
+    });
+    expect(r.root.findAllByType(DailyGateScreen)).toHaveLength(1);
   });
 });

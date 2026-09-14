@@ -23,6 +23,7 @@ import { track } from '../services/analytics';
 import {
   readLastResult,
   readPendingRun,
+  readPlayedDates,
   recordDailyMove,
   resolvePendingAttempt,
   startDailyRun,
@@ -33,7 +34,10 @@ import { useMetaStore } from '../state/useMetaStore';
 import { DailyGateScreen, type DailyGateStatus } from '../screens/DailyGateScreen';
 import { DailyResultScreen } from '../screens/DailyResultScreen';
 import { GameplayScreen, type PauseControls } from '../screens/GameplayScreen';
+import { StreakScreen } from '../screens/StreakScreen';
 import { DailyHud } from './DailyHud';
+import { StreakMilestoneSheet } from './StreakMilestoneSheet';
+import { streakEvents } from './streak';
 
 /** The countdown only shows minutes, so a 30s tick is always current. */
 const CLOCK_TICK_MS = 30_000;
@@ -43,7 +47,8 @@ export const utcDate = (ms: number): string => new Date(ms).toISOString().slice(
 type Phase =
   | { kind: 'gate'; status: DailyGateStatus }
   | { kind: 'playing'; state: GameState }
-  | { kind: 'result'; score: number; percentile: number | null; streak: number };
+  | { kind: 'result'; score: number; percentile: number | null; streak: number }
+  | { kind: 'streak'; playedDates: ReadonlySet<string> | null };
 
 export interface DailySessionProps {
   onExit: () => void;
@@ -65,6 +70,9 @@ export function DailySession({
   const date = utcDate(clock);
   const streak = useMetaStore((s) => s.streak);
   const [toast, setToast] = useState(false);
+  const longest = useMetaStore((s) => s.longestStreak);
+  // §8.6: set when the server credits day 7/30/100; cleared by its sheet.
+  const [milestone, setMilestone] = useState<number | null>(null);
   const endedRef = useRef(false);
 
   const playedToday = (): boolean => readLastResult()?.date === utcDate(now());
@@ -83,6 +91,10 @@ export function DailySession({
       if (outcome.kind === 'accepted') {
         const { result } = outcome;
         const meta = useMetaStore.getState();
+        for (const event of streakEvents(meta.streak, result)) {
+          track(event.name, { n: event.n });
+          if (event.name === 'streak_milestone' && showResult) setMilestone(event.n);
+        }
         meta.setStreak(result.streak);
         meta.setBadge('dailyUnplayed', false);
         if (result.percentile !== null) meta.recordDailyPercentile(result.percentile);
@@ -155,6 +167,20 @@ export function DailySession({
     });
   }, [date, settle]);
 
+  const openStreak = useCallback(() => {
+    setPhase({ kind: 'streak', playedDates: null });
+    void readPlayedDates(utcDate(now()).slice(0, 7)).then((playedDates) =>
+      setPhase((p) => (p.kind === 'streak' ? { kind: 'streak', playedDates } : p)),
+    );
+  }, [now]);
+
+  const backToGate = useCallback(() => {
+    setPhase({
+      kind: 'gate',
+      status: readLastResult()?.date === utcDate(now()) ? { kind: 'played' } : { kind: 'ready' },
+    });
+  }, [now]);
+
   const finish = useCallback(async () => {
     if (endedRef.current) return;
     endedRef.current = true;
@@ -194,11 +220,25 @@ export function DailySession({
           pause={pauseControls}
         />
       ) : phase.kind === 'result' ? (
-        <DailyResultScreen
-          score={phase.score}
-          percentile={phase.percentile}
-          streak={phase.streak}
-          onContinue={onLevels}
+        <>
+          <DailyResultScreen
+            score={phase.score}
+            percentile={phase.percentile}
+            streak={phase.streak}
+            onContinue={onLevels}
+          />
+          {milestone !== null ? (
+            <StreakMilestoneSheet streak={milestone} onContinue={() => setMilestone(null)} />
+          ) : null}
+        </>
+      ) : phase.kind === 'streak' ? (
+        <StreakScreen
+          streak={streak}
+          longest={longest}
+          month={date.slice(0, 7)}
+          playedDates={phase.playedDates}
+          onPlay={backToGate}
+          onBack={backToGate}
         />
       ) : (
         <DailyGateScreen
@@ -209,6 +249,7 @@ export function DailySession({
           status={phase.status}
           onPlay={() => void play()}
           onBack={onExit}
+          onOpenStreak={openStreak}
         />
       )}
       {toast ? (

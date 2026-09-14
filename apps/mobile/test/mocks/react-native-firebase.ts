@@ -204,3 +204,51 @@ export function httpsCallable(
     return { data: await handler(data) };
   };
 }
+
+interface MockConstraint {
+  field: string;
+  op: '>=' | '<=';
+  value: string;
+}
+
+export function collection(_db: unknown, path: string): { path: string } {
+  return { path };
+}
+
+export function documentId(): string {
+  return '__name__';
+}
+
+export function where(field: string, op: '>=' | '<=', value: string): MockConstraint {
+  return { field, op, value };
+}
+
+export function query(
+  ref: { path: string },
+  ...constraints: MockConstraint[]
+): { path: string; constraints: MockConstraint[] } {
+  return { path: ref.path, constraints };
+}
+
+/** Direct children of the collection path, filtered by document-id range only. */
+export async function getDocs(q: {
+  path: string;
+  constraints: MockConstraint[];
+}): Promise<{ docs: { id: string; data: () => Record<string, unknown> }[] }> {
+  if (firebaseMock.docError) {
+    throw Object.assign(new Error(firebaseMock.docError.code), firebaseMock.docError);
+  }
+  const prefix = `${q.path}/`;
+  const docs = Object.entries(firebaseMock.docs)
+    .filter(([path]) => path.startsWith(prefix) && !path.slice(prefix.length).includes('/'))
+    .map(([path, data]) => ({
+      id: path.slice(prefix.length),
+      data: () => data as Record<string, unknown>,
+    }))
+    .filter(({ id }) =>
+      q.constraints.every((c) =>
+        c.field !== '__name__' ? true : c.op === '>=' ? id >= c.value : id <= c.value,
+      ),
+    );
+  return { docs };
+}

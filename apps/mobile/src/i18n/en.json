@@ -182,5 +182,21 @@
   "daily.result.streak": "🔥 {{n}}",
   "daily.result.continue": "Continue to Levels →",
   "daily.result.submitting": "Submitting your board…",
-  "daily.error.offline": "Couldn't reach the server — your board is saved."
+  "daily.error.offline": "Couldn't reach the server — your board is saved.",
+  "streak.days": "{{n}} days",
+  "streak.monthPlayed": "{{played}} of {{days}} played",
+  "streak.loading": "Loading your month…",
+  "streak.weekdays": "S,M,T,W,T,F,S",
+  "streak.dayA11y": "{{date}}",
+  "streak.dayPlayedA11y": "{{date}}, played",
+  "streak.longest": "Longest",
+  "streak.play": "Play today's board",
+  "streak.back": "Back",
+  "streak.milestone.tier.bronze": "BRONZE",
+  "streak.milestone.tier.silver": "SILVER",
+  "streak.milestone.tier.gold": "GOLD",
+  "streak.milestone.title": "{{n}} days.",
+  "streak.milestone.line": "The manor notices.",
+  "streak.milestone.continue": "Continue",
+  "daily.gate.openStreak": "Open your streak calendar"
 }

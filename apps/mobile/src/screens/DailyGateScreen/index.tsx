@@ -38,6 +38,8 @@ export interface DailyGateScreenProps {
   status: DailyGateStatus;
   onPlay: () => void;
   onBack: () => void;
+  /** §8.6: the streak stat opens `StreakScreen`. */
+  onOpenStreak?: () => void;
 }
 
 /** "5h 07m" until the next UTC day's board activates (§8.2 `activatesAt`). */
@@ -62,6 +64,7 @@ export function DailyGateScreen({
   status,
   onPlay,
   onBack,
+  onOpenStreak,
 }: DailyGateScreenProps): React.JSX.Element {
   const dateLabel = new Date(dailyActivatesAt(date)).toLocaleDateString('en', {
     month: 'long',
@@ -94,10 +97,16 @@ export function DailyGateScreen({
               </Text>
             </View>
           ) : null}
-          <View style={styles.stat}>
+          <Pressable
+            style={styles.stat}
+            onPress={onOpenStreak}
+            disabled={!onOpenStreak}
+            accessibilityRole="button"
+            accessibilityLabel={t('daily.gate.openStreak')}
+          >
             <Text style={styles.statLabel}>{t('daily.gate.streak')}</Text>
             <Text style={styles.statValue}>{t('daily.gate.streakDays', { n: streak })}</Text>
-          </View>
+          </Pressable>
         </View>
 
         <View style={styles.spacer} />
