@@ -79,13 +79,14 @@ describe('app.config.ts Firebase wiring', () => {
 });
 
 describe('app.config.ts EAS Update wiring (§4.1)', () => {
-  it('points updates at this EAS project and pins runtimes by fingerprint', async () => {
+  it('points updates at this EAS project and pins runtimes by app version', async () => {
     const config = (await loadConfig()) as {
       runtimeVersion?: unknown;
       updates?: { url?: string };
       extra?: { eas?: { projectId?: string } };
     };
-    expect(config.runtimeVersion).toStrictEqual({ policy: 'fingerprint' });
+    // Not fingerprint: it hashes config that differs on the EAS builder.
+    expect(config.runtimeVersion).toStrictEqual({ policy: 'appVersion' });
     expect(config.updates?.url).toBe(`https://u.expo.dev/${config.extra?.eas?.projectId}`);
   });
 });

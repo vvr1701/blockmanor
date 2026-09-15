@@ -91,9 +91,14 @@ const config: ExpoConfig = {
   owner: 'vvr1701',
   // §4.1 EAS Update: the channels in eas.json only do anything with
   // expo-updates installed and a runtime version to match updates to binaries.
-  // `fingerprint` changes whenever native code or config does, so an OTA bundle
-  // can never land on a binary it was not built against.
-  runtimeVersion: { policy: 'fingerprint' },
+  // `appVersion`, not `fingerprint`: the fingerprint hashes this config, and
+  // this config differs on the EAS builder (git-ignored google-services.json is
+  // absent or at another absolute path), so local and remote fingerprints never
+  // matched and the "Configure expo-updates" phase failed every build.
+  // ponytail: bump `version` on ANY native change (new native dep, plugin,
+  // permission) before shipping an OTA, or an update can reach a binary it was
+  // not built against.
+  runtimeVersion: { policy: 'appVersion' },
   updates: { url: `https://u.expo.dev/${EAS_PROJECT_ID}` },
   extra: {
     eas: { projectId: EAS_PROJECT_ID },
