@@ -26,6 +26,7 @@ import {
 } from '@blockmanor/shared';
 import { MMKV } from 'react-native-mmkv';
 import { track } from './analytics';
+import { reportNetworkResult } from './connectivity';
 import { isFirebaseConfigured, recordError } from './firebase';
 
 /**
@@ -83,6 +84,7 @@ export async function startDailyRun(date: string): Promise<DailyStartOutcome> {
   let engineConfig: Tuning;
   try {
     const snapshot = await getDoc(doc(getFirestore(), `${DAILY_BOARDS_COLLECTION}/${date}`));
+    reportNetworkResult(true);
     if (!snapshot.exists()) return { kind: 'refused', reason: 'not-published' };
     engineConfig = parseDailyBoardDoc(snapshot.data()).engineConfig;
   } catch (error) {
@@ -91,6 +93,7 @@ export async function startDailyRun(date: string): Promise<DailyStartOutcome> {
       return { kind: 'refused', reason: 'not-yet-live' };
     }
     recordError(error, 'daily_board_read');
+    reportNetworkResult(false);
     return { kind: 'offline' };
   }
 
@@ -109,6 +112,7 @@ export async function startDailyRun(date: string): Promise<DailyStartOutcome> {
     const rejection = rejectionOf(error);
     if (rejection) return { kind: 'refused', ...rejection };
     recordError(error, 'daily_play_start');
+    reportNetworkResult(false);
     return { kind: 'offline' };
   }
 }
@@ -180,7 +184,20 @@ const RETRYABLE: readonly SubmitRejection[] = ['not-published', 'board-unreadabl
  * end or an app kill resubmits later (§0 v1.26(a) blocks the next day until
  * it does).
  */
-export async function submitPendingRun(): Promise<DailySubmitOutcome> {
+let inflight: Promise<DailySubmitOutcome> | null = null;
+
+/**
+ * One submission at a time: the Daily screen and the §12.4 reconnect flush can
+ * both reach for the same stored run, and must share one round trip.
+ */
+export function submitPendingRun(): Promise<DailySubmitOutcome> {
+  inflight ??= submitStoredRun().finally(() => {
+    inflight = null;
+  });
+  return inflight;
+}
+
+async function submitStoredRun(): Promise<DailySubmitOutcome> {
   const run = readPendingRun();
   if (!run) return { kind: 'none' };
   let claimedScore: number;
@@ -237,11 +254,13 @@ async function sendSubmission(
       return { kind: 'rejected', reason: reason as SubmitRejection };
     }
     recordError(error, 'daily_submit');
+    reportNetworkResult(false);
     return { kind: 'offline' };
   }
 }
 
 function accept(data: SubmitResult): DailySubmitOutcome {
+  reportNetworkResult(true);
   if (readPendingRun()?.date === data.date) clearPendingRun();
   storage.set(LAST_RESULT_KEY, JSON.stringify({ date: data.date, percentile: data.percentile }));
   track('daily_complete', {

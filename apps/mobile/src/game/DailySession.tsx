@@ -49,7 +49,7 @@ import { PushSoftAskSheet } from './PushSoftAskSheet';
 import { renderShareCard } from './renderShareCard';
 import { shareCardModel, shareMessage } from './shareCard';
 import { StreakMilestoneSheet } from './StreakMilestoneSheet';
-import { streakEvents } from './streak';
+import { applyAcceptedDaily } from './dailyResult';
 
 /** The countdown only shows minutes, so a 30s tick is always current. */
 const CLOCK_TICK_MS = 30_000;
@@ -131,14 +131,8 @@ export function DailySession({
     (outcome: DailySubmitOutcome, showResult: boolean) => {
       if (outcome.kind === 'accepted') {
         const { result } = outcome;
-        const meta = useMetaStore.getState();
-        for (const event of streakEvents(meta.streak, result)) {
-          track(event.name, { n: event.n });
-          if (event.name === 'streak_milestone' && showResult) setMilestone(event.n);
-        }
-        meta.setStreak(result.streak);
-        meta.setBadge('dailyUnplayed', false);
-        if (result.percentile !== null) meta.recordDailyPercentile(result.percentile);
+        const milestoneReached = applyAcceptedDaily(result);
+        if (milestoneReached !== null && showResult) setMilestone(milestoneReached);
         if (showResult) {
           setPhase({
             kind: 'result',

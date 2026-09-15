@@ -33,6 +33,7 @@ import { GameplayScreen } from '../../src/screens/GameplayScreen';
 import { StreakScreen } from '../../src/screens/StreakScreen';
 import { StreakMilestoneSheet } from '../../src/game/StreakMilestoneSheet';
 import { PushSoftAskSheet } from '../../src/game/PushSoftAskSheet';
+import { resetAppliedDaily } from '../../src/game/dailyResult';
 import { track } from '../../src/services/analytics';
 import { clearPendingRun, readPendingRun, savePendingRun } from '../../src/services/dailyClient';
 import { useConfigStore } from '../../src/state/useConfigStore';
@@ -120,6 +121,7 @@ async function pressPlay(r: ReactTestRenderer): Promise<void> {
 
 beforeEach(() => {
   trackMock.mockClear();
+  resetAppliedDaily();
   resetFirebaseMock();
   firebaseMock.configured = true;
   firebaseMock.docs[`${DAILY_BOARDS_COLLECTION}/${DATE}`] = board();
