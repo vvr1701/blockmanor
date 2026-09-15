@@ -11,6 +11,7 @@ import { useConfigStore } from '../../state/useConfigStore';
 import { selectBadges, useMetaStore } from '../../state/useMetaStore';
 import { BottomNav } from './BottomNav';
 import { DailyBoardTile } from './DailyBoardTile';
+import { DailyIntroCard } from './DailyIntroCard';
 import { EndlessCard } from './EndlessCard';
 import { EventBannerSlot } from './EventBannerSlot';
 import { isNudgeSuppressed, UpdateBanner } from './UpdateBanner';
@@ -124,6 +125,9 @@ export function HomeScreen({
   const badges = useMetaStore(useShallow(selectBadges));
 
   const dailyBoardFlag = useConfigStore((s) => s.value('flag_daily_board'));
+  // §7.1 step 4: the one-time butler introduction to the Daily Board.
+  const dailyIntroSeen = useMetaStore((s) => s.dailyIntroSeen);
+  const setDailyIntroSeen = useMetaStore((s) => s.setDailyIntroSeen);
   // §7.6: "Unlocked after Level 10." `currentLevel` is the NEXT level to
   // play (see `home.play` CTA / the FTUE returning-user check above), so
   // "after Level 10" is complete-and-moved-on, i.e. strictly greater than
@@ -207,6 +211,16 @@ export function HomeScreen({
           <UpdateBanner onDismiss={() => dismissUpdateNudge(now)} />
         ) : null}
         {eventsFlag ? <EventBannerSlot /> : null}
+
+        {dailyBoardFlag && !dailyIntroSeen ? (
+          <DailyIntroCard
+            onOpen={() => {
+              setDailyIntroSeen();
+              onPlayDaily?.();
+            }}
+            onDismiss={setDailyIntroSeen}
+          />
+        ) : null}
 
         <View style={styles.tileRow}>
           {/* §7.1.3 / §7.11(c): the tile's data is not this screen's to

@@ -1,6 +1,6 @@
 # BLOCK MANOR — Product Requirements Document (Source of Truth)
 
-**Version:** 1.32 · **Date:** 2026-09-13 · **Status:** Approved for build
+**Version:** 1.33 · **Date:** 2026-09-13 · **Status:** Approved for build
 **Product type:** Hybrid-casual mobile puzzle game · **Platforms:** Android + iOS
 **Stack:** React Native + Expo + react-native-skia · TypeScript everywhere · Firebase backend
 
@@ -54,6 +54,7 @@
 | 1.30 | 2026-09-14 | **§12.2 — quitting a Daily Board run always confirms.** §12.2's quit confirm fires only past 50% of goals, and the Daily Board has no goals (§8.2), so quitting from the pause sheet ended the player's ONE attempt (§8.3) on a single tap — the only irreversible quit in the game. Ruled by the operator: in a Daily run the quit confirm always appears, with copy that says the attempt ends and the run is submitted as it stands. Levels keep the >50% rule unchanged. |
 | 1.31 | 2026-09-14 | **§8.7 share card — three implementation rulings.** **(a) WhatsApp first.** The result screen offers "Share to WhatsApp" (a direct WhatsApp share) plus the native share sheet; when WhatsApp is not installed or refuses, the sheet opens instead, so the button is never a dead end (§12.9). "Share to Story" from the mockup is not built: it needs a Meta app registration and PRD names only WhatsApp. **(b) Install link before attribution.** §8.7 wants a Branch/AppsFlyer link, but no MMP account exists yet (§17 operator item). Until it does the card and message carry `share_install_url [RC, https://blockmanor.game]`, swappable to the MMP link from Remote Config with no release; `install_attributed` stays unfired until the MMP lands. **(c) The card is a 1080×1080 PNG drawn offscreen with Skia** from the run's final board (colours only, §8.7 spoiler-free), shared as base64. A run submitted on next open (§8.3) has no live board, so it is replayed from its stored log through the engine to draw the same grid. |
 | 1.32 | 2026-09-14 | **§8.7 push — how "user-local" is delivered.** §8.7 says when (`daily_push_hour` local; 20:00 local if unplayed) but not how the server knows a player's local time or reaches their device. Ruled: **(a) Registration.** After the player opts in, the app calls a `registerPush` callable with its FCM token, its current UTC offset in minutes, and its two §12.1 notification preferences; it re-registers on every app open, token refresh and preference change, so a DST shift or a trip lands within a day. The server stores this under `users/{uid}.push` (server-written only). **(b) Scheduling.** A scan runs every 15 minutes. Every real UTC offset is a whole multiple of 15 minutes, so each run targets exactly the players whose offset puts their clock at `daily_push_hour`:00 (daily drop) or 20:00 (streak-risk) — including India's +5:30. **(c) Streak-risk and `daily_missed`.** At 20:00 local, a player with a streak above 0 who has no submitted attempt for the current UTC day gets the streak-risk push, and the scan emits `daily_missed` as a structured server event (§0 v1.22(d)); the §8.6 reset itself stays with submission. **(d) Soft-ask.** Shown once, on the first `DailyResultScreen` a player reaches ("Notify me" / "Maybe later", mockup 1.6); the OS permission dialog follows only a tap on "Notify me". The mockup's "9am" copy is not used: the hour is `daily_push_hour`. **(e) Deep link.** Every push carries `route: daily`, which opens the Daily gate. **(f)** A token FCM reports as unregistered is removed, so a reinstalled or opted-out device stops being targeted. |
+| 1.33 | 2026-09-15 | **§16.1 screen names reconciled with what shipped, from the Stage 1 sign-off audit.** Rule 7 names screens from this table, so the table follows three deliberate implementation choices rather than forcing renames that only churn tests: **(a)** §12.8's restart screen ships as `RestartScreen`, mounted by `ErrorBoundary` — the boundary is a component, the screen is what it shows. **(b)** §8.7's share affordance is not a separate sheet: §0 v1.31 places "Share to WhatsApp" / "Share" on `DailyResultScreen` (mockup 4.3 draws them there), so `ShareCardSheet` is removed. **(c)** §12.11's nudge ships as `UpdateBanner`, a Home component rather than a screen. **(d)** `AuthLinkScreen` moves to S2, matching §12.6's own Stage 2 deferral. |
 
 ---
 
@@ -581,14 +582,14 @@ Each name below is used verbatim for the folder `apps/mobile/src/screens/<Name>/
 | §7.11 | `HomeScreen` | S1 |
 | §8.3 | `DailyGateScreen` · `DailyResultScreen` (daily play reuses `GameplayScreen` with a daily config — no second board screen) | S1 |
 | §8.6 | `StreakScreen` | S1 |
-| §8.7 | `ShareCardSheet` | S1 |
+| §8.7 | — (share buttons on `DailyResultScreen`, §0 v1.33) | S1 |
 | §12.1 | `SettingsScreen` | S1 |
 | §12.2 | `PauseSheet` | S1 |
 | §12.3 | `ProfileScreen` | S1 |
 | §12.5 | `MaintenanceScreen` · `ForceUpdateScreen` | S1 |
-| §12.6 | `AuthLinkScreen` | S1 |
-| §12.8 | `ErrorBoundaryScreen` | S1 |
-| §12.11 | `SoftUpdateBanner` | S1 |
+| §12.6 | `AuthLinkScreen` | S2 |
+| §12.8 | `RestartScreen` (shown by `ErrorBoundary`) | S1 |
+| §12.11 | `UpdateBanner` (Home component) | S1 |
 | §9.4 | `ContinueSheet` · `OutOfCoinsSheet` | S2 |
 | §10.1 | `ProjectorRoomScreen` | S2 |
 | §10.3 | `ShopScreen` · `PurchaseResultScreen` | S2 |
@@ -616,4 +617,4 @@ Content ops: 60 levels balanced (§7.9 report) · 30 daily-board pattern templat
 | Clone competition | speed + daily ritual moat + India localization; ship Stage 1 in 6 weeks |
 | Scope creep from Stage 3/4 dreams | §0 rules 2 + 2a: stage gates are hard; only specced layout reservations cross a stage line |
 
-*End of PRD v1.32 — amendments require a changelog entry (§0).*
+*End of PRD v1.33 — amendments require a changelog entry (§0).*

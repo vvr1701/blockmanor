@@ -105,6 +105,9 @@ interface MetaState {
   /** §7.1 step 5 / §0 v1.32(d): the one-time push soft-ask. `granted` = the OS
    * permission was given and the device registers with `registerPush`. */
   pushOptIn: 'unasked' | 'granted' | 'declined';
+  /** §7.1 step 4: the butler card introducing "Today's Board" was dismissed. */
+  dailyIntroSeen: boolean;
+  setDailyIntroSeen: () => void;
   setPushOptIn: (state: 'granted' | 'declined') => void;
   setCurrentLevel: (level: number) => void;
   setStreak: (streak: number) => void;
@@ -233,6 +236,11 @@ export function migrateMetaState(persisted: unknown, version: number): unknown {
       next = { ...next, pushOptIn: 'unasked' };
     }
   }
+  // v9 -> v10 (§7.1 step 4): the Daily Board butler card. An existing save has
+  // never seen it, so it shows once — same as a fresh install after FTUE.
+  if (version < 10) {
+    if (typeof next.dailyIntroSeen !== 'boolean') next = { ...next, dailyIntroSeen: false };
+  }
   return next;
 }
 
@@ -263,6 +271,8 @@ export const useMetaStore = create<MetaState>()(
       bestDailyPercentile: 0,
       notificationPrefs: { dailyDrop: true, streakRisk: true },
       pushOptIn: 'unasked',
+      dailyIntroSeen: false,
+      setDailyIntroSeen: () => set({ dailyIntroSeen: true }),
       setPushOptIn: (pushOptIn) => set({ pushOptIn }),
       setCurrentLevel: (currentLevel) => set({ currentLevel }),
       // §12.3: `longestStreak` rides on the ONE streak writer, so no §8.6
@@ -335,7 +345,7 @@ export const useMetaStore = create<MetaState>()(
     {
       name: 'meta',
       storage: createJSONStorage(() => mmkvStorage),
-      version: 9,
+      version: 10,
       migrate: migrateMetaState,
     },
   ),

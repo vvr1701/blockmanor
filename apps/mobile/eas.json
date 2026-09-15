@@ -14,7 +14,15 @@
       "distribution": "internal",
       "channel": "preview",
       "environment": "preview",
-      "android": { "buildType": "apk" },
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_DEV_BOARD": "1"
+      }
+    },
+    "preview-ftue": {
+      "extends": "preview",
       "env": {
         "EXPO_PUBLIC_DEV_BOARD": "1",
         "EXPO_PUBLIC_FTUE_FORCE_REPLAY": "1"
