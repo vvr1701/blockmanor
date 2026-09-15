@@ -43,7 +43,9 @@ submission ALWAYS gets backend-engineer + qa-prd-auditor review.
 - qa-prd-auditor sign-off for: engine, wallet, daily board, IAP, ads
 
 ## Current stage
-STAGE 1 — in progress. Stage 0 is DONE; the Android device gate passed on
+STAGE 1 — code-complete, signed off WITH CONDITIONS on 2026-09-15 (BUILD_STATE S21):
+operator setup + `[device]` acceptance checks remain before the closed beta.
+(Stage 0 history follows.) Stage 0 is DONE; the Android device gate passed on
 2026-08-05 (preview APK, Redmi Note 8: boots to placeholder Home, tokens render,
 MMKV meta state + RC snapshot resolve).
 

@@ -1205,6 +1205,34 @@ already correct. Fix BLOCKERs and MAJORs; defer NITs to a follow-up list.
 Applies from the §12.1 branch onward. The §8.5 re-audit already in flight
 stands — it is daily-board, i.e. mandated.
 
+### S21 — Stage 1 SIGN-OFF (with conditions) (2026-09-15)
+
+- **Release hardening MERGED** (5c7a39c): `POST_NOTIFICATIONS` declared (the
+  Android 13+ push dialog could never appear); §8.3 900ms score count-up;
+  §12.4 queued daily submission now flushes on reconnect, and the daily client
+  reports its network outcomes.
+- **Final drift audit** (5c7a39c): all gates green — typecheck, lint, format,
+  shared 47 / engine 100 (99.54% lines, corpus `538e3dea`) / content 33 /
+  mobile 618 / functions 74, balance, emulator 94, expo-doctor 21/21. Verdict
+  NO SIGN-OFF on two blockers, both fixed and merged (e4e0292, PRD **v1.33**):
+  - B1 §7.1 step 4 butler card (`DailyIntroCard`, meta v10).
+  - B2 the `preview` APK forced FTUE replay forever and could never reach Home;
+    flag moved to a `preview-ftue` profile, and a forced replay now ends.
+  - MAJORs (screen names) resolved in §16.1 by v1.33; `AuthLinkScreen` → S2.
+  Per the auditor, with B1/B2 fixed this is **SIGN-OFF WITH CONDITIONS**:
+  the operator items and the `[device]` acceptance checks below.
+- **Conditions (operator):** `GOOGLE_SERVICES_JSON` EAS file secret;
+  `DAILY_BOARD_SALT`; Firestore region decision (nam5 vs asia-south1) before
+  deploy; Blaze + deploy functions/rules/indexes; Anonymous auth on; one new
+  EAS build; `blockmanor.game` domain (share link + Settings URLs); MMP account.
+- **Device checks still open:** cold start ≤3.0s; same board on 2 devices;
+  app-kill attempt consumed + resubmitted; share card <300ms → WhatsApp;
+  streak across UTC with ±3h clock skew; push dialog + both pushes + deep link;
+  full FTUE walk; haptics; board frame + count-up look; Crashlytics crash;
+  EAS Update OTA lands.
+- NITs left: dead `EXPO_PUBLIC_FIREBASE_*` in the local `.env` (operator file,
+  not touched); settings URLs on the unowned domain.
+
 ### S20 — daily quit confirm, §8.7 share card + push merged (2026-09-14)
 
 - **`fix/12.2-daily-quit-confirm` MERGED** (PRD **v1.30**, operator-approved):
