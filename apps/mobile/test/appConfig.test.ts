@@ -89,3 +89,10 @@ describe('app.config.ts EAS Update wiring (§4.1)', () => {
     expect(config.updates?.url).toBe(`https://u.expo.dev/${config.extra?.eas?.projectId}`);
   });
 });
+
+describe('app.config.ts Android permissions (§8.7)', () => {
+  it('declares POST_NOTIFICATIONS so the Android 13+ push dialog can appear', async () => {
+    const config = (await loadConfig()) as { android?: { permissions?: string[] } };
+    expect(config.android?.permissions).toContain('android.permission.POST_NOTIFICATIONS');
+  });
+});
