@@ -7,8 +7,7 @@
  * §12.9's "Early bird! 🌅" — fewer than 100 counted submissions, or a log
  * excluded by §0 v1.26(b).
  *
- * NOT built here, each on its own branch: the 900ms count-up (next step on
- * this branch), the worldwide distribution chart (the histogram is
+ * NOT built here: the worldwide distribution chart (the histogram is
  * server-only; no callable returns it), and the share card + WhatsApp/Story
  * buttons (§8.7).
  */
@@ -20,7 +19,11 @@ import { GoldButton } from '../../components/GoldButton';
 import { colors, fontFamily, fontSize, radius, spacing, withAlpha } from '../../components/tokens';
 import { t } from '../../i18n';
 import { formatScore } from '../../i18n/format';
+import { useCountUp } from '../../game/useCountUp';
 import type { ShareChannel } from '../../services/share';
+
+/** §8.3 "score count-up 900ms". */
+export const SCORE_COUNT_UP_MS = 900;
 
 export interface DailyResultScreenProps {
   /** The server's re-simulated score (§8.5). */
@@ -41,12 +44,14 @@ export function DailyResultScreen({
   onContinue,
   onShare,
 }: DailyResultScreenProps): React.JSX.Element {
+  // §8.3: the score counts up over 900ms; the a11y label always carries the real one.
+  const shownScore = useCountUp(score, SCORE_COUNT_UP_MS);
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
         <Text style={styles.title}>{t('daily.result.title')}</Text>
         <Text style={styles.score} accessibilityLabel={t('daily.hud.scoreA11y', { score })}>
-          {formatScore(score)}
+          {formatScore(shownScore)}
         </Text>
         <Text style={styles.percentile}>
           {percentile === null

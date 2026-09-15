@@ -72,6 +72,9 @@ const config: ExpoConfig = {
   ],
   android: {
     package: 'com.vvr1701.blockmanor',
+    // §8.7 / §0 v1.32: Android 13+ shows the notification dialog only for a
+    // DECLARED permission; undeclared, every opt-in silently comes back denied.
+    permissions: ['android.permission.POST_NOTIFICATIONS'],
     ...(hasAndroidFirebase ? { googleServicesFile: googleServicesJson } : {}),
     adaptiveIcon: {
       foregroundImage: './assets/android-icon-foreground.png',

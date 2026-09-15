@@ -9,6 +9,7 @@ import { DEV_BOARD_ENABLED, FTUE_FORCE_REPLAY } from './game/devFlag';
 import { createDemoGameState } from './game/demoGameState';
 import { LevelSession } from './game/LevelSession';
 import { DailySession } from './game/DailySession';
+import { watchDailyReconnectFlush } from './game/dailyResult';
 import { getInstalledVersion, isBelowMinVersion } from './services/appInfo';
 import { initFirebase, syncRemoteConfig } from './services/firebase';
 import { syncPushRegistration, watchPush } from './services/push';
@@ -67,6 +68,8 @@ export default function App(): React.JSX.Element {
     void syncPushRegistration();
     return watchPush(() => setDailyOpen(true));
   }, []);
+  // §12.4: a Daily run that ended offline is submitted the moment we reconnect.
+  useEffect(() => watchDailyReconnectFlush(), []);
   // §12.1: Home's HUD gear AND (via `LevelSession`) `PauseSheet`'s settings
   // shortcut both reach the same local-state seam. Rendered as an OVERLAY
   // sibling (like `AnalyticsDebugOverlay`), not a replacement branch of the

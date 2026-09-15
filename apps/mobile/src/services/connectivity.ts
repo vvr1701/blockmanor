@@ -47,6 +47,13 @@ function subscribe(listener: Listener): () => void {
   };
 }
 
+/** §12.4: fires each time the app goes from offline back to online. */
+export function onReconnect(listener: () => void): () => void {
+  return subscribe(() => {
+    if (online) listener();
+  });
+}
+
 /** Re-renders only when the flag actually flips — `reportNetworkResult`
  * early-returns on an unchanged value, so a failing poll cannot thrash the UI. */
 export function useOnline(): boolean {
