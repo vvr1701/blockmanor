@@ -210,5 +210,10 @@
   "push.softAsk.title": "Want tomorrow's board the second it drops?",
   "push.softAsk.body": "One nudge a day, plus a warning if your streak is about to go out. Nothing else.",
   "push.softAsk.accept": "Notify me",
-  "push.softAsk.decline": "Maybe later"
+  "push.softAsk.decline": "Maybe later",
+  "home.dailyIntro.speaker": "Alfred, the butler",
+  "home.dailyIntro.title": "Today's Board",
+  "home.dailyIntro.body": "One board, the same for everyone in the world, once a day. One attempt — see where you rank.",
+  "home.dailyIntro.open": "Show me",
+  "home.dailyIntro.dismiss": "Later"
 }

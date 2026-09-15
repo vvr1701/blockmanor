@@ -49,7 +49,14 @@ function buildFtueGameState(json: LevelJson, tuning: EngineTuning): GameState {
   );
 }
 
-export function FtueScreen(): React.JSX.Element {
+export interface FtueScreenProps {
+  /** Fired once the name/avatar step completes. `App` uses it to end a
+   * QA forced replay (`EXPO_PUBLIC_FTUE_FORCE_REPLAY`), which would otherwise
+   * keep the player in FTUE forever. */
+  onComplete?: () => void;
+}
+
+export function FtueScreen({ onComplete }: FtueScreenProps = {}): React.JSX.Element {
   const [stepIndex, setStepIndex] = useState(0);
   const [phase, setPhase] = useState<'level' | 'nameAvatar'>('level');
   const [hasPlaced, setHasPlaced] = useState(false);
@@ -93,8 +100,9 @@ export function FtueScreen(): React.JSX.Element {
       // (§7.5 audit B-1) — one number, not two independently-maintained ones.
       setCurrentLevel(FIRST_POST_FTUE_LEVEL);
       track('ftue_complete', { guest });
+      onComplete?.();
     },
-    [setProfile, setFtueComplete, setCurrentLevel],
+    [setProfile, setFtueComplete, setCurrentLevel, onComplete],
   );
 
   if (phase === 'nameAvatar') {

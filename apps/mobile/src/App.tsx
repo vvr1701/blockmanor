@@ -89,7 +89,9 @@ export default function App(): React.JSX.Element {
   const ftueComplete = useMetaStore((s) => s.ftueComplete);
   const currentLevel = useMetaStore((s) => s.currentLevel);
   const isReturningUser = ftueComplete || currentLevel > 1;
-  const showFtue = FTUE_FORCE_REPLAY || !isReturningUser;
+  // A QA forced replay ends when that replay completes — never a trap (§12.9).
+  const [ftueReplayDone, setFtueReplayDone] = useState(false);
+  const showFtue = (FTUE_FORCE_REPLAY && !ftueReplayDone) || !isReturningUser;
 
   // §12.5 remote kill switch. Read directly off `useConfigStore` (which
   // always holds at least the compiled §13 default, live-fetched values
@@ -130,7 +132,7 @@ export default function App(): React.JSX.Element {
               {DEV_BOARD_ENABLED && devBoard && demoState ? (
                 <GameplayScreen initialState={demoState} />
               ) : showFtue ? (
-                <FtueScreen />
+                <FtueScreen onComplete={() => setFtueReplayDone(true)} />
               ) : playing ? (
                 <LevelSession
                   onExit={() => setPlaying(false)}
