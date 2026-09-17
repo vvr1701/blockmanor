@@ -1205,6 +1205,27 @@ already correct. Fix BLOCKERs and MAJORs; defer NITs to a follow-up list.
 Applies from the §12.1 branch onward. The §8.5 re-audit already in flight
 stands — it is daily-board, i.e. mandated.
 
+### S22 — post-sign-off: EAS secret + rebuilt preview APK (2026-09-17)
+
+- The 2026-09-15 preview build (`3dd3d7d1`, from ee53512) **errored** in
+  "Configure expo-updates" — the fingerprint mismatch. The fix (14b3c65,
+  `runtimeVersion: { policy: 'appVersion' }`) was committed after it and had
+  never been built. **Rule that follows:** bump `version` in `app.config.ts`
+  on any native change before an OTA.
+- **`GOOGLE_SERVICES_JSON` EAS file secret CREATED** (preview environment,
+  project scope, secret visibility) from the verified local
+  `apps/mobile/google-services.json`. S21 operator condition 1 closed. The
+  `preview-ftue` profile inherits it (same `environment: preview`).
+- **Preview build `66d4b2b6` started** from 14b3c65 — the first build with
+  Firebase wired in (RNFB firestore/functions/messaging, react-native-share).
+  **FINISHED** (46 min, runtime version `0.1.0`, version code 1). APK:
+  https://expo.dev/artifacts/eas/Ou6Ei9Md_Etpf-6Kch_yGH03563Fh6y8owjwJp-tTW4.apk
+  — this is the binary for every open `[device]` check. Not yet installed on
+  a device; nothing below is verified.
+- Still operator-only (need Blaze / console / a domain): `DAILY_BOARD_SALT`,
+  Firestore region, deploy functions/rules/indexes, Anonymous auth,
+  `blockmanor.game`, MMP account. All `[device]` checks remain open.
+
 ### S21 — Stage 1 SIGN-OFF (with conditions) (2026-09-15)
 
 - **Release hardening MERGED** (5c7a39c): `POST_NOTIFICATIONS` declared (the
@@ -1572,6 +1593,8 @@ finding is closed.
 
 ## AWAITING HUMAN — importance-ordered
 
+0. ~~**`GOOGLE_SERVICES_JSON` EAS file secret**~~ — DONE 2026-09-17 (S22), preview
+   environment. Preview APK `66d4b2b6` built with Firebase wired in.
 1. **`DAILY_BOARD_SALT` secret** — `firebase functions:secrets:set
    DAILY_BOARD_SALT --project blockmanor-dev`, 32+ bytes of entropy. Gates seed
    derivation AND the AES key; rotating it changes every future board. Without
