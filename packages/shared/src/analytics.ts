@@ -7,6 +7,8 @@
  * (`ftue_step{step} · ftue_complete`); later sections add theirs alongside.
  */
 
+import type { CoinSource } from './wallet';
+
 /**
  * §7.1 FTUE step checkpoints. Not literally named in the PRD (§7.1 only says
  * "FTUE steps fire `ftue_step {step}` events"), so the concrete values are
@@ -133,6 +135,17 @@ export interface ShareCompleteParams {
   channel: 'whatsapp' | 'sheet';
 }
 
+/**
+ * §9.1 coins credited (§14 `coins_earned{source,amount}`). Fired only when the
+ * SERVER reports the grant as newly applied — never optimistically, so a
+ * rolled-back grant never reaches BigQuery, and a retried one is not counted
+ * twice. `amount` is the server's price, not the client's estimate.
+ */
+export interface CoinsEarnedParams {
+  source: CoinSource;
+  amount: number;
+}
+
 /** Keyed by §14 event name; extend per-section as each PRD subsection lands. */
 export interface AnalyticsEvents {
   ftue_step: FtueStepParams;
@@ -149,6 +162,7 @@ export interface AnalyticsEvents {
   streak_broken: StreakBrokenParams;
   share_tap: ShareTapParams;
   share_complete: ShareCompleteParams;
+  coins_earned: CoinsEarnedParams;
 }
 
 export type AnalyticsEventName = keyof AnalyticsEvents;

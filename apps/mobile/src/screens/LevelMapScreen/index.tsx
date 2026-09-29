@@ -87,6 +87,7 @@ import Animated, {
 import { GoldButton } from '../../components/GoldButton';
 import { colors, fontFamily, fontSize, radius, spacing, withAlpha } from '../../components/tokens';
 import { t } from '../../i18n';
+import { grantCoins } from '../../services/wallet';
 import { useMetaStore } from '../../state/useMetaStore';
 import { ChestSheet } from './ChestSheet';
 import {
@@ -237,7 +238,11 @@ export function LevelMapScreen({ onPlay, onExit }: LevelMapScreenProps): React.J
           chestLevel={openChest}
           frameName={t(`frames.${openChestFrame.id}` as Parameters<typeof t>[0])}
           opened={Boolean((chestsClaimed ?? {})[String(openChest)])}
-          onOpen={() => claimChest(openChest, openChestFrame.id)}
+          onOpen={() => {
+            claimChest(openChest, openChestFrame.id);
+            // §9.1 `coins_chest`, once per chest (the server keys it by level).
+            grantCoins({ source: 'chest', chestLevel: openChest });
+          }}
           onClose={() => setOpenChest(null)}
         />
       ) : null}

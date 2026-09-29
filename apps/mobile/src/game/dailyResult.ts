@@ -3,6 +3,7 @@ import { track } from '../services/analytics';
 import { onReconnect } from '../services/connectivity';
 import { readPendingRun, submitPendingRun } from '../services/dailyClient';
 import { useMetaStore } from '../state/useMetaStore';
+import { useWalletStore } from '../state/useWalletStore';
 import { streakEvents } from './streak';
 
 /**
@@ -21,6 +22,12 @@ export function applyAcceptedDaily(result: SubmitResult): number | null {
   for (const event of streakEvents(meta.streak, result)) {
     track(event.name, { n: event.n });
     if (event.name === 'streak_milestone') milestone = event.n;
+  }
+  // §9.1 `coins_daily_complete` was granted server-side inside the accepting
+  // transaction; adopt the balance it returned and record the earning once.
+  if (result.wallet) useWalletStore.getState().applyServer(result.wallet);
+  if (result.coinsGranted) {
+    track('coins_earned', { source: 'daily_complete', amount: result.coinsGranted });
   }
   meta.setStreak(result.streak);
   meta.setBadge('dailyUnplayed', false);

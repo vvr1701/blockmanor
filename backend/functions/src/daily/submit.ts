@@ -20,7 +20,9 @@
  * This file therefore cannot reach Remote Config at all — it does not import
  * it, and `generate.test.ts` asserts that it never will. §8.6's one live key,
  * `daily_streak_min_moves [RC, 3]`, is read in `streak.ts`, which explains
- * there why a non-engine key is allowed to be live.
+ * there why a non-engine key is allowed to be live. §9.1's
+ * `coins_daily_complete` is live for the same reason and is read in
+ * `wallet/wallet.ts`, after `simulate()` has already produced the verdict.
  *
  * A PARTIAL move log is normal, not an attack: §8.3's app-kill path submits the
  * log up to that point, and `simulate()` over it simply ends with the run still
@@ -39,6 +41,9 @@ import {
   dailyTopPercent,
   DAILY_STALE_AFTER_MS,
   USERS_COLLECTION,
+  WALLET_TX_SUBCOLLECTION,
+  dailyGrantKey,
+  type WalletState,
   dailyGameConfig,
   dailyPlaySeed,
   dailySubmissionSchema,
@@ -59,6 +64,7 @@ import type { SubmitRejection, SubmitResult } from '@blockmanor/shared';
 import { DAILY_BOARD_SALT, raiseOpsAlert } from './publish';
 import { attemptSeed, dailySeed, openSequence } from './seal';
 import { nextStreak, streakMinMoves, type StreakState } from './streak';
+import { applyMutation, currentWallet, ledgerRow, readEconomyConfig } from '../wallet/wallet';
 
 /**
  * §8.5: "submission for a past date >36h old" is rejected, measured from the
@@ -269,6 +275,20 @@ export async function submitDailyAttempt(
   const minMoves = await streakMinMoves();
   const earnsStreak = payload.moves.length >= minMoves;
 
+  // §9.1 `coins_daily_complete`: paid for a run the BOARD ended (death or
+  // sequence exhaustion, §8.2), never for a quit or an app-kill log that the
+  // re-simulation leaves `'playing'`. Server-granted from the re-simulated
+  // result — the client never asks for this one. Like `streakMinMoves` above,
+  // this live read cannot touch `simulate()`, which has already run.
+  const economy = await readEconomyConfig();
+  const dailyCoins =
+    economy.enabled && result.status !== 'playing' ? economy.coins_daily_complete : 0;
+  const grantRef = db
+    .collection(USERS_COLLECTION)
+    .doc(uid)
+    .collection(WALLET_TX_SUBCOLLECTION)
+    .doc(dailyGrantKey(payload.date));
+
   const userRef = db.collection(USERS_COLLECTION).doc(uid);
   const movesHash = moveLogHash(payload.moves);
   const logRef = db
@@ -327,6 +347,24 @@ export async function submitDailyAttempt(
       typeof last === 'string' ? { streak, lastStreakDate: last } : { streak };
     const after = earnsStreak ? nextStreak(before, payload.date) : before;
 
+    // §9.1: the daily grant rides THIS transaction, so it lands exactly when
+    // the submission does, and only once — the attempt goes 'started' →
+    // 'submitted' once. The ledger `create()` below fails the whole commit
+    // loudly if that invariant ever breaks, rather than paying twice.
+    const grant = { kind: 'grant', source: 'daily_complete', amount: dailyCoins } as const;
+    let wallet: WalletState | null = null;
+    if (dailyCoins > 0) {
+      try {
+        wallet = applyMutation(
+          currentWallet(user.get('wallet'), economy.starting_coin_balance),
+          grant,
+        );
+      } catch {
+        // A malformed wallet is our bug (logged in `currentWallet`); the
+        // player's run and streak still land, only the coins wait for a fix.
+      }
+    }
+
     // §0 v1.26(b): first accepted submission of this exact log for this day
     // owns it. Read before any write (Firestore transactions require it); a
     // racing identical log serializes on this document.
@@ -374,9 +412,11 @@ export async function submitDailyAttempt(
       movesHash,
       countsForPercentile,
       percentile,
+      coinsGranted: wallet ? dailyCoins : 0,
     });
-    tx.set(userRef, after, { merge: true });
-    return { before, after, countsForPercentile, percentile };
+    if (wallet) tx.create(grantRef, ledgerRow(grant, wallet, now));
+    tx.set(userRef, wallet ? { ...after, wallet } : after, { merge: true });
+    return { before, after, countsForPercentile, percentile, wallet };
   });
 
   logger.info('daily_submit: accepted', {
@@ -399,6 +439,8 @@ export async function submitDailyAttempt(
     streakGranted: streakState.after.streak !== streakState.before.streak,
     countsForPercentile: streakState.countsForPercentile,
     percentile: streakState.percentile,
+    coinsGranted: streakState.wallet ? dailyCoins : 0,
+    ...(streakState.wallet ? { wallet: streakState.wallet } : {}),
   };
 }
 

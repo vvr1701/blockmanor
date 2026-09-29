@@ -15,6 +15,7 @@ import TestRenderer, {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { collectTextContrast, composite, contrastRatio, flattenStyle } from '../contrast';
 import { track } from '../../src/services/analytics';
+import { grantCoins } from '../../src/services/wallet';
 import {
   CARD_MAX_FONT_SCALE,
   LevelMapScreen,
@@ -92,6 +93,7 @@ function texts(node: ReactTestInstance): string[] {
   return node.findAllByType('RNText' as never).map((n) => String(n.props.children));
 }
 
+vi.mock('../../src/services/wallet', () => ({ grantCoins: vi.fn() }));
 vi.mock('../../src/services/analytics', () => ({ track: vi.fn() }));
 
 const noop = (): void => undefined;
@@ -356,7 +358,7 @@ describe('§7.10 chests — L10/20/30…, and the claim', () => {
     expect(locked.props.onPress).toBeUndefined();
   });
 
-  it('opening a chest grants and PERSISTS the cosmetic avatar frame — and nothing else', () => {
+  it('opening a chest grants and PERSISTS the cosmetic avatar frame, and requests the §9.1 chest coins', () => {
     setProgress({ currentLevel: 24 });
     const renderer = render(<LevelMapScreen onPlay={noop} onExit={noop} />);
     act(() => {
@@ -374,8 +376,9 @@ describe('§7.10 chests — L10/20/30…, and the claim', () => {
     const frame = frameForChest(20)!;
     expect(useMetaStore.getState().ownedFrames).toEqual([frame.id]);
     expect(useMetaStore.getState().chestsClaimed['20']).toBe(true);
-    // Stage 2 is Stage 2: no wallet key appeared alongside the grant.
+    // Coins are server-authoritative (§9.1): never a meta-store key, only a grant request.
     expect(Object.keys(useMetaStore.getState())).not.toContain('coins');
+    expect(grantCoins).toHaveBeenCalledWith({ source: 'chest', chestLevel: 20 });
   });
 
   it('the sheet shows the frame it granted, then collapses to the map on Collect', () => {

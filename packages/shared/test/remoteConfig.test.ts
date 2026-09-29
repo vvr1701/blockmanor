@@ -55,7 +55,11 @@ describe('Remote Config registry (PRD §13)', () => {
     expect(isWithinBounds('daily_push_hour', 8.5)).toBe(false);
     expect(isWithinBounds('mercy_threshold', 0.55)).toBe(true);
     // An unbounded key passes anything finite.
-    expect(isWithinBounds('coins_chest', -1)).toBe(true);
+    expect(isWithinBounds('life_refill_price', -1)).toBe(true);
+    // §9.1 wallet keys are bounded: whole, non-negative coins.
+    expect(isWithinBounds('coins_chest', -1)).toBe(false);
+    expect(isWithinBounds('coins_per_star', 2.5)).toBe(false);
+    expect(isWithinBounds('coins_daily_complete', 0)).toBe(true);
   });
 
   it('defaults every key to a defined primitive', () => {

@@ -36,11 +36,14 @@ import { GameplayScreen } from '../../src/screens/GameplayScreen';
 import { WinScreen } from '../../src/screens/WinScreen';
 import { FailScreen } from '../../src/screens/FailScreen';
 import { mmkvStorage } from '../../src/state/persist';
+import { grantCoins } from '../../src/services/wallet';
 import { getInstalledVersion } from '../../src/services/appInfo';
 import { selectBadges, useMetaStore } from '../../src/state/useMetaStore';
 import { resetStoreReviewMock, storeReviewMock } from '../mocks/expo-store-review';
 
 vi.mock('../../src/services/analytics', () => ({ track: vi.fn() }));
+// §9.1: the wallet service is proven in test/wallet.test.ts; here only the call.
+vi.mock('../../src/services/wallet', () => ({ grantCoins: vi.fn() }));
 
 // `vi.mock` factories are hoisted above every other top-level statement in
 // this file (including `const` declarations) — `vi.hoisted` is the
@@ -347,6 +350,7 @@ describe('LevelSession (PRD §7.5 progression loop)', () => {
 
   it('a goal-less scripted level EXHAUSTING its pieceSequence (status "completed", §8.2/§4.3) swaps in WinScreen — §7.5 audit B-1', () => {
     useMetaStore.setState({ currentLevel: 12 });
+    vi.mocked(grantCoins).mockClear();
     const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
     place(renderer, 0, 3, 3); // empty board, no line clear — pure exhaustion
 
@@ -591,6 +595,7 @@ describe('LevelSession (PRD §7.5 progression loop)', () => {
    * Drop either `persistStars` call and exactly one of them reds.
    */
   it('§7.10: a win PERSISTS the star count the level map renders', () => {
+    vi.mocked(grantCoins).mockClear();
     const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
     place(renderer, 0, 0, 0);
     advance(WIN_HOLD_MS);
@@ -598,16 +603,24 @@ describe('LevelSession (PRD §7.5 progression loop)', () => {
     expect(renderer.root.findByType(WinScreen).props.stars).toBe(2);
     // The same number the screen showed, now outliving the session.
     expect(useMetaStore.getState().stars['10']).toBe(2);
+    // §9.1: the same stars price the level-win grant, exactly once.
+    expect(vi.mocked(grantCoins).mock.calls).toEqual([
+      [{ source: 'level_win', levelId: 10, stars: 2 }],
+    ]);
   });
 
   it('§7.10: the `pieceSequence`-exhaustion win path persists stars too', () => {
     useMetaStore.setState({ currentLevel: 12 });
+    vi.mocked(grantCoins).mockClear();
     const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
     place(renderer, 0, 3, 3);
     advance(WIN_HOLD_MS);
 
     expect(renderer.root.findByType(WinScreen).props.stars).toBe(1);
     expect(useMetaStore.getState().stars['12']).toBe(1);
+    expect(vi.mocked(grantCoins).mock.calls).toEqual([
+      [{ source: 'level_win', levelId: 12, stars: 1 }],
+    ]);
   });
 
   it('§7.10: §7.5s "Level map" ghost routes to `onLevelMap` when the mount point supplies one, and still falls back to `onExit`', () => {

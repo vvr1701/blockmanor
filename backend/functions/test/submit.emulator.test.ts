@@ -30,6 +30,8 @@ import {
   DAILY_HISTOGRAM_DOC,
   DAILY_STATS_SUBCOLLECTION,
   dailyHistogramBucket,
+  WALLET_TX_SUBCOLLECTION,
+  dailyGrantKey,
 } from '@blockmanor/shared';
 import {
   applyPlacement,
@@ -48,6 +50,8 @@ const mocks = vi.hoisted(() => ({
   getNumber: vi.fn<(key: string) => number>(),
   /** Per-key Remote Config provenance, so the `!== 'remote'` branch is reachable. */
   getSource: vi.fn<(key: string) => string>(),
+  /** §13 flags; `flag_economy` gates the §9.1 daily grant. */
+  getBoolean: vi.fn<(key: string) => boolean>(),
 }));
 
 vi.mock('firebase-admin/remote-config', () => ({
@@ -56,6 +60,7 @@ vi.mock('firebase-admin/remote-config', () => ({
       evaluate: () => ({
         getValue: (key: string) => ({
           asNumber: () => mocks.getNumber(key),
+          asBoolean: () => mocks.getBoolean(key),
           getSource: () => mocks.getSource(key),
         }),
       }),
@@ -179,6 +184,11 @@ beforeEach(async () => {
     return typeof fallback === 'number' ? fallback : 0;
   });
   mocks.getSource.mockImplementation(() => 'remote');
+  // Registry defaults: `flag_economy` off, so the §8 suites run economy-free.
+  mocks.getBoolean.mockImplementation((key) => {
+    const fallback = REMOTE_CONFIG_DEFAULTS[key as keyof typeof REMOTE_CONFIG_DEFAULTS];
+    return fallback === true;
+  });
   await db().recursiveDelete(db().collection(DAILY_BOARDS_COLLECTION));
   await db().recursiveDelete(db().collection(USERS_COLLECTION));
   await db().recursiveDelete(db().collection(OPS_ALERTS_COLLECTION));
@@ -971,5 +981,87 @@ describe('§8.4 percentile histogram (§0 v1.28)', () => {
     const results = await Promise.all(uids.map((u, i) => submit(u, runs[i]!)));
     expect(results.every((r) => r.countsForPercentile)).toBe(true);
     expect((await histogramRef().get()).get('total')).toBe(uids.length);
+  });
+});
+
+describe('§9.1 coins_daily_complete, granted inside the accepting transaction', () => {
+  const COINS = REMOTE_CONFIG_DEFAULTS.coins_daily_complete;
+  const START = REMOTE_CONFIG_DEFAULTS.starting_coin_balance;
+  const economyOn = () => mocks.getBoolean.mockImplementation((key) => key === 'flag_economy');
+  const grantRow = () => userRef().collection(WALLET_TX_SUBCOLLECTION).doc(dailyGrantKey(DATE));
+  const submitRun = (run: { moves: Move[]; score: number }) =>
+    submitDailyAttempt(UID, { date: DATE, moves: run.moves, claimedScore: run.score }, SALT, NOON);
+
+  it('pays a run the board ended, once, and returns the new balance', async () => {
+    economyOn();
+    const run = await honestRun();
+    const result = await submitRun(run);
+    expect(result.status).not.toBe('playing');
+    expect(result).toMatchObject({ coinsGranted: COINS, wallet: { coins: START + COINS, rev: 1 } });
+    expect((await userRef().get()).get('wallet')).toEqual({ coins: START + COINS, rev: 1 });
+    expect((await grantRow().get()).data()).toMatchObject({
+      kind: 'grant',
+      source: 'daily_complete',
+      amount: COINS,
+    });
+    expect((await attemptRef().get()).get('coinsGranted')).toBe(COINS);
+    // The streak write and the wallet write share one merge; neither clobbers the other.
+    expect((await userRef().get()).get('streak')).toBe(1);
+  });
+
+  it('prices from live Remote Config', async () => {
+    economyOn();
+    const defaults = mocks.getNumber.getMockImplementation() ?? (() => 0);
+    mocks.getNumber.mockImplementation((key) =>
+      key === 'coins_daily_complete' ? 77 : defaults(key),
+    );
+    const result = await submitRun(await honestRun());
+    expect(result.coinsGranted).toBe(77);
+  });
+
+  it('pays nothing for a quit or app-kill log the board did not end', async () => {
+    economyOn();
+    const result = await submitRun(await honestRun(DATE, 5));
+    expect(result.status).toBe('playing');
+    expect(result.coinsGranted).toBe(0);
+    expect(result.wallet).toBeUndefined();
+    expect((await userRef().get()).get('wallet')).toBeUndefined();
+    expect((await grantRow().get()).exists).toBe(false);
+  });
+
+  it('pays nothing while flag_economy is off (§13 default)', async () => {
+    const result = await submitRun(await honestRun());
+    expect(result.coinsGranted).toBe(0);
+    expect((await userRef().get()).get('wallet')).toBeUndefined();
+  });
+
+  it('a rejected submission pays nothing', async () => {
+    economyOn();
+    const run = await honestRun();
+    await expect(submitRun({ ...run, score: run.score + 1 })).rejects.toThrow();
+    expect((await userRef().get()).exists).toBe(false);
+  });
+
+  it('concurrent submissions of one run pay exactly once', async () => {
+    economyOn();
+    const run = await honestRun();
+    const results = await Promise.allSettled(Array.from({ length: 4 }, () => submitRun(run)));
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    expect((await userRef().get()).get('wallet')).toEqual({ coins: START + COINS, rev: 1 });
+  });
+
+  it('adds to an existing balance rather than restarting it', async () => {
+    economyOn();
+    await userRef().set({ wallet: { coins: 12, rev: 4 } });
+    const result = await submitRun(await honestRun());
+    expect(result.wallet).toEqual({ coins: 12 + COINS, rev: 5 });
+  });
+
+  it('a malformed wallet never blocks the run or the streak', async () => {
+    economyOn();
+    await userRef().set({ wallet: { coins: 'lots', rev: 0 } });
+    const result = await submitRun(await honestRun());
+    expect(result).toMatchObject({ coinsGranted: 0, streak: 1 });
+    expect((await userRef().get()).get('wallet')).toEqual({ coins: 'lots', rev: 0 });
   });
 });

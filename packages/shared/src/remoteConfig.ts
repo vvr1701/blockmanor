@@ -173,6 +173,13 @@ export const REMOTE_CONFIG_BOUNDS = {
   endless_unlock_level: { min: 1, max: 1_000, integer: true },
   // §14 queue cap: 0 would drop every event ever tracked.
   analytics_queue_cap: { min: 1, max: 100_000, integer: true },
+  // §9.1 wallet: whole coins only. 0 is legal and means "this source pays
+  // nothing" — a typo there is visible and cannot mint coins.
+  starting_coin_balance: { min: 0, max: 1_000_000, integer: true },
+  coins_level_win_base: { min: 0, max: 100_000, integer: true },
+  coins_per_star: { min: 0, max: 100_000, integer: true },
+  coins_chest: { min: 0, max: 1_000_000, integer: true },
+  coins_daily_complete: { min: 0, max: 100_000, integer: true },
 } as const satisfies Partial<Record<RemoteConfigKey, NumberBound>>;
 
 /** True unless `key` has a bound that `value` violates. Unbounded keys pass. */

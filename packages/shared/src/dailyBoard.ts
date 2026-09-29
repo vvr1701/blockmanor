@@ -40,6 +40,7 @@ import {
   type PieceId,
 } from '@blockmanor/engine';
 import { z } from 'zod';
+import type { WalletState } from './wallet';
 
 /** §8.2: the published board lives at `dailyBoards/{YYYY-MM-DD}`. */
 export const DAILY_BOARDS_COLLECTION = 'dailyBoards';
@@ -595,4 +596,11 @@ export interface SubmitResult {
   countsForPercentile: boolean;
   /** §8.4 (§0 v1.28) "Top X%", fixed at submission; null = "Early bird!" or not counted. */
   percentile: number | null;
+  /**
+   * §9.1 `coins_daily_complete`, granted server-side in the same transaction
+   * that accepts the run; 0 when none. Optional: absent from a pre-§9.1 deploy.
+   */
+  coinsGranted?: number;
+  /** The wallet after this submission's grant, present only when one was made. */
+  wallet?: WalletState;
 }

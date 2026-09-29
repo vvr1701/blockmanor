@@ -34,7 +34,9 @@ service cloud.firestore {
     // §4.4 / §12.6: a player reads their own document (progress, streak, and
     // from Stage 2 the wallet) and writes none of it. §8.6 streak and §9.1
     // wallet are server-authoritative across a skewed device clock, which only
-    // holds if the client cannot touch them.
+    // holds if the client cannot touch them. That includes the §9.1
+    // `walletTx/{key}` ledger: a client-created row would squat on a grant's
+    // idempotency key, a deleted one would let it pay twice.
     match /users/{uid} {
       allow read: if request.auth != null && request.auth.uid == uid;
       allow write: if false;

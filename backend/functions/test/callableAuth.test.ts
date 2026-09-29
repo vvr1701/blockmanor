@@ -11,6 +11,7 @@
 import { describe, expect, it } from 'vitest';
 import { dailyPlayStart } from '../src/daily/playStart';
 import { dailySubmit } from '../src/daily/submit';
+import { grantCoins, spendCoins } from '../src/wallet/wallet';
 
 const unauthenticated = (data: unknown) => ({ data, auth: undefined }) as never;
 
@@ -26,6 +27,15 @@ describe('daily callables require sign-in', () => {
   it('dailySubmit rejects an unauthenticated request before doing anything', async () => {
     await expect(
       dailySubmit.run(unauthenticated({ date: '2026-08-09', moves: [], claimedScore: 0 })),
+    ).rejects.toMatchObject({ code: 'unauthenticated' });
+  });
+
+  it('§9.1 grantCoins and spendCoins reject an unauthenticated request', async () => {
+    await expect(
+      grantCoins.run(unauthenticated({ source: 'level_win', levelId: 12, stars: 3 })),
+    ).rejects.toMatchObject({ code: 'unauthenticated' });
+    await expect(
+      spendCoins.run(unauthenticated({ sink: 'continue', amount: 1, idempotencyKey: 'k' })),
     ).rejects.toMatchObject({ code: 'unauthenticated' });
   });
 });

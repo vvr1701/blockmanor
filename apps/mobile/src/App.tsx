@@ -12,6 +12,7 @@ import { DailySession } from './game/DailySession';
 import { watchDailyReconnectFlush } from './game/dailyResult';
 import { getInstalledVersion, isBelowMinVersion } from './services/appInfo';
 import { initFirebase, syncRemoteConfig } from './services/firebase';
+import { watchWalletSync } from './services/wallet';
 import { syncPushRegistration, watchPush } from './services/push';
 import { EndlessScreen } from './screens/EndlessScreen';
 import { ForceUpdateScreen } from './screens/ForceUpdateScreen';
@@ -70,6 +71,8 @@ export default function App(): React.JSX.Element {
   }, []);
   // §12.4: a Daily run that ended offline is submitted the moment we reconnect.
   useEffect(() => watchDailyReconnectFlush(), []);
+  // §9.1: adopt the server balance and retry unconfirmed grants (§12.4).
+  useEffect(() => watchWalletSync(), []);
   // §12.1: Home's HUD gear AND (via `LevelSession`) `PauseSheet`'s settings
   // shortcut both reach the same local-state seam. Rendered as an OVERLAY
   // sibling (like `AnalyticsDebugOverlay`), not a replacement branch of the

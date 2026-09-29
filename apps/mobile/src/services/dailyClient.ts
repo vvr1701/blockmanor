@@ -23,6 +23,7 @@ import {
   type PlayStartResult,
   type SubmitRejection,
   type SubmitResult,
+  type WalletState,
 } from '@blockmanor/shared';
 import { MMKV } from 'react-native-mmkv';
 import { track } from './analytics';
@@ -271,6 +272,10 @@ function accept(data: SubmitResult): DailySubmitOutcome {
   return { kind: 'accepted', result: data };
 }
 
+const isWallet = (w: unknown): w is WalletState =>
+  typeof (w as WalletState | null)?.coins === 'number' &&
+  typeof (w as WalletState | null)?.rev === 'number';
+
 /** The accepted submission as the server stored it (owner-readable under the rules). */
 async function readStoredResult(date: string): Promise<SubmitResult | null> {
   const uid = getAuth().currentUser?.uid;
@@ -293,6 +298,10 @@ async function readStoredResult(date: string): Promise<SubmitResult | null> {
       streakGranted: a['streakGranted'] === true,
       countsForPercentile: a['countsForPercentile'] === true,
       percentile: typeof a['percentile'] === 'number' ? a['percentile'] : null,
+      // §9.1: the lost response was the only place the grant was reported, so
+      // recover it too — the balance and the one `coins_earned` it owes.
+      coinsGranted: typeof a['coinsGranted'] === 'number' ? a['coinsGranted'] : 0,
+      ...(isWallet(u?.['wallet']) ? { wallet: u['wallet'] } : {}),
     };
   } catch (error) {
     recordError(error, 'daily_result_recover');

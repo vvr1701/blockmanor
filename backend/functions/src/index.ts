@@ -12,12 +12,15 @@
  *    the frozen `engineConfig` snapshot, and awards the §8.6 streak.
  *
  * §8.4's percentile histogram is maintained inside `dailySubmit`.
+ *  - `grantCoins` / `spendCoins` — §9.1 wallet mutations, idempotent per key.
+ *    §9.1's daily-completion grant is made inside `dailySubmit`, not here.
  */
 
 export { generateDailyBoardScheduled, regenerateDailyBoard } from './daily/publish';
 export { dailyPlayStart } from './daily/playStart';
 export { dailySubmit } from './daily/submit';
 export { registerPush, sendPushScheduled } from './push/push';
+export { grantCoins, spendCoins } from './wallet/wallet';
 
 // The SECRET half of the §8.2 seam: seed derivation and sequence sealing. These
 // stay server-side forever (§16 — the salt lives only in Functions config), and

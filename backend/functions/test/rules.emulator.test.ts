@@ -180,6 +180,52 @@ describe('§4.4 users/{uid}', () => {
   });
 });
 
+describe('§9.1 users/{uid}.wallet and walletTx ledger', () => {
+  // Seeded as the callables leave them: balance on the user doc, one ledger row.
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, 'users', 'alice'), { streak: 3, wallet: { coins: 500, rev: 0 } });
+      await setDoc(doc(db, 'users', 'alice', 'walletTx', 'level_win:12'), { amount: 70 });
+    });
+  });
+
+  it('lets a player read their own balance and ledger, and no one else', async () => {
+    const alice = env.authenticatedContext('alice').firestore();
+    await assertSucceeds(getDoc(doc(alice, 'users', 'alice')));
+    await assertSucceeds(getDoc(doc(alice, 'users', 'alice', 'walletTx', 'level_win:12')));
+    const bob = env.authenticatedContext('bob').firestore();
+    await assertFails(getDoc(doc(bob, 'users', 'alice', 'walletTx', 'level_win:12')));
+  });
+
+  it('denies every client write to the balance — only the callables move it', async () => {
+    const alice = env.authenticatedContext('alice').firestore();
+    const me = doc(alice, 'users', 'alice');
+    await assertFails(updateDoc(me, { 'wallet.coins': 1_000_000 }));
+    await assertFails(updateDoc(me, { wallet: { coins: 1_000_000, rev: 99 } }));
+    await assertFails(setDoc(me, { wallet: { coins: 1_000_000, rev: 99 } }, { merge: true }));
+    await assertFails(updateDoc(me, { wallet: null }));
+    // A player with no user doc yet cannot mint one with a wallet in it either.
+    const carol = env.authenticatedContext('carol').firestore();
+    await assertFails(setDoc(doc(carol, 'users', 'carol'), { wallet: { coins: 9_999, rev: 0 } }));
+  });
+
+  it('denies forging, editing or deleting a ledger row (the idempotency guard)', async () => {
+    const alice = env.authenticatedContext('alice').firestore();
+    // Pre-creating a key would block a real grant; deleting one would let it pay twice.
+    await assertFails(setDoc(doc(alice, 'users', 'alice', 'walletTx', 'chest:10'), { amount: 0 }));
+    await assertFails(
+      updateDoc(doc(alice, 'users', 'alice', 'walletTx', 'level_win:12'), { amount: 1e6 }),
+    );
+    await assertFails(deleteDoc(doc(alice, 'users', 'alice', 'walletTx', 'level_win:12')));
+  });
+
+  it("denies writing another player's wallet", async () => {
+    const bob = env.authenticatedContext('bob').firestore();
+    await assertFails(updateDoc(doc(bob, 'users', 'alice'), { 'wallet.coins': 0 }));
+  });
+});
+
 describe('deny-all catch-all', () => {
   it('closes every unlisted collection, signed in or not', async () => {
     const alice = env.authenticatedContext('alice').firestore();

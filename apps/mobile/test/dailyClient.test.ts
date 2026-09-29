@@ -364,8 +364,10 @@ describe('§8.3 audit fixes: pending attempts, lost accepts, final rejections', 
       streakGranted: true,
       countsForPercentile: true,
       percentile: 9,
+      // §9.1: the lost response was the only report of the daily grant.
+      coinsGranted: 50,
     };
-    firebaseMock.docs['users/u1'] = { streak: 6 };
+    firebaseMock.docs['users/u1'] = { streak: 6, wallet: { coins: 550, rev: 1 } };
     savePendingRun(run(DATE));
     rejectWith('already-submitted');
     await expect(submitPendingRun()).resolves.toStrictEqual({
@@ -379,6 +381,8 @@ describe('§8.3 audit fixes: pending attempts, lost accepts, final rejections', 
         streakGranted: true,
         countsForPercentile: true,
         percentile: 9,
+        coinsGranted: 50,
+        wallet: { coins: 550, rev: 1 },
       },
     });
     expect(trackMock).toHaveBeenCalledWith('daily_complete', {

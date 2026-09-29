@@ -6,8 +6,8 @@ import { mmkvStorage } from './persist';
 
 /**
  * Persisted player meta (PRD §4.4): progress, streaks, badges — MMKV-backed.
- * Wallet/coins arrive in Stage 2 and are server-authoritative (§9.1); this store
- * only ever caches them optimistically.
+ * Coins are NOT here: they are server-authoritative (§9.1) and cached in
+ * `useWalletStore`.
  */
 interface MetaState {
   currentLevel: number;

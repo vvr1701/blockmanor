@@ -34,6 +34,7 @@ import { GameplayScreen, type PauseControls } from '../screens/GameplayScreen';
 import { WinScreen } from '../screens/WinScreen';
 import { FailScreen } from '../screens/FailScreen';
 import { track } from '../services/analytics';
+import { grantCoins } from '../services/wallet';
 import { getInstalledVersion } from '../services/appInfo';
 import { requestReview, shouldPromptReview } from '../services/reviewPrompt';
 import { useConfigStore } from '../state/useConfigStore';
@@ -270,6 +271,8 @@ export function LevelSession({
           boosters_used: 0,
         });
         persistStars(json.id, won.stars);
+        // §9.1 level-win coins: optimistic, server-priced and server-keyed.
+        grantCoins({ source: 'level_win', levelId: json.id, stars: won.stars });
         const reviewVersion = recordWin(won.stars);
         setResult({ score: won.score, stars: won.stars, goals: [] });
         clearPhaseTimer();
@@ -292,6 +295,7 @@ export function LevelSession({
           boosters_used: 0,
         });
         persistStars(json.id, stars);
+        grantCoins({ source: 'level_win', levelId: json.id, stars });
         const reviewVersion = recordWin(stars);
         setResult({ score: state.score, stars, goals: [] });
         clearPhaseTimer();
