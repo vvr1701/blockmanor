@@ -43,11 +43,21 @@ submission ALWAYS gets backend-engineer + qa-prd-auditor review.
 - qa-prd-auditor sign-off for: engine, wallet, daily board, IAP, ads
 
 ## Current stage
-STAGE 1 — code-complete, signed off WITH CONDITIONS on 2026-09-15 (BUILD_STATE S21):
-operator setup + `[device]` acceptance checks remain before the closed beta.
-(Stage 0 history follows.) Stage 0 is DONE; the Android device gate passed on
-2026-08-05 (preview APK, Redmi Note 8: boots to placeholder Home, tokens render,
-MMKV meta state + RC snapshot resolve).
+STAGE 2 — Economy + Monetization (PRD §9–§10), started 2026-09-29 (BUILD_STATE S23).
+The operator (vvr1701) waived Stage 1's closed-beta metrics gate — PRD amended to
+v1.34 (§0 changelog) — so Stage 2 begins on Stage 1 being code-complete with all
+§7–§8 acceptance criteria passing, with NO closed-beta data (D1, funnel, crash-free)
+collected. Known risk, recorded in the PRD, not hidden: Stage 2's spend-sensitive
+systems (wallet, IAP, ads) are being built on an unvalidated core loop.
+Anything touching money/wallet ALWAYS gets backend-engineer + qa-prd-auditor
+review regardless of this waiver — that rule did not change.
+
+(Stage 1 and Stage 0 history follows.) Stage 1 was code-complete and signed off
+WITH CONDITIONS on 2026-09-15 (BUILD_STATE S21); the conditions (operator setup +
+`[device]` acceptance checks) were being worked through on-device (local Android
+build, see below) when the beta gate itself was waived. Stage 0 is DONE; the
+Android device gate passed on 2026-08-05 (preview APK, Redmi Note 8: boots to
+placeholder Home, tokens render, MMKV meta state + RC snapshot resolve).
 
 Stage 0 delivered:
 - `packages/engine` complete per PRD §6 — 100 tests, 99.5% lines, 1,000-game

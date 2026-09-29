@@ -1205,6 +1205,35 @@ already correct. Fix BLOCKERs and MAJORs; defer NITs to a follow-up list.
 Applies from the §12.1 branch onward. The §8.5 re-audit already in flight
 stands — it is daily-board, i.e. mandated.
 
+### S23 — Stage 1 closed-beta gate WAIVED; Stage 2 started (2026-09-29)
+
+- **Operator decision** (vvr1701, plain-text instruction: "no need of closed
+  beta, want to progress to next stage now"). PRD amended to **v1.34**
+  (§0 changelog): Stage 1's DoD no longer requires the 30-person closed beta
+  or its D1/funnel/crash-free/share-tap-rate measurements — struck, not
+  deferred. Stage 1 DoD is now "code-complete + all §7–§8 acceptance criteria
+  pass" only. `CLAUDE.md` "Current stage" updated to STAGE 2 accordingly.
+- **Risk recorded, not hidden:** Stage 2 (wallet, boosters, fail→continue,
+  ads, IAP — all spend-sensitive) now builds on a core loop with zero
+  closed-beta signal on retention (D1) or stability (crash-free). The
+  backend-engineer + qa-prd-auditor review requirement for anything touching
+  money/wallet is unchanged by this waiver.
+- **Context this landed in:** mid on-device local-build testing session
+  (Android emulator, local JDK/SDK toolchain set up this session under
+  `~/tools/`, separate from the operator's Windows Android Studio SDK). The
+  §7.4 worklet crash (`desaturationMatrix` missing `'worklet'` directive) and
+  a `GameplayScreen` event/state race (§4.3 `LEVEL_WON` contract violation,
+  root-caused to two desynced `useState`s, not an engine bug — engine
+  verified clean via a new fuzz-corpus invariant check) were fixed and
+  verified on-device in the same session, before this stage-gate decision.
+- **Stage-1 `[device]` acceptance checks and beta-related operator items**
+  (S21/S22's still-open list: `DAILY_BOARD_SALT`, Firestore region, deploy
+  functions/rules/indexes, Anonymous auth, MMP account, most device checks)
+  remain genuinely open — waiving the beta gate does not close them. They are
+  just no longer a precondition for starting Stage 2 work.
+- **Not yet decided:** which Stage 2 subsection (§9.1 wallet, §9.2 lives,
+  §9.3 boosters, §9.4 continue flow, §10.1–10.3 ads/IAP) starts first.
+
 ### S22 — post-sign-off: EAS secret + rebuilt preview APK (2026-09-17)
 
 - The 2026-09-15 preview build (`3dd3d7d1`, from ee53512) **errored** in
@@ -1619,4 +1648,13 @@ finding is closed.
    Developer account + `eas device:create`. Not blocking Stage 1.
 6. **Live FTUE funnel walk on device** — §7.1 shipped without it (no emulator
    at the time); still unclaimed and unverified.
+7. **`flag_economy` launch switch (§9.1, PRD v1.35)** — the wallet backend
+   (`feat/9.1-wallet`) is built and dormant; `flag_economy` stays off by
+   deliberate choice until enough Stage-2 UI exists (HUD coin counter,
+   WinScreen payout, `ShopScreen`) that flipping it doesn't expose a dead nav
+   tab (§7.11(g) gates Shop on this same flag). When ready to flip: it must be
+   set in BOTH the client Remote Config template AND the separate server
+   template the Cloud Functions read — flipping only one side either leaves
+   grants refused (server off) or lets coins accumulate with no UI (client
+   off, server on).
 
