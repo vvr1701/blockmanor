@@ -5,10 +5,10 @@
  * them (exactly the shape of bug the §7.2 tray-overflow QA finding was)
  * would show up structurally.
  */
-import { createGame, getLegalPlacements, type EngineTuning } from '@blockmanor/engine';
+import { createGame, getLegalPlacements, type EngineTuning, type GameEvent } from '@blockmanor/engine';
 import React from 'react';
 import TestRenderer, { act, type ReactTestRenderer } from 'react-test-renderer';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { DragLayer } from '../../src/game/DragLayer';
 import { GameplayScreen } from '../../src/screens/GameplayScreen';
 
@@ -114,5 +114,53 @@ describe('GameplayScreen', () => {
     // exactly 4, not duplicated by the one re-render placement causes.
     expect(renderer.root.findAllByType('GHDetector' as never).length).toBe(2);
     expect(renderer.root.findAllByType('SkCanvas' as never).length).toBe(4);
+  });
+
+  it('two placements queued in the same tick keep `events` in sync with the resulting `state` (§4.3 atomicity regression)', () => {
+    // Reproduces the exact race a real device hit: a second `onPlace` fired
+    // before the first placement's update had committed (in production this
+    // is `DragLayer` racing its own `runOnJS` bridge calls; here it's two
+    // synchronous calls in the same `act()` batch — the same "another update
+    // already pending" condition that defeats React's synchronous-updater
+    // fast path). `act()` collapses both into ONE commit, so this isn't
+    // about call COUNT — it's about whether the one `onEvent` call this
+    // produces reports events that actually match the state that committed.
+    //
+    // Old (buggy) shape: the second call's `events` was a local variable
+    // only ever written INSIDE the `setState` updater; when that updater was
+    // deferred (not run synchronously), the variable stayed `[]` and
+    // `setJuiceEvents([])` — called unconditionally right after — clobbered
+    // whatever the first call had correctly queued. Result: `state` still
+    // advanced correctly (functional updaters compose regardless of
+    // timing), but the reported `events` silently went to `[]` — exactly the
+    // "`status: 'won'` with no `LEVEL_WON` event" shape `LevelSession` caught.
+    const state = demoState();
+    const first = getLegalPlacements(state, 0)[0]!;
+    const second = getLegalPlacements(state, 1)[0]!;
+    const onEvent = vi.fn<(events: readonly GameEvent[], state: { placements: number }) => void>();
+
+    const renderer = render(<GameplayScreen initialState={state} onEvent={onEvent} />);
+    const dragLayer = renderer.root.findByType(DragLayer);
+    const onPlace = (dragLayer.props as { onPlace: (i: number, r: number, c: number) => void })
+      .onPlace;
+
+    // Both calls queued in the SAME `act()` batch, before either flushes.
+    act(() => {
+      onPlace(0, first.r, first.c);
+      onPlace(1, second.r, second.c);
+    });
+
+    expect(onEvent).toHaveBeenCalledTimes(1);
+    const [events, finalState] = onEvent.mock.calls[0]!;
+
+    // `state` itself was never the buggy half — both placements land either
+    // way. The regression is specifically that `events` must match, i.e.
+    // carry the SECOND (most recent) placement's own `PIECE_PLACED`, not a
+    // stale empty array.
+    expect(finalState.placements).toBe(2);
+    const secondPlaced = events.find((e) => e.type === 'PIECE_PLACED');
+    expect(secondPlaced).toMatchObject({ pieceIndex: 1, r: second.r, c: second.c });
+
+    expect(renderer.root.findAllByType('GHDetector' as never).length).toBe(1);
   });
 });

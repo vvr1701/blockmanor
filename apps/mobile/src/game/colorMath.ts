@@ -44,6 +44,7 @@ const LUMA_B = 0.0722;
  * desaturated — PRD §7.4 "desaturate board 400ms" animates this 0 -> 1.
  */
 export function desaturationMatrix(amount: number): number[] {
+  'worklet';
   const s = 1 - Math.max(0, Math.min(1, amount));
   const sr = (1 - s) * LUMA_R;
   const sg = (1 - s) * LUMA_G;

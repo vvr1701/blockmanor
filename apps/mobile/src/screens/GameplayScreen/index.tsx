@@ -194,13 +194,27 @@ export function GameplayScreen({
   onEvent,
   pause,
 }: GameplayScreenProps): React.JSX.Element {
-  const [state, setState] = useState(initialState);
+  // `state` and the `GameEvent[]` that produced it are ONE atom, not two
+  // separate `useState`s. They used to be split (`state` here, `juiceEvents`
+  // below) with `events` threaded through a local variable captured inside
+  // the `setState` updater and read right after — which assumes that updater
+  // runs synchronously. React only guarantees that when no other update is
+  // already pending for this piece of state; a `setDraggingIndex` from
+  // `DragLayer`'s `endDrag`, or a second quick placement, defers it to the
+  // next render, so the read-after would see the stale prior events (often
+  // `[]`) instead of the real result. That silently dropped juice on
+  // ordinary placements and, on a win, produced `status: 'won'` paired with
+  // an empty events array — tripping `LevelSession`'s §4.3 invariant. Folding
+  // both into one `useState<{ state, events }>` makes desync structurally
+  // impossible: every update returns a whole new snap (or the identical prior
+  // one, on a caught illegal placement), so `state` and `events` can never
+  // observe two different applyPlacement calls.
+  const [snap, setSnap] = useState<{ state: GameState; events: readonly GameEvent[] }>({
+    state: initialState,
+    events: [],
+  });
+  const { state, events: juiceEvents } = snap;
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
-  // The most recent `applyPlacement` call's events (§4.3) — `JuiceLayer`'s
-  // only input, never re-derived. A fresh (possibly empty) array reference
-  // each placement, set in the SAME handler as `setState` below so React 18
-  // batches both into the one re-render §4.5 v1.8 budgets per placement.
-  const [juiceEvents, setJuiceEvents] = useState<readonly GameEvent[]>([]);
   const { width } = useWindowDimensions();
   const containerWidth = width - spacing.md * 2;
   const reducedMotion = useReducedMotion();
@@ -328,12 +342,10 @@ export function GameplayScreen({
 
   const handlePlace = useCallback((pieceIndex: number, r: number, c: number) => {
     const placement: Placement = { pieceIndex, r, c };
-    let events: readonly GameEvent[] = [];
-    setState((prev) => {
+    setSnap((prev) => {
       try {
-        const result = applyPlacement(prev, placement);
-        events = result.events;
-        return result.state;
+        const result = applyPlacement(prev.state, placement);
+        return { state: result.state, events: result.events };
       } catch (err) {
         // The DragLayer only commits a placement it already snapped to a
         // legal anchor (§7.3); this should be unreachable. Fail soft rather
@@ -345,20 +357,20 @@ export function GameplayScreen({
         return prev;
       }
     });
-    setJuiceEvents(events);
   }, []);
 
   // §7.1 v1.11: notify `onEvent` off a STATE-IDENTITY change, not by reading
-  // a side-channel variable synchronously right after the `setState` call
-  // above. React does not guarantee that functional updater runs
-  // synchronously with the call that scheduled it (it only does when its own
-  // "eager bailout" heuristic applies, e.g. the very first update since the
-  // last commit) — a second placement queued before the first commits would
-  // otherwise silently read a stale `null` and never notify the caller. An
-  // effect keyed on the committed `state` reference fires exactly once per
-  // REAL placement (a rejected/illegal placement returns the same `prev`
-  // reference, so `state` never changes and no notification fires) and never
-  // on initial mount (both refs start equal).
+  // a side-channel variable synchronously right after scheduling the update.
+  // React does not guarantee a functional updater runs synchronously with the
+  // call that scheduled it (only when its own "eager bailout" heuristic
+  // applies) — a second placement (or an unrelated `setDraggingIndex`) queued
+  // before the first commits would otherwise risk reading stale data. Keying
+  // this effect on the committed `snap.state` reference sidesteps that
+  // entirely: it fires exactly once per REAL placement (a rejected/illegal
+  // placement returns the same `prev` snap, so `state` never changes and no
+  // notification fires) and never on initial mount (both refs start equal).
+  // `juiceEvents` always co-varies with `state` now — both come from the same
+  // `snap` — so there is no way for this effect to see one without the other.
   const lastNotifiedState = useRef(state);
   useEffect(() => {
     if (state !== lastNotifiedState.current) {

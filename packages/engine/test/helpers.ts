@@ -98,6 +98,31 @@ function completesLine(board: Board, pieceId: PieceId, r: number, c: number): bo
 }
 
 /**
+ * §4.3 contract, checked on EVERY fuzzed placement: a terminal status and its
+ * terminal event are produced together in one `applyPlacement` return — exactly
+ * one of each, never one without the other (the renderer's `LevelSession`
+ * throws on a `'won'` batch with no `LEVEL_WON`).
+ */
+const TERMINAL_EVENT = {
+  won: 'LEVEL_WON',
+  lost: 'GAME_OVER',
+  completed: 'SEQUENCE_EXHAUSTED',
+} as const;
+
+export function assertTerminalEventPairing(
+  status: GameState['status'],
+  events: readonly GameEvent[],
+): void {
+  for (const [terminal, type] of Object.entries(TERMINAL_EVENT)) {
+    const n = events.filter((e) => e.type === type).length;
+    const expected = status === terminal ? 1 : 0;
+    if (n !== expected) {
+      throw new Error(`§4.3: status "${status}" returned ${n}x ${type} (expected ${expected})`);
+    }
+  }
+}
+
+/**
  * Seeded bot: mostly greedy (takes a line-clearing move ~70% of the time),
  * otherwise random. Greedy enough to reach deep boards — combos, obstacle
  * chains, ivy cadence — instead of suffocating after ten random drops.
@@ -126,7 +151,9 @@ export function randomPlaythrough(
     const pick = pool[nextInt(rng, pool.length)];
     if (!pick) break;
     moves.push(pick);
-    state = applyPlacement(state, pick).state;
+    const result = applyPlacement(state, pick);
+    assertTerminalEventPairing(result.state.status, result.events);
+    state = result.state;
   }
 
   return { moves, result: finalResult(state) };
