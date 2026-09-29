@@ -5,7 +5,12 @@
  * them (exactly the shape of bug the §7.2 tray-overflow QA finding was)
  * would show up structurally.
  */
-import { createGame, getLegalPlacements, type EngineTuning, type GameEvent } from '@blockmanor/engine';
+import {
+  createGame,
+  getLegalPlacements,
+  type EngineTuning,
+  type GameEvent,
+} from '@blockmanor/engine';
 import React from 'react';
 import TestRenderer, { act, type ReactTestRenderer } from 'react-test-renderer';
 import { describe, expect, it, vi } from 'vitest';
