@@ -8,7 +8,7 @@
  */
 
 import type { BoosterType } from '@blockmanor/engine';
-import type { CoinSource } from './wallet';
+import type { CoinSink, CoinSource } from './wallet';
 
 /**
  * §7.1 FTUE step checkpoints. Not literally named in the PRD (§7.1 only says
@@ -162,6 +162,19 @@ export interface BoosterUsedParams {
   level: number;
 }
 
+/**
+ * §9.1 coins debited (§14 `coins_spent{sink,amount}`). Same rule as
+ * `coins_earned`: fired only when the SERVER reports the spend as newly
+ * applied, so a rolled-back or replayed spend is never counted.
+ */
+export interface CoinsSpentParams {
+  sink: CoinSink;
+  amount: number;
+}
+
+/** §9.2 a level start was refused for want of a life. §14 lists no params. */
+export type LifeBlockedParams = Record<never, never>;
+
 /** Keyed by §14 event name; extend per-section as each PRD subsection lands. */
 export interface AnalyticsEvents {
   ftue_step: FtueStepParams;
@@ -180,6 +193,8 @@ export interface AnalyticsEvents {
   share_complete: ShareCompleteParams;
   coins_earned: CoinsEarnedParams;
   booster_used: BoosterUsedParams;
+  coins_spent: CoinsSpentParams;
+  life_blocked: LifeBlockedParams;
 }
 
 export type AnalyticsEventName = keyof AnalyticsEvents;

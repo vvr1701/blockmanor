@@ -93,34 +93,47 @@ export function grantCoins(request: GrantRequest): void {
 }
 
 /**
- * §9.1 generic spend. No caller in §9.1 — §9.4 continue is the first, and owns
- * `coins_spent`. Resolves true only once the server has taken the coins; the
- * optimistic hold is released either way.
+ * `spent` = the server has taken the coins (now or on an earlier call with this
+ * key). `rejected` = a final no; nothing was taken. `failed` = no answer — the
+ * coins MAY have been taken, so a caller that must not lose a paid-for item
+ * keeps the key and replays it (§9.2 refill, §0 v1.41(g)).
+ */
+export type SpendOutcome = 'spent' | 'rejected' | 'failed';
+
+/**
+ * §9.1 generic spend; §9.2's life refill is the first caller. The optimistic
+ * hold is released either way. `replay` re-sends a key whose first answer was
+ * lost: it skips the local affordability check and the hold, because a spend
+ * that already landed is in the shown balance already — the server decides.
  */
 export async function spendCoins(
   sink: CoinSink,
   amount: number,
   idempotencyKey: string,
-): Promise<boolean> {
-  if (!economyOn() || !isFirebaseConfigured()) return false;
+  replay = false,
+): Promise<SpendOutcome> {
+  if (!economyOn()) return 'rejected';
+  if (!isFirebaseConfigured()) return 'failed';
   const store = useWalletStore.getState();
-  if (selectBalance(store, useConfigStore.getState().value('starting_coin_balance')) < amount) {
-    return false;
+  const held = replay ? 0 : amount;
+  if (held > selectBalance(store, useConfigStore.getState().value('starting_coin_balance'))) {
+    return 'rejected';
   }
-  store.hold(amount);
+  store.hold(held);
   try {
     const call = httpsCallable<SpendRequest, WalletResult>(getFunctions(), 'spendCoins');
     const { data } = await call({ sink, amount, idempotencyKey });
     reportNetworkResult(true);
-    useWalletStore.getState().release(amount, data);
-    return true;
+    useWalletStore.getState().release(held, data);
+    // Only a NEWLY applied spend is spending; a replay of one is not.
+    if (data.applied) track('coins_spent', { sink, amount: data.amount });
+    return 'spent';
   } catch (error) {
-    useWalletStore.getState().release(amount); // rollback
-    if (!isRejection(error)) {
-      recordError(error, 'wallet_spend');
-      reportNetworkResult(false);
-    }
-    return false;
+    useWalletStore.getState().release(held); // rollback
+    if (isRejection(error)) return 'rejected';
+    recordError(error, 'wallet_spend');
+    reportNetworkResult(false);
+    return 'failed';
   }
 }
 

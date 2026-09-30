@@ -33,7 +33,7 @@ export interface WalletState {
  * add theirs with their own server-side callbacks. */
 export type CoinSource = 'level_win' | 'chest' | 'daily_complete';
 
-/** §9.1 sinks. No caller yet: §9.4 continue, §9.3 boosters, §9.2 life refill. */
+/** §9.1 sinks. §9.2 life refill calls today; §9.4 continue and §9.3 boosters to come. */
 export type CoinSink = 'continue' | 'booster' | 'life_refill';
 
 /** §9.1 level win: `coins_level_win_base + coins_per_star × stars`. */

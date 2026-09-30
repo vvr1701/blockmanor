@@ -153,30 +153,47 @@ describe('§9.1 spend primitive', () => {
     const done = spendCoins('continue', 200, 'L12:a1:c1');
     expect(balance()).toBe(START - 200);
     resolve(served(START - 200, 1, 200));
-    await expect(done).resolves.toBe(true);
+    await expect(done).resolves.toBe('spent');
     expect(useWalletStore.getState()).toMatchObject({ coins: START - 200, held: 0 });
     expect(firebaseMock.calls[0]?.data).toEqual({
       sink: 'continue',
       amount: 200,
       idempotencyKey: 'L12:a1:c1',
     });
-    // §9.4 owns `coins_spent`.
+    // Server-confirmed as newly applied: counted once.
+    expect(vi.mocked(track).mock.calls).toEqual([
+      ['coins_spent', { sink: 'continue', amount: 200 }],
+    ]);
+  });
+
+  it('a replayed spend key (already applied) fires no second coins_spent', async () => {
+    firebaseMock.callables['spendCoins'] = () => served(START - 200, 1, 200, false);
+    await expect(spendCoins('continue', 200, 'k')).resolves.toBe('spent');
     expect(track).not.toHaveBeenCalled();
   });
 
+  it('a replay skips the local affordability check and the hold — the server decides', async () => {
+    useWalletStore.setState({ coins: 10 });
+    firebaseMock.callables['spendCoins'] = () => served(10, 1, 200, false);
+    await expect(spendCoins('continue', 200, 'k', true)).resolves.toBe('spent');
+    expect(firebaseMock.calls).toHaveLength(1);
+    expect(useWalletStore.getState().held).toBe(0);
+  });
+
   it.each([
-    ['a rejection', rejection('insufficient-funds')],
-    ['a network fault', Object.assign(new Error('x'), { code: 'functions/unavailable' })],
-  ])('rolls back on %s', async (_label, error) => {
+    ['a rejection', rejection('insufficient-funds'), 'rejected'],
+    ['a network fault', Object.assign(new Error('x'), { code: 'functions/unavailable' }), 'failed'],
+  ])('rolls back on %s', async (_label, error, outcome) => {
     firebaseMock.callables['spendCoins'] = () => {
       throw error;
     };
-    await expect(spendCoins('continue', 200, 'k')).resolves.toBe(false);
+    await expect(spendCoins('continue', 200, 'k')).resolves.toBe(outcome);
     expect(balance()).toBe(START);
+    expect(track).not.toHaveBeenCalled();
   });
 
   it('does not call the server for a spend the shown balance cannot cover', async () => {
-    await expect(spendCoins('continue', START + 1, 'k')).resolves.toBe(false);
+    await expect(spendCoins('continue', START + 1, 'k')).resolves.toBe('rejected');
     expect(firebaseMock.calls).toEqual([]);
   });
 });

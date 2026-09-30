@@ -55,11 +55,17 @@ describe('Remote Config registry (PRD §13)', () => {
     expect(isWithinBounds('daily_push_hour', 8.5)).toBe(false);
     expect(isWithinBounds('mercy_threshold', 0.55)).toBe(true);
     // An unbounded key passes anything finite.
-    expect(isWithinBounds('life_refill_price', -1)).toBe(true);
+    expect(isWithinBounds('booster_price_hammer', -1)).toBe(true);
     // §9.1 wallet keys are bounded: whole, non-negative coins.
     expect(isWithinBounds('coins_chest', -1)).toBe(false);
     expect(isWithinBounds('coins_per_star', 2.5)).toBe(false);
     expect(isWithinBounds('coins_daily_complete', 0)).toBe(true);
+    // §9.2 lives: 0 lives_max / regen period / refill price are typos, not choices.
+    expect(isWithinBounds('lives_max', 0)).toBe(false);
+    expect(isWithinBounds('life_regen_minutes', 0)).toBe(false);
+    expect(isWithinBounds('life_refill_price', 0)).toBe(false);
+    expect(isWithinBounds('life_forfeit_min_moves', 0)).toBe(false);
+    expect(isWithinBounds('rv_life_daily_cap', 0)).toBe(true);
   });
 
   it('defaults every key to a defined primitive', () => {

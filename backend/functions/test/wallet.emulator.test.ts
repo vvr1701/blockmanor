@@ -133,6 +133,24 @@ describe('§9.1 idempotency', () => {
     expect(again).toMatchObject({ coins: first.coins, applied: false });
   });
 
+  it('§9.2 refill replay: an applied spend replayed after the balance fell below it still answers success', async () => {
+    // The client's lost-answer recovery (§0 v1.41(g)) replays the SAME key; the
+    // ledger row must win over the balance check, or a paid refill is lost.
+    const refill = {
+      sink: 'life_refill',
+      amount: D.starting_coin_balance,
+      idempotencyKey: 'life_refill:x',
+    };
+    await expect(spendCoinsFor(UID, refill, NOW)).resolves.toMatchObject({ coins: 0 });
+    await expect(spendCoinsFor(UID, refill, NOW)).resolves.toEqual({
+      coins: 0,
+      rev: 1,
+      amount: D.starting_coin_balance,
+      applied: false,
+    });
+    expect(await stored()).toEqual({ coins: 0, rev: 1 });
+  });
+
   it('refuses a spend key reused for a different amount', async () => {
     await spendCoinsFor(UID, { sink: 'continue', amount: 100, idempotencyKey: 'k' }, NOW);
     await expect(

@@ -37,6 +37,7 @@ import { WinScreen } from '../../src/screens/WinScreen';
 import { FailScreen } from '../../src/screens/FailScreen';
 import { mmkvStorage } from '../../src/state/persist';
 import { grantCoins } from '../../src/services/wallet';
+import { forfeitLife, lifeOnWin } from '../../src/services/lives';
 import { getInstalledVersion } from '../../src/services/appInfo';
 import { useBoosterStore } from '../../src/state/useBoosterStore';
 import { selectBadges, useMetaStore } from '../../src/state/useMetaStore';
@@ -45,6 +46,8 @@ import { resetStoreReviewMock, storeReviewMock } from '../mocks/expo-store-revie
 vi.mock('../../src/services/analytics', () => ({ track: vi.fn() }));
 // §9.1: the wallet service is proven in test/wallet.test.ts; here only the call.
 vi.mock('../../src/services/wallet', () => ({ grantCoins: vi.fn() }));
+// §9.2: the lives rules are proven in test/lives.test.ts; here only the wiring.
+vi.mock('../../src/services/lives', () => ({ forfeitLife: vi.fn(), lifeOnWin: vi.fn() }));
 
 // `vi.mock` factories are hoisted above every other top-level statement in
 // this file (including `const` declarations) — `vi.hoisted` is the
@@ -925,5 +928,46 @@ describe('LevelSession — §12.3 / §12.10 meta writes', () => {
     advance(WIN_HOLD_MS);
     await flush();
     expect(useMetaStore.getState().reviewPromptedVersion).toBe('');
+  });
+});
+
+describe('LevelSession — §9.2 lives wiring', () => {
+  beforeEach(() => {
+    vi.mocked(forfeitLife).mockClear();
+    vi.mocked(lifeOnWin).mockClear();
+  });
+
+  it('a fail reports the dead run to forfeitLife under THIS run’s key, never lifeOnWin', () => {
+    useMetaStore.setState({ currentLevel: 11 });
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
+    place(renderer, 0, 0, 0);
+    expect(vi.mocked(forfeitLife).mock.calls).toEqual([
+      [expect.objectContaining({ status: 'lost' }), levelRunSeed(11, 1), expect.any(Number)],
+    ]);
+    expect(lifeOnWin).not.toHaveBeenCalled();
+  });
+
+  it('a win goes to lifeOnWin (the refund) under the same run key, never forfeitLife', () => {
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
+    place(renderer, 0, 0, 0);
+    expect(vi.mocked(lifeOnWin).mock.calls).toEqual([
+      [expect.objectContaining({ status: 'won' }), levelRunSeed(10, 1), expect.any(Number)],
+    ]);
+    expect(forfeitLife).not.toHaveBeenCalled();
+  });
+
+  it('Retry is a new run key, so the next run stakes its own life', () => {
+    useMetaStore.setState({ currentLevel: 11 });
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
+    place(renderer, 0, 0, 0);
+    advance(FAIL_HOLD_MS);
+    act(() => {
+      (renderer.root.findByType(FailScreen).props as { onRetry: () => void }).onRetry();
+    });
+    place(renderer, 0, 0, 0);
+    expect(vi.mocked(forfeitLife).mock.calls.map((c) => c[1])).toEqual([
+      levelRunSeed(11, 1),
+      levelRunSeed(11, 2),
+    ]);
   });
 });

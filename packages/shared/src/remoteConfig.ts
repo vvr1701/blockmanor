@@ -180,6 +180,16 @@ export const REMOTE_CONFIG_BOUNDS = {
   coins_per_star: { min: 0, max: 100_000, integer: true },
   coins_chest: { min: 0, max: 1_000_000, integer: true },
   coins_daily_complete: { min: 0, max: 100_000, integer: true },
+  // §9.2 lives. `lives_max: 0` would refuse every level forever, a regen period
+  // of 0 divides by zero, and a refill price of 0 is not a valid spend (§9.1
+  // `spendRequestSchema` requires >= 1) — so all three floor at 1. The forfeit
+  // threshold floors at 1 like `daily_streak_min_moves`. An ad-life cap of 0 is
+  // legal and means "no ad lives today".
+  lives_max: { min: 1, max: 100, integer: true },
+  life_regen_minutes: { min: 1, max: 10_080, integer: true },
+  life_forfeit_min_moves: { min: 1, max: 1_000, integer: true },
+  life_refill_price: { min: 1, max: 1_000_000, integer: true },
+  rv_life_daily_cap: { min: 0, max: 100, integer: true },
 } as const satisfies Partial<Record<RemoteConfigKey, NumberBound>>;
 
 /** True unless `key` has a bound that `value` violates. Unbounded keys pass. */
