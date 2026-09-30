@@ -72,9 +72,7 @@ describe('GameplayScreen §9.3 booster row', () => {
 
   it('renders the BoosterRow when a `boosters` prop is given', () => {
     const onUsed = vi.fn();
-    const renderer = render(
-      <GameplayScreen initialState={demoState()} boosters={{ onUsed }} />,
-    );
+    const renderer = render(<GameplayScreen initialState={demoState()} boosters={{ onUsed }} />);
     expect(renderer.root.findAllByType(BoosterRow).length).toBe(1);
   });
 
@@ -120,8 +118,7 @@ describe('GameplayScreen §9.3 booster row', () => {
       null,
     );
     expect(
-      (renderer.root.findByType(DragLayer).props as { boosterTargeting: unknown })
-        .boosterTargeting,
+      (renderer.root.findByType(DragLayer).props as { boosterTargeting: unknown }).boosterTargeting,
     ).toBe(null);
   });
 
@@ -177,7 +174,9 @@ describe('GameplayScreen §9.3 booster row', () => {
 
   it('`preArmed: "hourglass"` auto-fires once on mount — "applied automatically" is literal for it', () => {
     const onUsed = vi.fn();
-    render(<GameplayScreen initialState={demoState()} boosters={{ preArmed: 'hourglass', onUsed }} />);
+    render(
+      <GameplayScreen initialState={demoState()} boosters={{ preArmed: 'hourglass', onUsed }} />,
+    );
     expect(onUsed).toHaveBeenCalledWith('hourglass');
     expect(onUsed).toHaveBeenCalledTimes(1);
   });

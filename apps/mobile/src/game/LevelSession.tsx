@@ -32,7 +32,11 @@ import { deriveGoalBar, goalProgressPct, type GoalBarEntry } from './goalBar';
 import { BoosterPreLevelSheet } from './BoosterPreLevelSheet';
 import { FAIL_HOLD_MS, WIN_HOLD_MS } from './juice';
 import { useEngineTuning } from './useEngineTuning';
-import { GameplayScreen, type BoosterControls, type PauseControls } from '../screens/GameplayScreen';
+import {
+  GameplayScreen,
+  type BoosterControls,
+  type PauseControls,
+} from '../screens/GameplayScreen';
 import { WinScreen } from '../screens/WinScreen';
 import { FailScreen } from '../screens/FailScreen';
 import { track } from '../services/analytics';

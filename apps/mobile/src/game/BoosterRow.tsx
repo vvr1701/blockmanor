@@ -115,7 +115,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  armed: { borderColor: colors.gold, borderWidth: 2, backgroundColor: withAlpha(colors.gold, 0.18) },
+  armed: {
+    borderColor: colors.gold,
+    borderWidth: 2,
+    backgroundColor: withAlpha(colors.gold, 0.18),
+  },
   disabled: { opacity: 0.35 },
   pressed: { opacity: 0.7 },
   glyph: { fontSize: fontSize.xl },
@@ -143,5 +147,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
-  tooltipText: { color: colors.night, fontSize: fontSize.sm, fontWeight: '700', textAlign: 'center' },
+  tooltipText: {
+    color: colors.night,
+    fontSize: fontSize.sm,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
 });
