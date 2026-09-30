@@ -39,6 +39,19 @@
  * `impactLight` (§7.4's own value for that row, a separate token from the
  * illegal-drop haptic even though both are currently `Light`). Audio is the
  * `sfx.ts` no-op seam (blocked on assets — see that file).
+ *
+ * §9.3 booster targeting (`boosterTargeting` prop): a `hammer`/`broom` armed
+ * from `GameplayScreen`'s booster row needs "tap any cell" / "tap any row" on
+ * the BOARD, a mode this file already owns the coordinate math for (the same
+ * `boardOffsetX`/`boardLayout.padding`/cell-step arithmetic `.onUpdate` above
+ * already does to turn a finger position into a board cell). Implemented as
+ * one extra plain-RN `Gesture.Tap()` hitbox sized to just the board canvas,
+ * mounted ONLY while a booster is armed — it does not touch the per-tray-slot
+ * `Pan` gestures above at all (different region, different gesture object),
+ * it only ever ADDS a new interpretation of a tap, never replaces placement
+ * dragging. `dragDisabled` additionally suspends the tray's own Pan gestures
+ * while armed, so a targeting tap can never race a piece lift over the same
+ * touch.
  */
 
 import {
@@ -149,6 +162,16 @@ export interface DragLayerProps {
    * cancels the in-flight pan (`.onFinalize` with `success: false`, i.e. the
    * §7.3 silent return-to-tray) and refuses new ones. */
   paused: boolean;
+  /** §9.3 booster targeting mode: while set, a tap on the board is a booster
+   * target instead of nothing. `hammer` reports the tapped cell; `broom`
+   * reports its row (column ignored by the caller). Cleared by the caller
+   * (`GameplayScreen`) the instant a tap lands, successful or not — this
+   * component never decides when targeting ends, only reports one tap. */
+  boosterTargeting?: { kind: 'hammer' | 'broom'; onTarget: (r: number, c: number) => void } | null;
+  /** Suspends every tray Pan gesture (same `.enabled()` gate `paused` already
+   * uses) without touching pause/back-handler semantics — set while a
+   * booster is armed so a targeting tap can never race a piece lift. */
+  dragDisabled?: boolean;
 }
 
 export function DragLayer({
@@ -164,6 +187,8 @@ export function DragLayer({
   boardShakeX,
   reducedMotion,
   paused,
+  boosterTargeting = null,
+  dragDisabled = false,
 }: DragLayerProps): React.JSX.Element {
   const [dragging, setDragging] = useState<{ index: number; pieceId: PieceId } | null>(null);
   /** Which slot's drag is the current source of truth for `dragging`/
@@ -268,7 +293,7 @@ export function DragLayer({
       }));
 
       const pan = Gesture.Pan()
-        .enabled(!paused)
+        .enabled(!paused && !dragDisabled)
         .minDistance(0)
         .shouldCancelWhenOutside(false)
         .onBegin((e) => {
@@ -405,7 +430,27 @@ export function DragLayer({
     });
     // `state` covers board+tray together (both drive legality/origins); the
     // shared values and JS callbacks above are stable across renders.
-  }, [state, boardLayout, boardOffsetX, trayRow, trayOffsetY, headroom, paused]);
+  }, [state, boardLayout, boardOffsetX, trayRow, trayOffsetY, headroom, paused, dragDisabled]);
+
+  // §9.3: the board-only tap hitbox for an armed booster. A plain RN Tap
+  // gesture (worklet), sized to exactly the board canvas — never the whole
+  // play area — so it can never shadow the tray's own Pan hitboxes below,
+  // which live in a different screen region entirely. `onTarget` runs via
+  // `runOnJS` since it always ends in a React state update upstream.
+  const boardTapGesture = useMemo(() => {
+    if (!boosterTargeting) return null;
+    const cellStep = boardLayout.cellSize + boardLayout.gap;
+    const { kind, onTarget } = boosterTargeting;
+    return Gesture.Tap().onEnd((e) => {
+      'worklet';
+      const localX = e.x - boardLayout.padding;
+      const localY = e.y - boardLayout.padding;
+      const c = Math.floor(localX / cellStep);
+      const r = Math.floor(localY / cellStep);
+      if (r < 0 || r >= BOARD_SIZE || c < 0 || c >= BOARD_SIZE) return;
+      runOnJS(onTarget)(r, kind === 'hammer' ? c : 0);
+    });
+  }, [boosterTargeting, boardLayout]);
 
   const cellRects = useMemo(() => {
     if (!dragging) return [];
@@ -532,6 +577,22 @@ export function DragLayer({
           </GestureDetector>
         );
       })}
+
+      {boardTapGesture ? (
+        <GestureDetector gesture={boardTapGesture}>
+          <View
+            style={[
+              styles.hitbox,
+              {
+                left: boardOffsetX,
+                top: 0,
+                width: boardLayout.canvasSize,
+                height: boardLayout.canvasSize,
+              },
+            ]}
+          />
+        </GestureDetector>
+      ) : null}
     </>
   );
 }

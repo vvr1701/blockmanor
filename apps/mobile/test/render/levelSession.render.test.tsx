@@ -38,6 +38,7 @@ import { FailScreen } from '../../src/screens/FailScreen';
 import { mmkvStorage } from '../../src/state/persist';
 import { grantCoins } from '../../src/services/wallet';
 import { getInstalledVersion } from '../../src/services/appInfo';
+import { useBoosterStore } from '../../src/state/useBoosterStore';
 import { selectBadges, useMetaStore } from '../../src/state/useMetaStore';
 import { resetStoreReviewMock, storeReviewMock } from '../mocks/expo-store-review';
 
@@ -276,6 +277,23 @@ beforeEach(() => {
     lastFailAt: 0,
     reviewPromptedVersion: '',
     totalLines: 0,
+  });
+  // §9.3: a win-streak grant (this file wins levels repeatedly to reach
+  // various streaks) mutates the real `useBoosterStore` singleton — reset it
+  // too, same reasoning as `attempts`/`winStreak` above, or one test's grant
+  // becomes the next test's unrelated pre-level sheet. `showcaseGranted`
+  // starts pre-marked (not `false`): this file's own fixtures reuse ids
+  // 10-13 (`COMPLETED_LEVEL` etc, see `vi.hoisted` above) that collide with
+  // the REAL showcase ids (L12/18/26) purely by fixture-numbering
+  // coincidence — this file exercises §7.5's progression loop, not §9.3's
+  // showcase mechanic, so a level-id-12 fixture here must not accidentally
+  // grant a hammer and block `GameplayScreen` behind the pre-level sheet.
+  // The showcase grant itself is proven in `test/boosters.test.ts`.
+  useBoosterStore.setState({
+    counts: { hammer: 0, broom: 0, hourglass: 0 },
+    showcaseGranted: { hammer: true, broom: true, hourglass: true },
+    tooltip: null,
+    preSelected: null,
   });
   resetStoreReviewMock();
 });

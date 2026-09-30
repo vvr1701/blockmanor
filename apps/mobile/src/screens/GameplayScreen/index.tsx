@@ -1,7 +1,10 @@
 import {
   PIECE_BY_ID,
+  applyBooster,
   applyPlacement,
   fillRatio,
+  type BoosterAction,
+  type BoosterType,
   type GameEvent,
   type GameState,
   type Placement,
@@ -41,6 +44,7 @@ import {
   HUD_ICON_SIZE,
   HUD_ROW_GAP,
 } from '../../game/boardTokens';
+import { BoosterRow } from '../../game/BoosterRow';
 import { DevRenderTimeStats } from '../../game/DevRenderTimeStats';
 import { DragLayer } from '../../game/DragLayer';
 import { GOAL_LABEL_KEY, deriveGoalBar, type GoalBarEntry } from '../../game/goalBar';
@@ -122,6 +126,28 @@ export interface PauseControls {
   confirmQuit?: 'daily';
 }
 
+/**
+ * §9.3 booster wiring, owned by whoever owns the RUN (mirrors `PauseControls`
+ * just above): `LevelSession` resolves inventory/showcase/win-streak/pre-level
+ * concerns and hands this screen only what it needs to actually CALL the
+ * engine. Daily/Endless sessions simply never pass this prop — the reserved
+ * slot renders its plain placeholder `View` instead (§0 v1.37(iv), booster
+ * rulings), so no mode-check needs to live here.
+ */
+export interface BoosterControls {
+  /** The booster armed for this level from the moment it mounts — the §9.3
+   * pre-level slot's resolved choice (`null` = none armed). `hourglass` has
+   * no target, so it fires once on mount; `hammer`/`broom` instead arm the
+   * board-tap targeting mode immediately (see `BoosterPreLevelSheet`'s doc
+   * comment for the PRD-AMENDMENT-NEEDED reasoning). */
+  preArmed?: BoosterType | null;
+  /** Fired once per booster the engine actually accepted (a real
+   * `BOOSTER_USED` event) — never for a refused/illegal attempt. The caller
+   * decrements inventory and fires `booster_used` analytics; this screen
+   * does neither itself. */
+  onUsed: (type: BoosterType) => void;
+}
+
 export interface GameplayScreenProps {
   /** Seeds this screen's own session state (§7.3: placements now mutate the
    * board, so this is no longer a purely display-driven prop — see the "own
@@ -162,6 +188,9 @@ export interface GameplayScreenProps {
    * perform itself. Omit to leave the HUD's pause glyph inert (see
    * `PauseControls`). */
   pause?: PauseControls;
+  /** §9.3: absent means no booster row at all (Daily/Endless, §0 v1.37(iv)) —
+   * the reserved slot keeps rendering its empty placeholder `View`. */
+  boosters?: BoosterControls;
 }
 
 /**
@@ -193,6 +222,7 @@ export function GameplayScreen({
   header,
   onEvent,
   pause,
+  boosters,
 }: GameplayScreenProps): React.JSX.Element {
   // `state` and the `GameEvent[]` that produced it are ONE atom, not two
   // separate `useState`s. They used to be split (`state` here, `juiceEvents`
@@ -359,6 +389,80 @@ export function GameplayScreen({
     });
   }, []);
 
+  // --- §9.3 boosters -------------------------------------------------------
+  // Which `hammer`/`broom` is armed, awaiting a board tap (`null` = none).
+  // `hourglass` never sets this — it has no target, so it fires immediately.
+  // Typed as the narrower pair (not `BoosterType`) so `boosterTargeting`
+  // below needs no cast — every writer already excludes `hourglass`.
+  const [targeting, setTargeting] = useState<'hammer' | 'broom' | null>(null);
+
+  const attemptBooster = useCallback((action: BoosterAction) => {
+    setSnap((prev) => {
+      try {
+        const result = applyBooster(prev.state, action);
+        return { state: result.state, events: result.events };
+      } catch (err) {
+        // Refused (finished game, wrong mode, empty target, ...) — same
+        // fail-soft discipline as `handlePlace` above: the button/tap that
+        // reached here should already have been gated (BoosterRow disables
+        // at 0 owned; a target only exists once the board is tapped), so
+        // this is a defensive backstop, not an expected path.
+        if (__DEV__) console.warn('[GameplayScreen] booster rejected', err);
+        return prev;
+      }
+    });
+  }, []);
+
+  // Mount-only: the §9.3 pre-level slot's resolved booster, if any.
+  // `hourglass` has no target to wait for, so "applied automatically" is
+  // literal for it — one `applyBooster` call as soon as this screen exists.
+  // `hammer`/`broom` cannot blind-fire at an unseen cell/row, so they arm
+  // targeting instead: the player's very first board tap spends it. Runs
+  // once per instance, same convention as the `hudOpacity` mount effect
+  // above — `LevelSession` remounts this screen (its `key` carries
+  // `attempt`) for every fresh run, so a retry re-evaluates this from
+  // scratch rather than replaying a stale intent.
+  useEffect(() => {
+    if (!boosters?.preArmed) return;
+    if (boosters.preArmed === 'hourglass') {
+      attemptBooster({ type: 'hourglass' });
+    } else {
+      setTargeting(boosters.preArmed);
+    }
+    // Mount-only intent, matching `hudOpacity`'s mount effect above — this
+    // instance's `boosters.preArmed` never changes mid-life in any caller.
+  }, []);
+
+  const handleBoosterPress = useCallback(
+    (type: BoosterType) => {
+      if (type === 'hourglass') {
+        attemptBooster({ type: 'hourglass' });
+        return;
+      }
+      setTargeting(type);
+    },
+    [attemptBooster],
+  );
+
+  // DragLayer's board-tap-to-target callback (§9.3). Clears `targeting`
+  // unconditionally the instant a tap lands — a miss or an illegal target
+  // (nothing occupied to hit) still ends the armed state; the player taps
+  // the booster row again to re-arm, same as any other button press.
+  const handleBoosterTarget = useCallback(
+    (r: number, c: number) => {
+      const kind = targeting;
+      setTargeting(null);
+      if (kind === 'hammer') attemptBooster({ type: 'hammer', r, c });
+      else if (kind === 'broom') attemptBooster({ type: 'broom', row: r });
+    },
+    [targeting, attemptBooster],
+  );
+
+  const boosterTargeting = useMemo(
+    () => (targeting ? { kind: targeting, onTarget: handleBoosterTarget } : null),
+    [targeting, handleBoosterTarget],
+  );
+
   // §7.1 v1.11: notify `onEvent` off a STATE-IDENTITY change, not by reading
   // a side-channel variable synchronously right after scheduling the update.
   // React does not guarantee a functional updater runs synchronously with the
@@ -376,8 +480,16 @@ export function GameplayScreen({
     if (state !== lastNotifiedState.current) {
       lastNotifiedState.current = state;
       onEvent?.(juiceEvents, state);
+      // §9.3: the same state-identity guarantee `onEvent` relies on applies
+      // here — a rejected `applyBooster` returns the identical `prev` snap
+      // (see `attemptBooster`), so this can only ever fire for a REAL
+      // `BOOSTER_USED`, never a refused attempt.
+      const used = juiceEvents.find(
+        (e): e is Extract<GameEvent, { type: 'BOOSTER_USED' }> => e.type === 'BOOSTER_USED',
+      );
+      if (used) boosters?.onUsed(used.booster);
     }
-  }, [state, juiceEvents, onEvent]);
+  }, [state, juiceEvents, onEvent, boosters]);
 
   const boardShakeStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: boardShakeX.value }],
@@ -473,10 +585,20 @@ export function GameplayScreen({
             />
           </Animated.View>
 
-          {/* Stage-2 booster row reservation (PRD §7.2 / CLAUDE.md rule 1):
-              renders nothing, reads no Stage-2 state. §9.3 fills this slot
-              in place. */}
-          <View style={{ height: BOOSTER_ROW_RESERVED_HEIGHT }} />
+          {/* §9.3 fills the Stage-2 booster row reservation (PRD §7.2) when a
+              caller opts in; Daily/Endless (no `boosters` prop, §0 v1.37(iv))
+              keep the original empty placeholder — same reserved height
+              either way, so the board/tray never reflow. */}
+          {boosters ? (
+            <BoosterRow
+              armed={targeting}
+              hourglassDisabled={Boolean(state.config.pieceSequence)}
+              interactive={state.status === 'playing'}
+              onPress={handleBoosterPress}
+            />
+          ) : (
+            <View style={{ height: BOOSTER_ROW_RESERVED_HEIGHT }} />
+          )}
 
           <TrayCanvas
             tray={state.tray}
@@ -498,6 +620,8 @@ export function GameplayScreen({
             boardShakeX={boardShakeX}
             reducedMotion={reducedMotion}
             paused={paused}
+            boosterTargeting={boosterTargeting}
+            dragDisabled={targeting !== null}
           />
 
           <JuiceLayer

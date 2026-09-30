@@ -21,6 +21,7 @@ import {
   createGame,
   fillRatio,
   starsFor,
+  type BoosterType,
   type EngineTuning,
   type GameEvent,
   type GameState,
@@ -28,15 +29,23 @@ import {
 import { MAX_LEVEL_ID, getLevel, parseLevel, type LevelJson } from '@blockmanor/content';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { deriveGoalBar, goalProgressPct, type GoalBarEntry } from './goalBar';
+import { BoosterPreLevelSheet } from './BoosterPreLevelSheet';
 import { FAIL_HOLD_MS, WIN_HOLD_MS } from './juice';
 import { useEngineTuning } from './useEngineTuning';
-import { GameplayScreen, type PauseControls } from '../screens/GameplayScreen';
+import { GameplayScreen, type BoosterControls, type PauseControls } from '../screens/GameplayScreen';
 import { WinScreen } from '../screens/WinScreen';
 import { FailScreen } from '../screens/FailScreen';
 import { track } from '../services/analytics';
+import {
+  BOOSTER_SHOWCASE_LEVELS,
+  parseWinstreakThresholds,
+  randomBoosterType,
+  winstreakGrantFor,
+} from '../services/boosters';
 import { grantCoins } from '../services/wallet';
 import { getInstalledVersion } from '../services/appInfo';
 import { requestReview, shouldPromptReview } from '../services/reviewPrompt';
+import { useBoosterStore } from '../state/useBoosterStore';
 import { useConfigStore } from '../state/useConfigStore';
 import { useMetaStore } from '../state/useMetaStore';
 
@@ -136,6 +145,21 @@ export function LevelSession({
   const [phase, setPhase] = useState<Phase>('playing');
   const [result, setResult] = useState<TerminalResult | null>(null);
 
+  // --- §9.3 boosters ---------------------------------------------------
+  // The pre-level slot's resolved choice for the level CURRENTLY being
+  // attempted — spans retries of that same level (unset only by leaving it,
+  // §9.3 "pre-filled NEXT level" being a per-level-session grant, not a
+  // per-attempt one). `preLevelResolvedFor` tracks which level id this
+  // choice (or "no boosters owned, nothing to ask") belongs to.
+  const [armedForLevel, setArmedForLevel] = useState<BoosterType | null>(null);
+  const [preLevelResolvedFor, setPreLevelResolvedFor] = useState<number | null>(null);
+  const boosterCounts = useBoosterStore((s) => s.counts);
+  const boosterPreSelected = useBoosterStore((s) => s.preSelected);
+  // §14 `level_complete.boosters_used`: count of successful `applyBooster`
+  // calls THIS run — reset per attempt (the run-start effect below), unlike
+  // `armedForLevel` which spans retries.
+  const boostersUsedRef = useRef(0);
+
   const json = useMemo(() => getLevel(currentLevel), [currentLevel]);
   const initialState = useMemo(
     () => (json ? buildLevelGameState(json, tuning, attempt) : null),
@@ -173,6 +197,7 @@ export function LevelSession({
     setPhase('playing');
     setResult(null);
     quitFiredRef.current = false;
+    boostersUsedRef.current = 0;
     clearPhaseTimer();
     if (json) {
       // Advanced at run START, not on fail and not on the Retry tap: an
@@ -181,6 +206,11 @@ export function LevelSession({
       // run. §0 v1.17.
       persistAttempt(json.id, attempt);
       track('level_start', { id: json.id, attempt });
+      // §9.3 first-grant showcase (L12 hammer / L18 broom / L26 hourglass):
+      // idempotent (`grantShowcase` only fires once per booster type, ever),
+      // so re-running this on every retry of a showcase level is harmless.
+      const showcase = BOOSTER_SHOWCASE_LEVELS[json.id];
+      if (showcase) useBoosterStore.getState().grantShowcase(showcase);
     }
   }, [json, attempt, clearPhaseTimer, persistAttempt]);
 
@@ -190,6 +220,33 @@ export function LevelSession({
     if (!json) onExit();
   }, [json, onExit]);
 
+  const handlePreLevelConfirm = useCallback(
+    (type: BoosterType | null) => {
+      if (!json) return;
+      // Consumed either way — a re-offered default only ever comes from a
+      // FRESH win-streak grant (`recordWin` below), never a stale one.
+      useBoosterStore.getState().setPreSelected(null);
+      setArmedForLevel(type);
+      setPreLevelResolvedFor(json.id);
+    },
+    [json],
+  );
+
+  const handleBoosterUsed = useCallback(
+    (type: BoosterType) => {
+      if (!json) return;
+      boostersUsedRef.current += 1;
+      useBoosterStore.getState().consume(type);
+      track('booster_used', { type, level: json.id });
+    },
+    [json],
+  );
+
+  const boosterControls: BoosterControls = useMemo(
+    () => ({ preArmed: armedForLevel, onUsed: handleBoosterUsed }),
+    [armedForLevel, handleBoosterUsed],
+  );
+
   // §12.10: a win advances the win-streak FIRST — this win counts toward the
   // "win-streak >= 3" it is judged against — then eligibility is read off the
   // post-write store. Returns the build to record the ask against, or null.
@@ -197,6 +254,25 @@ export function LevelSession({
     (stars: number): string | null => {
       recordLevelWin();
       const meta = useMetaStore.getState();
+      // §9.3 win-streak booster grants: x2 -> 1 random booster "pre-filled
+      // next level", x3 -> 2, x5+ -> 2 (+200 start-score, NOT built this PR —
+      // §0 v1.37(viii) needs `GameConfig.startScore`, deferred; see report).
+      // `winstreakGrantFor`'s own doc explains the exact-vs-"N+" tier match.
+      const tiers = parseWinstreakThresholds(
+        useConfigStore.getState().value('winstreak_thresholds'),
+      );
+      const grantTier = winstreakGrantFor(meta.winStreak, tiers);
+      if (grantTier && grantTier.count > 0) {
+        const boosterStore = useBoosterStore.getState();
+        let lastGranted: BoosterType | null = null;
+        for (let i = 0; i < grantTier.count; i++) {
+          lastGranted = randomBoosterType();
+          boosterStore.grant(lastGranted, 1);
+        }
+        // "Pre-filled next level": arms the pre-level sheet's default choice
+        // for whichever level this player reaches next.
+        if (lastGranted) boosterStore.setPreSelected(lastGranted);
+      }
       const installedVersion = getInstalledVersion();
       const eligible = shouldPromptReview({
         enabled: useConfigStore.getState().value('review_prompt_enabled'),
@@ -268,7 +344,7 @@ export function LevelSession({
           stars: won.stars,
           duration_s,
           continues: 0,
-          boosters_used: 0,
+          boosters_used: boostersUsedRef.current,
         });
         persistStars(json.id, won.stars);
         // §9.1 level-win coins: optimistic, server-priced and server-keyed.
@@ -292,7 +368,7 @@ export function LevelSession({
           stars,
           duration_s,
           continues: 0,
-          boosters_used: 0,
+          boosters_used: boostersUsedRef.current,
         });
         persistStars(json.id, stars);
         grantCoins({ source: 'level_win', levelId: json.id, stars });
@@ -347,6 +423,10 @@ export function LevelSession({
     // scroll-to-current, no replay affordance) resumes its own persisted
     // count rather than faking a first attempt. §0 v1.17 (i).
     setAttempt(nextAttempt(currentLevel + 1));
+    // §9.3: this level's pre-level slot was for THIS level only — clear it
+    // so the new level re-asks (or auto-resolves to "nothing owned").
+    setArmedForLevel(null);
+    setPreLevelResolvedFor(null);
   }, [currentLevel, setCurrentLevel]);
 
   const handleRetry = useCallback(() => {
@@ -365,6 +445,9 @@ export function LevelSession({
       // `GameState.placements`, handed up by `GameplayScreen` (the only
       // holder of the live state) — not re-derived here.
       track('level_quit', { id: json.id, moves });
+      // §9.3: leaving the level ends this pre-level slot's scope.
+      setArmedForLevel(null);
+      setPreLevelResolvedFor(null);
       (onLevelMap ?? onExit)();
     },
     [json, onLevelMap, onExit],
@@ -406,12 +489,33 @@ export function LevelSession({
     );
   }
 
+  // §9.3 pre-level slot: blocks `GameplayScreen` from mounting until this
+  // level's choice is resolved, but ONLY when there's something to offer —
+  // computed at render time (not an effect) so a level with nothing owned
+  // never flashes the sheet for a frame before skipping it. Covers the vast
+  // majority of runs (boosters start at L12); FTUE never reaches here with
+  // anything owned in practice, so no separate mode-check is needed on top
+  // of this "has any" gate.
+  const hasAnyBooster =
+    boosterCounts.hammer > 0 || boosterCounts.broom > 0 || boosterCounts.hourglass > 0;
+  if (hasAnyBooster && preLevelResolvedFor !== json.id) {
+    return (
+      <BoosterPreLevelSheet
+        counts={boosterCounts}
+        initialSelection={boosterPreSelected}
+        hourglassDisabled={Boolean(json.pieceSequence)}
+        onConfirm={handlePreLevelConfirm}
+      />
+    );
+  }
+
   return (
     <GameplayScreen
       key={`${json.id}-${attempt}`}
       initialState={initialState}
       onEvent={handleEvent}
       pause={pauseControls}
+      boosters={boosterControls}
     />
   );
 }

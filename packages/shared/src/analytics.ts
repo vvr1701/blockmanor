@@ -7,6 +7,7 @@
  * (`ftue_step{step} · ftue_complete`); later sections add theirs alongside.
  */
 
+import type { BoosterType } from '@blockmanor/engine';
 import type { CoinSource } from './wallet';
 
 /**
@@ -39,7 +40,9 @@ export interface FtueCompleteParams {
  * relaunch, so `attempt: 1` means the genuine first run of that level on that
  * install. §7.5's free/unlimited Stage-1 Retry bumps it. `continues`/
  * `boosters_used` are named as permanent §14 API ahead of their Stage-2
- * mechanics (§9.4/§9.3) — always `0` until those land, never omitted.
+ * mechanics (§9.4/§9.3) — `boosters_used` now counts real §9.3 usage
+ * (this session's client-wiring PR); `continues` stays `0` until §9.4 lands,
+ * never omitted either way.
  */
 export interface LevelStartParams {
   id: number;
@@ -52,9 +55,9 @@ export interface LevelCompleteParams {
   /** 1-3, §7.5: star 1 = win, stars 2/3 = the level's `s2`/`s3` score thresholds. */
   stars: number;
   duration_s: number;
-  /** Stage-2 §9.4 continue count — always 0 in Stage 1 (no continue behavior yet). */
+  /** Stage-2 §9.4 continue count — always 0 until that lands (no continue behavior yet). */
   continues: number;
-  /** Stage-2 §9.3 booster count — always 0 in Stage 1 (no boosters yet). */
+  /** §9.3: count of successful `applyBooster` calls this run. */
   boosters_used: number;
 }
 
@@ -146,6 +149,19 @@ export interface CoinsEarnedParams {
   amount: number;
 }
 
+/**
+ * §9.3 a booster was actually applied mid-level (engine's own `BOOSTER_USED`
+ * event, §14 `booster_used{type,level}`) — fired once per successful
+ * `applyBooster` call, never on a refused/illegal one (same "only what really
+ * happened" discipline as `coins_earned`). `level` is the campaign level id;
+ * boosters are refused on the Daily Board (§0 v1.37(iv)) and not offered in
+ * Endless for Stage 2, so every firing has one.
+ */
+export interface BoosterUsedParams {
+  type: BoosterType;
+  level: number;
+}
+
 /** Keyed by §14 event name; extend per-section as each PRD subsection lands. */
 export interface AnalyticsEvents {
   ftue_step: FtueStepParams;
@@ -163,6 +179,7 @@ export interface AnalyticsEvents {
   share_tap: ShareTapParams;
   share_complete: ShareCompleteParams;
   coins_earned: CoinsEarnedParams;
+  booster_used: BoosterUsedParams;
 }
 
 export type AnalyticsEventName = keyof AnalyticsEvents;

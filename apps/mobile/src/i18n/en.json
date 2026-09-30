@@ -215,5 +215,17 @@
   "home.dailyIntro.title": "Today's Board",
   "home.dailyIntro.body": "One board, the same for everyone in the world, once a day. One attempt — see where you rank.",
   "home.dailyIntro.open": "Show me",
-  "home.dailyIntro.dismiss": "Later"
+  "home.dailyIntro.dismiss": "Later",
+  "booster.name.hammer": "Hammer",
+  "booster.name.broom": "Broom",
+  "booster.name.hourglass": "Hourglass",
+  "booster.label.hammer": "Hammer, {{count}} left. Tap any cell to destroy it.",
+  "booster.label.broom": "Broom, {{count}} left. Tap any row to clear it.",
+  "booster.label.hourglass": "Hourglass, {{count}} left. Redraw your tray.",
+  "booster.tooltip.hammer": "New! Hammer — tap it, then tap any cell to smash it.",
+  "booster.tooltip.broom": "New! Broom — tap it, then tap any row to sweep it clean.",
+  "booster.tooltip.hourglass": "New! Hourglass — tap it to redraw your whole tray.",
+  "booster.preLevel.title": "Bring a booster?",
+  "booster.preLevel.confirm": "Bring it",
+  "booster.preLevel.skip": "Skip"
 }
