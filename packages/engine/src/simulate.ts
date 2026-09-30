@@ -13,6 +13,7 @@
 
 import {
   BOARD_SIZE,
+  cellKind,
   cloneBoard,
   createBoard,
   fillCount,
@@ -167,6 +168,12 @@ export type GameEvent =
    * Never LINES_CLEARED: a booster scores nothing and never touches the combo.
    */
   | { type: 'BOOSTER_USED'; booster: BoosterType; cells: CellRef[] }
+  /**
+   * §9.4 continue grant (`reliefClear`): `centre` is the densest-region centre,
+   * `cells` the plain blocks removed, nearest-first — a natural ripple order.
+   * Followed by TRAY_REFILLED, then GAME_OVER only if the redraw is still dead.
+   */
+  | { type: 'RELIEF_CLEARED'; centre: CellRef; cells: CellRef[] }
   /** §8.2: the fixed sequence ran out with the board still alive — a completed attempt. */
   | { type: 'SEQUENCE_EXHAUSTED'; score: number; moves: number }
   | { type: 'GAME_OVER'; score: number };
@@ -562,6 +569,97 @@ export function applyBooster(
     state.status = 'lost';
     events.push({ type: 'GAME_OVER', score: state.score });
   }
+  return { state, events };
+}
+
+/** §9.4: the densest region is a 3×3 window; `WINDOW - 1` is the offset of its last row/col. */
+const WINDOW = 3;
+
+/**
+ * §9.4 densest-region centre: the 3×3 window with the most occupied cells (any
+ * kind — obstacles make a region crowded too), ties broken by lowest row, then
+ * lowest column. Returns the window's centre cell. Mask-only: popcounts `occ`.
+ */
+function densestCentre(board: Board): CellRef {
+  let best = { r: 1, c: 1 };
+  let bestCount = -1;
+  const colMask = (1 << WINDOW) - 1;
+  for (let r = 0; r <= BOARD_SIZE - WINDOW; r++) {
+    for (let c = 0; c <= BOARD_SIZE - WINDOW; c++) {
+      let n = 0;
+      for (let dr = 0; dr < WINDOW; dr++) {
+        const bits = ((board.occ[r + dr] ?? 0) >> c) & colMask;
+        n += (bits & 1) + ((bits >> 1) & 1) + ((bits >> 2) & 1);
+      }
+      // Strict `>` keeps the first (lowest row, then column) window on a tie.
+      if (n > bestCount) {
+        bestCount = n;
+        best = { r: r + 1, c: c + 1 };
+      }
+    }
+  }
+  return best;
+}
+
+/**
+ * §9.4 continue grant — the paid ("Continue") and rewarded ("Second chance")
+ * revival of a level that died with goals unmet. One action, as §9.4 lists it:
+ *
+ * 1. Clear up to `count` (`[RC relief_clear_cells]`, passed by the caller) PLAIN
+ *    `filled` cells nearest the densest-region centre (`densestCentre`), by
+ *    Chebyshev distance, ties row-major. Obstacles are never touched, so a relief
+ *    clear credits no goal, hits nothing, and can never win the level.
+ * 2. Redraw all `TRAY_SIZE` slots through the normal refill against the CLEARED
+ *    board — mercy (§6.4) and the §6.3 guarantee apply, exactly as `hourglass`.
+ * 3. `'playing'` again if any new piece fits; otherwise still `'lost'`, with a
+ *    fresh GAME_OVER (§4.3 pairing). The engine does not promise revival — the
+ *    caller dry-runs this pure function and must not charge for a dead result.
+ *
+ * Not a placement (same as a booster): no score, combo, miss streak, ivy
+ * cadence or perfect-clear change. Emits RELIEF_CLEARED, never BOOSTER_USED, so a
+ * continue is never counted as a booster.
+ *
+ * Refused (IllegalMoveError): anything but a `'lost'` level with an unmet goal
+ * (§9.4's trigger — so never Endless or the Daily Board); a fixed
+ * `pieceSequence` (no new draw exists, as for hourglass); a non-positive or
+ * fractional `count`.
+ */
+export function reliefClear(
+  prev: GameState,
+  count: number,
+): { state: GameState; events: GameEvent[] } {
+  if (prev.config.mode !== 'level') throw new IllegalMoveError('Relief clear is level-only');
+  if (prev.status !== 'lost') throw new IllegalMoveError(`Game is ${prev.status}, not lost`);
+  if (!prev.goals.some((g) => g.remaining > 0)) throw new IllegalMoveError('No unmet goal');
+  if (prev.config.pieceSequence) throw new IllegalMoveError('No relief on a fixed pieceSequence');
+  if (!Number.isInteger(count) || count < 1) throw new IllegalMoveError(`Bad count ${count}`);
+
+  const state = cloneState(prev);
+  const events: GameEvent[] = [];
+  const centre = densestCentre(state.board);
+
+  const candidates: (CellRef & { d: number })[] = [];
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      if (cellKind(state.board, r, c) === 'filled') {
+        candidates.push({ r, c, d: Math.max(Math.abs(r - centre.r), Math.abs(c - centre.c)) });
+      }
+    }
+  }
+  // Stable sort: row-major scan order survives as the tie-break.
+  const cells = candidates
+    .sort((a, b) => a.d - b.d)
+    .slice(0, count)
+    .map(({ r, c }) => ({ r, c }));
+  for (const { r, c } of cells) setCell(state.board, r, c, 'empty');
+  events.push({ type: 'RELIEF_CLEARED', centre, cells });
+
+  // No sequence (refused above), so `exhausted` is always false here.
+  const { pieces } = refillTray(state);
+  events.push({ type: 'TRAY_REFILLED', pieces });
+
+  if (hasAnyMove(state)) state.status = 'playing';
+  else events.push({ type: 'GAME_OVER', score: state.score });
   return { state, events };
 }
 

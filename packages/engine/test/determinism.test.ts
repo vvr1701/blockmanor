@@ -15,7 +15,13 @@ import type { Move } from '../src/placement';
 import { drawPiece } from '../src/pieces';
 import { createRng, fnv1a, nextInt } from '../src/rng';
 import { simulate, type FinalResult, type GameConfig, type GameMode } from '../src/simulate';
-import { boosterPlaythrough, config, randomPlaythrough, TUNING } from './helpers';
+import {
+  boosterPlaythrough,
+  config,
+  randomPlaythrough,
+  reliefPlaythrough,
+  TUNING,
+} from './helpers';
 
 interface GoldenCase {
   name: string;
@@ -180,6 +186,47 @@ describe('booster determinism fuzz (PRD §9.3 on §4.3)', () => {
       corpusHash: 'cc74d061',
       won: 88,
       used: { hammer: 838, broom: 822, hourglass: 882 },
+    });
+  });
+});
+
+describe('relief-clear determinism fuzz (PRD §9.4 on §4.3)', () => {
+  // 1,000 level games (fuzzConfig indices ≡ 0 mod 3 → 'level', no pieceSequence).
+  // Each death with a goal unmet takes up to 3 reliefClear continues
+  // (`continue_max_per_attempt` default); §4.3 pairing asserted on every step.
+  const run = (): ReturnType<typeof reliefPlaythrough>[] =>
+    Array.from({ length: 1000 }, (_, i) =>
+      reliefPlaythrough(fuzzConfig(3 * i), `rfuzz-${i}`, `rbot-${i}`),
+    );
+
+  it('reproduces 1,000 relief-fuzzed games identically across two runs', () => {
+    const a = JSON.stringify(run());
+    expect(JSON.stringify(run())).toBe(a);
+
+    const games = JSON.parse(a) as ReturnType<typeof reliefPlaythrough>[];
+    let reliefs = 0;
+    let revived = 0;
+    for (const g of games) {
+      for (const { action, events } of g.trace) {
+        if (!('type' in action)) continue;
+        reliefs += 1;
+        if (!events.some((e) => e.type === 'GAME_OVER')) revived += 1;
+      }
+    }
+    const won = games.filter((g) => g.result.status === 'won').length;
+    const corpusHash = fnv1a(a).toString(16);
+    console.log(
+      `[relief-fuzz] games=1000 won=${won} reliefs=${reliefs} revived=${revived} hash=${corpusHash}`,
+    );
+
+    // Pinned for the same cross-runtime reason as the §5 corpus above. Every relief
+    // here revives: a still-dead relief needs an obstacle-choked board natural play
+    // never reaches, so that branch is pinned by a unit test in reliefClear.test.ts.
+    expect({ corpusHash, won, reliefs, revived }).toEqual({
+      corpusHash: 'd1d4ef03',
+      won: 294,
+      reliefs: 1819,
+      revived: 1819,
     });
   });
 });

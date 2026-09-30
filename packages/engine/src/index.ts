@@ -89,6 +89,7 @@ export {
   finalResult,
   getLegalPlacements,
   isGameOver,
+  reliefClear,
   simulate,
   type BoosterAction,
   type BoosterType,

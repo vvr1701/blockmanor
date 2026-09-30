@@ -12,7 +12,7 @@ import { PIECE_BY_ID } from '../src/pieces';
 import { validateLevel, type LevelConfig } from '../src/levels';
 import type { Move, Placement } from '../src/placement';
 import type { PieceId } from '../src/pieces';
-import { createRng, nextInt } from '../src/rng';
+import { createRng, nextInt, type Rng } from '../src/rng';
 import {
   TRAY_SIZE,
   applyBooster,
@@ -20,6 +20,7 @@ import {
   createGame,
   finalResult,
   getLegalPlacements,
+  reliefClear,
   type BoosterAction,
   type EngineTuning,
   type FinalResult,
@@ -132,6 +133,23 @@ export function assertTerminalEventPairing(
 }
 
 /**
+ * The fuzz bots' placement pick: a line-clearing move ~70% of the time when one
+ * exists, otherwise any legal move. Shared so every pinned corpus draws the bot
+ * RNG identically. `undefined` (no RNG consumed) only when nothing is legal.
+ */
+function pickPlacement(state: GameState, rng: Rng): Placement | undefined {
+  const options: Placement[] = [];
+  for (let i = 0; i < TRAY_SIZE; i++) options.push(...getLegalPlacements(state, i));
+  if (options.length === 0) return undefined;
+  const clearing = options.filter((p) => {
+    const slot = state.tray[p.pieceIndex];
+    return slot ? completesLine(state.board, slot.pieceId, p.r, p.c) : false;
+  });
+  const pool = clearing.length > 0 && nextInt(rng, 10) < 7 ? clearing : options;
+  return pool[nextInt(rng, pool.length)];
+}
+
+/**
  * Seeded bot: mostly greedy (takes a line-clearing move ~70% of the time),
  * otherwise random. Greedy enough to reach deep boards — combos, obstacle
  * chains, ivy cadence — instead of suffocating after ten random drops.
@@ -147,17 +165,7 @@ export function randomPlaythrough(
   const moves: Move[] = [];
 
   while (state.status === 'playing' && moves.length < maxMoves) {
-    const options: Placement[] = [];
-    for (let i = 0; i < TRAY_SIZE; i++) options.push(...getLegalPlacements(state, i));
-    if (options.length === 0) break;
-
-    const clearing = options.filter((p) => {
-      const slot = state.tray[p.pieceIndex];
-      return slot ? completesLine(state.board, slot.pieceId, p.r, p.c) : false;
-    });
-    const pool = clearing.length > 0 && nextInt(rng, 10) < 7 ? clearing : options;
-
-    const pick = pool[nextInt(rng, pool.length)];
+    const pick = pickPlacement(state, rng);
     if (!pick) break;
     moves.push(pick);
     const result = applyPlacement(state, pick);
@@ -198,18 +206,58 @@ export function boosterPlaythrough(
       else if (kind === 0) action = { type: 'hammer', r: cell.r, c: cell.c };
       else action = { type: 'broom', row: cell.r };
     } else {
-      const options: Placement[] = [];
-      for (let i = 0; i < TRAY_SIZE; i++) options.push(...getLegalPlacements(state, i));
-      const clearing = options.filter((p) => {
-        const slot = state.tray[p.pieceIndex];
-        return slot ? completesLine(state.board, slot.pieceId, p.r, p.c) : false;
-      });
-      const pool = clearing.length > 0 && nextInt(rng, 10) < 7 ? clearing : options;
-      action = pool[nextInt(rng, pool.length)];
+      action = pickPlacement(state, rng);
     }
     if (!action) break;
     const result =
       'pieceIndex' in action ? applyPlacement(state, action) : applyBooster(state, action);
+    assertTerminalEventPairing(result.state.status, result.events);
+    trace.push({ action, events: result.events });
+    state = result.state;
+  }
+
+  return { trace, result: finalResult(state) };
+}
+
+/** A §9.4 continue grant as a fuzz-trace action. */
+export interface ReliefAction {
+  type: 'relief';
+  count: number;
+}
+
+/**
+ * §9.4 relief fuzz bot: `randomPlaythrough`'s bot on level configs; on each
+ * death it takes up to `maxContinues` (`continue_max_per_attempt` default 3)
+ * `reliefClear(state, 12)` continues and plays on. Like the booster bot, the
+ * trace (every action and event) is the determinism artifact, and §4.3 pairing
+ * is asserted on every step — including a relief that leaves the board dead.
+ */
+export function reliefPlaythrough(
+  gameConfig: GameConfig,
+  seed: string,
+  botSeed: string,
+  maxContinues = 3,
+  maxMoves = 200,
+): { trace: { action: Placement | ReliefAction; events: GameEvent[] }[]; result: FinalResult } {
+  const rng = createRng(botSeed);
+  let state = createGame(gameConfig, seed);
+  const trace: { action: Placement | ReliefAction; events: GameEvent[] }[] = [];
+  let continues = 0;
+
+  while (trace.length < maxMoves) {
+    let action: Placement | ReliefAction | undefined;
+    if (state.status === 'playing') action = pickPlacement(state, rng);
+    else if (
+      state.status === 'lost' &&
+      state.goals.some((g) => g.remaining > 0) &&
+      continues < maxContinues
+    ) {
+      continues += 1;
+      action = { type: 'relief', count: 12 };
+    }
+    if (!action) break;
+    const result =
+      'pieceIndex' in action ? applyPlacement(state, action) : reliefClear(state, action.count);
     assertTerminalEventPairing(result.state.status, result.events);
     trace.push({ action, events: result.events });
     state = result.state;
