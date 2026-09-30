@@ -25,14 +25,11 @@ export interface ObstacleHit {
   counted: boolean;
 }
 
-export interface ClearResult {
+export interface ClearResult extends HitResult {
   rows: number[];
   cols: number[];
   /** The cleared union, row-major; an intersection cell appears exactly once (§6.5). */
   cells: CellRef[];
-  hits: ObstacleHit[];
-  counts: Partial<Record<GoalType, number>>;
-  ivyDestroyed: boolean;
 }
 
 export function findFullLines(board: Board): { rows: number[]; cols: number[] } {
@@ -48,6 +45,39 @@ export function findFullLines(board: Board): { rows: number[]; cols: number[] } 
   return { rows, cols };
 }
 
+/** The §7.8 obstacle reactions of a set of hit cells, and the goal units they credit. */
+export interface HitResult {
+  hits: ObstacleHit[];
+  counts: Partial<Record<GoalType, number>>;
+  ivyDestroyed: boolean;
+}
+
+/**
+ * Mutates `board`: every listed cell takes ONE §7.8 hit (`resolveOnClear`) —
+ * crate/ivy/heirloom/filled → empty, `crate2` → `crate`, `chain` → its filled
+ * block. The single hit path shared by line clears (§6.5) and the §9.3 hammer
+ * and broom, so "counts as a hit" can never drift from what a line does.
+ */
+export function hitCells(board: Board, cells: readonly CellRef[]): HitResult {
+  const hits: ObstacleHit[] = [];
+  const counts: Partial<Record<GoalType, number>> = {};
+  let ivyDestroyed = false;
+
+  for (const { r, c } of cells) {
+    const kind = cellKind(board, r, c);
+    const { next, counts: goal } = resolveOnClear(kind);
+    if (kind !== 'empty' && kind !== 'filled') {
+      hits.push({ obstacle: kind, r, c, destroyed: next === 'empty', counted: goal !== null });
+      if (kind === 'ivy') ivyDestroyed = true;
+    }
+    if (goal !== null) counts[goal] = (counts[goal] ?? 0) + 1;
+    // `chain` breaks into the block it overlaid — keep that block's color.
+    setCell(board, r, c, next, next === 'empty' ? 0 : cellColor(board, r, c));
+  }
+
+  return { hits, counts, ivyDestroyed };
+}
+
 /** Mutates `board`. Returns the clear description, or null when nothing was full. */
 export function applyClears(board: Board): ClearResult | null {
   const { rows, cols } = findFullLines(board);
@@ -56,26 +86,11 @@ export function applyClears(board: Board): ClearResult | null {
   const rowSet = new Set(rows);
   const colSet = new Set(cols);
   const cells: CellRef[] = [];
-  const hits: ObstacleHit[] = [];
-  const counts: Partial<Record<GoalType, number>> = {};
-  let ivyDestroyed = false;
-
   for (let r = 0; r < BOARD_SIZE; r++) {
     for (let c = 0; c < BOARD_SIZE; c++) {
-      if (!rowSet.has(r) && !colSet.has(c)) continue;
-      cells.push({ r, c });
-
-      const kind = cellKind(board, r, c);
-      const { next, counts: goal } = resolveOnClear(kind);
-      if (kind !== 'empty' && kind !== 'filled') {
-        hits.push({ obstacle: kind, r, c, destroyed: next === 'empty', counted: goal !== null });
-        if (kind === 'ivy') ivyDestroyed = true;
-      }
-      if (goal !== null) counts[goal] = (counts[goal] ?? 0) + 1;
-      // `chain` breaks into the block it overlaid — keep that block's color.
-      setCell(board, r, c, next, next === 'empty' ? 0 : cellColor(board, r, c));
+      if (rowSet.has(r) || colSet.has(c)) cells.push({ r, c });
     }
   }
 
-  return { rows, cols, cells, hits, counts, ivyDestroyed };
+  return { rows, cols, cells, ...hitCells(board, cells) };
 }

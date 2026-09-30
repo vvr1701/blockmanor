@@ -12,16 +12,18 @@
  */
 
 import {
+  BOARD_SIZE,
   cloneBoard,
   createBoard,
   fillCount,
   fillRatio,
+  isOccupied,
   setCell,
   type Board,
   type CellRef,
   type ObstacleKind,
 } from './board';
-import { applyClears } from './clearing';
+import { applyClears, hitCells, type HitResult } from './clearing';
 import type { LevelConfig } from './levels';
 import { IVY_MAX_TILES, IVY_SPREAD_EVERY, spreadIvy, type GoalType } from './obstacles';
 import {
@@ -157,9 +159,24 @@ export type GameEvent =
   | { type: 'COMBO_RESET' }
   | { type: 'TRAY_REFILLED'; pieces: PieceId[] }
   | { type: 'LEVEL_WON'; score: number; stars: number }
+  /**
+   * §9.3: a booster was applied. `cells` are the cells it hit (row-major; empty
+   * for `hourglass`). Its §7.8 reactions follow as the same OBSTACLE_HIT /
+   * GOAL_PROGRESS / LEVEL_WON events a line clear emits, and an hourglass's new
+   * tray as TRAY_REFILLED — so the renderer has one vocabulary for all of them.
+   * Never LINES_CLEARED: a booster scores nothing and never touches the combo.
+   */
+  | { type: 'BOOSTER_USED'; booster: BoosterType; cells: CellRef[] }
   /** §8.2: the fixed sequence ran out with the board still alive — a completed attempt. */
   | { type: 'SEQUENCE_EXHAUSTED'; score: number; moves: number }
   | { type: 'GAME_OVER'; score: number };
+
+/** §9.3 booster set. */
+export type BoosterType = 'hammer' | 'broom' | 'hourglass';
+
+/** §9.3: hammer one cell, broom one row, or hourglass the tray. */
+export type BoosterAction =
+  { type: 'hammer'; r: number; c: number } | { type: 'broom'; row: number } | { type: 'hourglass' };
 
 export interface FinalResult {
   status: GameStatus;
@@ -325,6 +342,36 @@ function cloneState(s: GameState): GameState {
   };
 }
 
+/** §7.8 obstacle hits → OBSTACLE_HIT events, the ivy cadence clock, and goal credit. */
+function creditHits(state: GameState, res: HitResult, events: GameEvent[]): void {
+  for (const hit of res.hits) {
+    events.push({
+      type: 'OBSTACLE_HIT',
+      obstacle: hit.obstacle,
+      r: hit.r,
+      c: hit.c,
+      destroyed: hit.destroyed,
+    });
+  }
+  if (res.ivyDestroyed) state.lastIvyDestroyedAt = state.placements;
+
+  for (const goal of state.goals) {
+    const hits = res.counts[goal.type] ?? 0;
+    if (hits === 0) continue;
+    goal.remaining = Math.max(0, goal.remaining - hits);
+    events.push({ type: 'GOAL_PROGRESS', goal: goal.type, remaining: goal.remaining });
+  }
+}
+
+/** §6.7: WIN the moment the last goal reaches 0. Returns true (and events LEVEL_WON) on a win. */
+function checkWin(state: GameState, events: GameEvent[]): boolean {
+  if (state.goals.length === 0 || state.goals.some((g) => g.remaining > 0)) return false;
+  state.status = 'won';
+  const stars = starsFor(state.score, state.config.level?.stars);
+  events.push({ type: 'LEVEL_WON', score: state.score, stars });
+  return true;
+}
+
 export function applyPlacement(
   prev: GameState,
   placement: Placement,
@@ -390,23 +437,7 @@ export function applyPlacement(
       points: gained,
     });
 
-    for (const hit of cleared.hits) {
-      events.push({
-        type: 'OBSTACLE_HIT',
-        obstacle: hit.obstacle,
-        r: hit.r,
-        c: hit.c,
-        destroyed: hit.destroyed,
-      });
-    }
-    if (cleared.ivyDestroyed) state.lastIvyDestroyedAt = state.placements;
-
-    for (const goal of state.goals) {
-      const hits = cleared.counts[goal.type] ?? 0;
-      if (hits === 0) continue;
-      goal.remaining = Math.max(0, goal.remaining - hits);
-      events.push({ type: 'GOAL_PROGRESS', goal: goal.type, remaining: goal.remaining });
-    }
+    creditHits(state, cleared, events);
 
     // §6.6 perfect clear: board fully empty after a clear. Floored like every
     // other score path — a fractional [RC] must never make `score` non-integer,
@@ -417,14 +448,9 @@ export function applyPlacement(
       events.push({ type: 'PERFECT_CLEAR', bonus });
     }
 
-    // §6.7: WIN the moment the last goal reaches 0 — takes precedence over a
-    // simultaneous board-death, so nothing below this line runs.
-    if (state.goals.length > 0 && state.goals.every((g) => g.remaining === 0)) {
-      state.status = 'won';
-      const stars = starsFor(state.score, state.config.level?.stars);
-      events.push({ type: 'LEVEL_WON', score: state.score, stars });
-      return { state, events };
-    }
+    // §6.7: WIN takes precedence over a simultaneous board-death, so nothing
+    // below this line runs.
+    if (checkWin(state, events)) return { state, events };
   } else {
     state.missStreak += 1;
     if (state.missStreak >= COMBO_RESET_AFTER_MISSES && state.combo > 0) {
@@ -463,6 +489,79 @@ export function applyPlacement(
     events.push({ type: 'GAME_OVER', score: state.score });
   }
 
+  return { state, events };
+}
+
+const isCellIndex = (n: number): boolean => Number.isInteger(n) && n >= 0 && n < BOARD_SIZE;
+
+/**
+ * §9.3 boosters — the sibling of `applyPlacement`, same `{ state, events }`
+ * shape, same purity. A booster is NOT a placement: no placement points, no
+ * clear points, no combo/miss-streak change, no ivy cadence tick, no perfect
+ * clear bonus. What it does:
+ *
+ * - `hammer`: one §7.8 hit on one occupied cell — the same `hitCells` path a
+ *   line clear takes, so `crate2` → `crate` and `chain` → its block exactly as
+ *   one line through them would.
+ * - `broom`: one §7.8 hit on every occupied cell of one row — a line clear
+ *   through that row, obstacles reacting as §7.8's "on line-clear" column says.
+ * - `hourglass`: a fresh tray from `state.rng` through the normal §6.3/§6.4
+ *   refill (mercy and redraw guarantee included). All three slots are replaced.
+ *
+ * Randomness is the run's own seeded PRNG (the `seed` given to `createGame`),
+ * never an extra source. Terminal outcomes follow §4.3's pairing: a booster that
+ * meets the last goal emits LEVEL_WON; an hourglass that deals a dead tray emits
+ * GAME_OVER.
+ *
+ * Refused (IllegalMoveError): a finished game; any booster on the Daily Board
+ * (a §8.5 move log cannot carry one); an hourglass on a fixed `pieceSequence`
+ * (no "new draw" exists there); an off-board target; a hammer/broom with
+ * nothing occupied to hit (the client must not charge a booster for a no-op).
+ */
+export function applyBooster(
+  prev: GameState,
+  action: BoosterAction,
+): { state: GameState; events: GameEvent[] } {
+  if (prev.status !== 'playing') throw new IllegalMoveError(`Game already ${prev.status}`);
+  if (prev.config.mode === 'daily') throw new IllegalMoveError('No boosters on the Daily Board');
+
+  const state = cloneState(prev);
+  const events: GameEvent[] = [];
+
+  if (action.type === 'hourglass') {
+    if (state.config.pieceSequence) {
+      throw new IllegalMoveError('No hourglass on a fixed pieceSequence');
+    }
+    // No sequence, so `exhausted` is always false here.
+    const { pieces } = refillTray(state);
+    events.push({ type: 'BOOSTER_USED', booster: 'hourglass', cells: [] });
+    events.push({ type: 'TRAY_REFILLED', pieces });
+  } else {
+    let cells: CellRef[];
+    if (action.type === 'hammer') {
+      if (!isCellIndex(action.r) || !isCellIndex(action.c)) {
+        throw new IllegalMoveError(`Hammer off the board at (${action.r}, ${action.c})`);
+      }
+      cells = [{ r: action.r, c: action.c }];
+    } else {
+      if (!isCellIndex(action.row))
+        throw new IllegalMoveError(`Broom off the board: row ${action.row}`);
+      cells = Array.from({ length: BOARD_SIZE }, (_, c) => ({ r: action.row, c }));
+    }
+    cells = cells.filter(({ r, c }) => isOccupied(state.board, r, c));
+    if (cells.length === 0) throw new IllegalMoveError(`Nothing for the ${action.type} to hit`);
+
+    const res = hitCells(state.board, cells);
+    events.push({ type: 'BOOSTER_USED', booster: action.type, cells });
+    creditHits(state, res, events);
+    if (checkWin(state, events)) return { state, events };
+  }
+
+  // Removing cells never removes a legal anchor, so only an hourglass can die here.
+  if (!hasAnyMove(state)) {
+    state.status = 'lost';
+    events.push({ type: 'GAME_OVER', score: state.score });
+  }
   return { state, events };
 }
 

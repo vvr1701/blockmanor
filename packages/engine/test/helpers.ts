@@ -1,6 +1,13 @@
 /** Shared test scaffolding: board literals, config builders, a seeded random bot. */
 
-import { createBoard, setCell, type Board, type CellKind } from '../src/board';
+import {
+  BOARD_SIZE,
+  createBoard,
+  isOccupied,
+  setCell,
+  type Board,
+  type CellKind,
+} from '../src/board';
 import { PIECE_BY_ID } from '../src/pieces';
 import { validateLevel, type LevelConfig } from '../src/levels';
 import type { Move, Placement } from '../src/placement';
@@ -8,10 +15,12 @@ import type { PieceId } from '../src/pieces';
 import { createRng, nextInt } from '../src/rng';
 import {
   TRAY_SIZE,
+  applyBooster,
   applyPlacement,
   createGame,
   finalResult,
   getLegalPlacements,
+  type BoosterAction,
   type EngineTuning,
   type FinalResult,
   type GameConfig,
@@ -157,4 +166,54 @@ export function randomPlaythrough(
   }
 
   return { moves, result: finalResult(state) };
+}
+
+/**
+ * §9.3 booster fuzz bot: `randomPlaythrough`'s bot, plus a seeded ~10% chance
+ * per turn of a random hammer (occupied cell), broom (non-empty row) or
+ * hourglass. Kept separate so the pinned §5 corpus's RNG draws are untouched.
+ * `simulate()` replays placements only, so the trace itself (every action and
+ * every event) is the determinism artifact here.
+ */
+export function boosterPlaythrough(
+  gameConfig: GameConfig,
+  seed: string,
+  botSeed: string,
+  maxMoves = 200,
+): { trace: { action: Placement | BoosterAction; events: GameEvent[] }[]; result: FinalResult } {
+  const rng = createRng(botSeed);
+  let state = createGame(gameConfig, seed);
+  const trace: { action: Placement | BoosterAction; events: GameEvent[] }[] = [];
+
+  while (state.status === 'playing' && trace.length < maxMoves) {
+    let action: Placement | BoosterAction | undefined;
+    if (nextInt(rng, 10) === 0) {
+      const occupied: { r: number; c: number }[] = [];
+      for (let r = 0; r < BOARD_SIZE; r++)
+        for (let c = 0; c < BOARD_SIZE; c++)
+          if (isOccupied(state.board, r, c)) occupied.push({ r, c });
+      const kind = nextInt(rng, 3);
+      const cell = occupied[nextInt(rng, Math.max(1, occupied.length))];
+      if (kind === 2 || !cell) action = { type: 'hourglass' };
+      else if (kind === 0) action = { type: 'hammer', r: cell.r, c: cell.c };
+      else action = { type: 'broom', row: cell.r };
+    } else {
+      const options: Placement[] = [];
+      for (let i = 0; i < TRAY_SIZE; i++) options.push(...getLegalPlacements(state, i));
+      const clearing = options.filter((p) => {
+        const slot = state.tray[p.pieceIndex];
+        return slot ? completesLine(state.board, slot.pieceId, p.r, p.c) : false;
+      });
+      const pool = clearing.length > 0 && nextInt(rng, 10) < 7 ? clearing : options;
+      action = pool[nextInt(rng, pool.length)];
+    }
+    if (!action) break;
+    const result =
+      'pieceIndex' in action ? applyPlacement(state, action) : applyBooster(state, action);
+    assertTerminalEventPairing(result.state.status, result.events);
+    trace.push({ action, events: result.events });
+    state = result.state;
+  }
+
+  return { trace, result: finalResult(state) };
 }

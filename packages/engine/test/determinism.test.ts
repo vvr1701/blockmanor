@@ -15,7 +15,7 @@ import type { Move } from '../src/placement';
 import { drawPiece } from '../src/pieces';
 import { createRng, fnv1a, nextInt } from '../src/rng';
 import { simulate, type FinalResult, type GameConfig, type GameMode } from '../src/simulate';
-import { config, randomPlaythrough, TUNING } from './helpers';
+import { boosterPlaythrough, config, randomPlaythrough, TUNING } from './helpers';
 
 interface GoldenCase {
   name: string;
@@ -147,6 +147,40 @@ describe('determinism fuzz (Stage-0 DoD, PRD §5 + §6.8)', () => {
     // Interleave an unrelated game; the second replay must be unaffected.
     randomPlaythrough(fuzzConfig(2), 'noise', 'noise-bot');
     expect(simulate(cfg, 'order', moves)).toEqual(forwards);
+  });
+});
+
+describe('booster determinism fuzz (PRD §9.3 on §4.3)', () => {
+  // 1,000 level/endless games (fuzzConfig indices skipping daily, where boosters
+  // are refused) with random hammer/broom/hourglass interleaved. Every action and
+  // every event is part of the compared trace; §4.3 terminal pairing is asserted
+  // on every step inside the bot.
+  const run = (): ReturnType<typeof boosterPlaythrough>[] =>
+    Array.from({ length: 1000 }, (_, i) => {
+      const j = i + Math.floor(i / 2); // j % 3 is never 2 → never 'daily'
+      return boosterPlaythrough(fuzzConfig(j), `bfuzz-${j}`, `bbot-${j}`);
+    });
+
+  it('reproduces 1,000 booster-fuzzed games identically across two runs', () => {
+    const a = JSON.stringify(run());
+    expect(JSON.stringify(run())).toBe(a);
+
+    const games = JSON.parse(a) as ReturnType<typeof boosterPlaythrough>[];
+    const used = { hammer: 0, broom: 0, hourglass: 0 };
+    for (const g of games)
+      for (const { action } of g.trace) if ('type' in action) used[action.type] += 1;
+    const won = games.filter((g) => g.result.status === 'won').length;
+    const corpusHash = fnv1a(a).toString(16);
+    console.log(
+      `[booster-fuzz] games=1000 won=${won} used=${JSON.stringify(used)} hash=${corpusHash}`,
+    );
+
+    // Pinned for the same cross-runtime reason as the §5 corpus above.
+    expect({ corpusHash, won, used }).toEqual({
+      corpusHash: 'cc74d061',
+      won: 88,
+      used: { hammer: 838, broom: 822, hourglass: 882 },
+    });
   });
 });
 

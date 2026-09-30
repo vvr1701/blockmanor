@@ -23,7 +23,14 @@ export {
   type ObstacleKind,
 } from './board';
 
-export { applyClears, findFullLines, type ClearResult, type ObstacleHit } from './clearing';
+export {
+  applyClears,
+  findFullLines,
+  hitCells,
+  type ClearResult,
+  type HitResult,
+  type ObstacleHit,
+} from './clearing';
 
 export {
   PIECES,
@@ -75,6 +82,7 @@ export {
   IllegalMoveError,
   MAX_TRAY_REDRAWS,
   TRAY_SIZE,
+  applyBooster,
   applyPlacement,
   boardHash,
   createGame,
@@ -82,6 +90,8 @@ export {
   getLegalPlacements,
   isGameOver,
   simulate,
+  type BoosterAction,
+  type BoosterType,
   type EngineTuning,
   type FinalResult,
   type GameConfig,
