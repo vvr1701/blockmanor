@@ -58,7 +58,7 @@ import {
   vec,
 } from '@shopify/react-native-skia';
 import * as Haptics from './haptics';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import {
@@ -166,6 +166,12 @@ export function DragLayer({
   paused,
 }: DragLayerProps): React.JSX.Element {
   const [dragging, setDragging] = useState<{ index: number; pieceId: PieceId } | null>(null);
+  /** Which slot's drag is the current source of truth for `dragging`/
+   * `onDragIndexChange` (the "tray-hide" signal). A plain JS-thread ref, not
+   * a shared value: `startDrag`/`endDrag` both run via `runOnJS`, and only
+   * need to agree with EACH OTHER about ordering, never with the UI thread.
+   * See `endDrag`'s doc comment for why this exists. */
+  const activeDragIndexRef = useRef<number | null>(null);
 
   const headroom =
     LIFT_OFFSET_Y + MAX_LIFT_ROWS * (boardLayout.cellSize + boardLayout.gap) + LIFT_SHADOW_BLUR * 2;
@@ -180,10 +186,35 @@ export function DragLayer({
   reducedMotionSV.value = reducedMotion;
 
   const startDrag = (index: number, pieceId: PieceId): void => {
+    activeDragIndexRef.current = index;
     setDragging({ index, pieceId });
     onDragIndexChange(index);
   };
-  const endDrag = (): void => {
+  /**
+   * Bug fix (device repro, S23): this used to run ONLY inside a
+   * `withTiming`/`withSpring` completion callback, gated on `finished`.
+   * Reanimated calls that callback with `finished: false` when the
+   * animation is CANCELLED (a new `.value =` write on the same shared value
+   * before it completes — e.g. the player starts another drag while the
+   * previous piece's return/snap tween is still in flight; `dragX`/
+   * `dragOpacity`/etc. are one shared set reused by every tray slot's
+   * gesture, not per-slot). The `if (finished)` guard meant a cancelled
+   * animation's cleanup — including `onDragIndexChange(null)` — silently
+   * never ran, permanently stranding that slot hidden in `TrayCanvas` even
+   * though the piece was actually gone (placed or returned).
+   *
+   * Fix: every `.onFinalize` below now calls this UNCONDITIONALLY (dropping
+   * the `finished` check), so cleanup always eventually fires. That alone
+   * would risk the mirror bug — a STALE call from an interrupted drag firing
+   * after a NEWER drag has already claimed the shared state — so this takes
+   * the index it's cleaning up for and is a no-op unless it's still the
+   * active one (`startDrag` always claims `activeDragIndexRef` first, so a
+   * newer drag already owns it by the time an older, cancelled one's
+   * callback runs).
+   */
+  const endDrag = (index: number): void => {
+    if (activeDragIndexRef.current !== index) return;
+    activeDragIndexRef.current = null;
     setDragging(null);
     onDragIndexChange(null);
   };
@@ -323,8 +354,11 @@ export function DragLayer({
               dampingRatio: SNAP_SPRING_DAMPING_RATIO,
             });
             tiltDeg.value = withTiming(0, { duration: SNAP_SPRING_MS });
-            dragOpacity.value = withTiming(0, { duration: SNAP_SPRING_MS }, (finished) => {
-              if (finished) runOnJS(endDrag)();
+            // Always cleans up (see endDrag's doc comment) — not gated on
+            // `finished`, which is `false` if this got cancelled by a new
+            // drag starting before it completed.
+            dragOpacity.value = withTiming(0, { duration: SNAP_SPRING_MS }, () => {
+              runOnJS(endDrag)(index);
             });
             runOnJS(onPlace)(index, g.r, g.c);
             runOnJS(triggerLegalSnapFeedback)();
@@ -343,11 +377,14 @@ export function DragLayer({
             duration: RETURN_EASE_MS,
             easing: Easing.out(Easing.ease),
           });
+          // Always cleans up (see endDrag's doc comment) — not gated on
+          // `finished`, which is `false` if this got cancelled by a new
+          // drag starting before it completed.
           dragX.value = withTiming(
             originTrayCenterX,
             { duration: RETURN_EASE_MS, easing: Easing.out(Easing.ease) },
-            (finished) => {
-              if (finished) runOnJS(endDrag)();
+            () => {
+              runOnJS(endDrag)(index);
             },
           );
           dragY.value = withTiming(originTrayCenterY, {

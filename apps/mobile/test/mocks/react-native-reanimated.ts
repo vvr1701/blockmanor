@@ -59,9 +59,33 @@ export function resetMockAnimationCalls(): void {
   mockAnimationCalls.length = 0;
 }
 
+/**
+ * One-shot override for the NEXT `withTiming` call that actually CARRIES a
+ * completion callback — lets a test simulate Reanimated cancelling an
+ * in-flight animation (the real UI thread invokes a cancelled animation's
+ * callback with `finished: false`, e.g. when a new `.value =` write on the
+ * same shared value interrupts it) without needing real worklet/UI-thread
+ * semantics. Only consumed by a callback-bearing call (most `withTiming`
+ * calls in this codebase pass no callback at all, so a naive "consume on
+ * the very next call regardless" would usually be eaten by an unrelated,
+ * callback-less sibling call in the same gesture handler — e.g. DragLayer's
+ * return-tween fires FOUR `withTiming` calls per release, only one of which
+ * has a callback). Resets to the default (`true`) after use so it can't
+ * leak into an unrelated later call in the same test file.
+ */
+let nextTimingFinished: boolean | undefined;
+
+export function setMockNextTimingFinished(finished: boolean): void {
+  nextTimingFinished = finished;
+}
+
 export function withTiming<T>(toValue: T, config?: unknown, callback?: AnimCallback): T {
   mockAnimationCalls.push({ fn: 'withTiming', toValue, config });
-  callback?.(true);
+  if (callback) {
+    const finished = nextTimingFinished ?? true;
+    nextTimingFinished = undefined;
+    callback(finished);
+  }
   return toValue;
 }
 

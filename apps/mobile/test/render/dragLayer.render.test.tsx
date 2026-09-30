@@ -28,7 +28,11 @@ import {
   type ChainableGesture,
   type PanEventMock,
 } from '../mocks/react-native-gesture-handler';
-import { mockAnimationCalls, resetMockAnimationCalls } from '../mocks/react-native-reanimated';
+import {
+  mockAnimationCalls,
+  resetMockAnimationCalls,
+  setMockNextTimingFinished,
+} from '../mocks/react-native-reanimated';
 import TestRenderer, { act, type ReactTestRenderer } from 'react-test-renderer';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { colors } from '../../src/components/tokens';
@@ -394,6 +398,28 @@ describe('DragLayer — §7.3 v1.9 release outcomes', () => {
     expect(haptic).not.toHaveBeenCalled();
     const timings = mockAnimationCalls.filter((c) => c.fn === 'withTiming');
     expect(timings.some((c) => c.toValue === -BOARD_SHAKE_PX)).toBe(false);
+  });
+
+  it('device bug (S23): a CANCELLED return/snap animation still clears the tray-hide state (does not strand the slot hidden forever)', () => {
+    // Reanimated calls a `withTiming`/`withSpring` completion callback with
+    // `finished: false` when the animation is CANCELLED — e.g. the player
+    // starts a new drag before the previous piece's return tween finishes
+    // (`dragX`/`dragOpacity`/etc. are one shared set reused by every tray
+    // slot, not per-slot). The old code only ran cleanup `if (finished)`,
+    // so a cancelled animation left `onDragIndexChange` stuck on the old
+    // index forever — the reported bug: a tray slot invisible but still
+    // draggable, board nowhere near full.
+    const state = emptyBoardState();
+    const { gesture, onDragIndexChange, toBoardEvent } = mount(state);
+    setMockNextTimingFinished(false);
+
+    act(() => {
+      // Cancelled tap path -> return-to-tray tween, whose completion
+      // callback the mock now invokes with `finished: false`.
+      driveGesture(gesture, [toBoardEvent(0, 0)], { success: false });
+    });
+
+    expect(onDragIndexChange).toHaveBeenLastCalledWith(null);
   });
 
   it('TRAY_HITBOX_MIN_DP (64): a 1-cell (20px) piece still gets a 64x64 hitbox', () => {
