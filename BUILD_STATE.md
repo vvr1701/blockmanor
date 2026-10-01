@@ -1205,6 +1205,51 @@ already correct. Fix BLOCKERs and MAJORs; defer NITs to a follow-up list.
 Applies from the §12.1 branch onward. The §8.5 re-audit already in flight
 stands — it is daily-board, i.e. mandated.
 
+### S24 — §9.2 lives merged to main; §9.4 continue-flow client in progress (2026-10-01)
+
+- **§9.2 lives merged** (`feat/9.2-lives` → `main` @ `4c1f23c`). Operator
+  sign-off obtained on the three qa-prd-auditor-flagged business decisions:
+  lives are client-authoritative (v1.41(a), approved); the out-of-lives gate
+  ships dormant with `feat/9.2-out-of-lives-sheet` as the named follow-up
+  (v1.42(a), approved); the device-clock exploit (v1.42(e)) was explicitly
+  **not** accepted — operator directed a real fix over disclosure-only or a
+  lighter backward-jump-only guard.
+- **Clock-exploit fix, two rounds.** Round 1 (`bf3e069`, PRD v1.43): added
+  `apps/mobile/modules/device-uptime`, a local Expo native module exposing
+  monotonic boot-uptime, and clamped lives regen credit to
+  `min(wall-clock elapsed, uptime elapsed)`. qa-prd-auditor FAILed it:
+  (a) BLOCKER — the iOS implementation used `ProcessInfo.systemUptime`, which
+  pauses during sleep (silently robbing honest iOS players of regen, the
+  opposite of the intent); (b) MAJOR — the reboot-detected branch credited
+  the raw wall-clock gap, which could launder a stale backward-clock
+  adjustment into a large credit at a much later, unrelated reboot;
+  (c) MAJOR — no test exercised the real `watchLivesSync` integration path,
+  so a mutation reverting it to raw `Date.now()` survived. Round 2
+  (`880f83c`, `4c1f23c`, PRD v1.44) fixed all three: iOS now uses
+  `clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW)` (sleep-inclusive on Darwin,
+  verified independently against Apple's own docs, not just the auditor's
+  claim); a detected reboot now credits only uptime-since-that-reboot, never
+  the wall-clock gap; added the missing integration test. Re-audited: PASS.
+  **Residual, now accurately disclosed (not "narrowly-timed"):** any device
+  reboot forfeits whatever regen accrued before it — a fairness cost to
+  honest players, not a security hole, since no clock of any kind survives a
+  full power cycle. Native module is built and tested in JS but **not yet
+  `[device]`-verified** — needs a fresh dev-client build (new native module,
+  autolinking must re-run) before the real on-device clamp is confirmed.
+- **§9.4 continue-flow client** dispatched in parallel (`feat/9.4-continue-flow`
+  worktree, branched off `feat/9.2-lives` pre-clock-fix) — building
+  `ContinueSheet`/`OutOfCoinsSheet` against the already-merged `reliefClear`
+  engine primitive and §9.1 `spendCoins`. Status at time of writing: still
+  running; will need a rebase onto `main`'s new lives commits before merge,
+  and its own qa-prd-auditor pass before merge (spends real coins).
+- **`.gitignore` bug found and fixed in passing:** the repo's blanket
+  `android/`/`ios/` ignore patterns (meant for the generated Expo prebuild
+  dirs) were also silently swallowing real committed source under any future
+  `apps/mobile/modules/*/android|ios` local native module. Narrowed to
+  `apps/mobile/android/`/`apps/mobile/ios/` plus root-anchored `/android/`/
+  `/ios/` for a pre-existing stray root-level prebuild artifact this also
+  uncovered (harmless, untracked, left alone).
+
 ### S23 — Stage 1 closed-beta gate WAIVED; Stage 2 started (2026-09-29)
 
 - **Operator decision** (vvr1701, plain-text instruction: "no need of closed

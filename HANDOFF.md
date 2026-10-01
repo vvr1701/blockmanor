@@ -1,6 +1,6 @@
 # HANDOFF — Block Manor, to a new coding agent
 
-Written 2026-09-30, at PRD v1.40, `main` @ `a33e280`. This project was built
+Written 2026-09-30, updated 2026-10-01, at PRD v1.44, `main` @ `4c1f23c`. This project was built
 by a human operator (vvr1701) working with Claude Code. It's changing hands to
 a different coding agent (a GPT-based tool) to build the remaining stages
 through launch. This file is the onboarding brief — read it first, then read
@@ -50,16 +50,22 @@ without beta data. That's a recorded, deliberate risk, not an oversight.
   writes. `flag_economy` is deliberately OFF — it's the operator's launch
   switch, not a stage-boundary auto-flip, because it also gates the Shop nav
   tab and `ShopScreen` (§10.3) doesn't exist yet. See PRD v1.35(e)/v1.36.
-- §9.2 Lives — **code passed its qa-prd-auditor review** (PRD-amended,
-  v1.41–v1.42). Client-side (MMKV), not server-authoritative — see v1.41(a)
-  for the full reasoning and v1.42(e) for a disclosed clock-manipulation
-  exploit that's accepted, not fixed (there's no trusted clock offline).
-  **Merge is pending explicit operator sign-off** on three business
-  decisions the auditor correctly refused to approve itself: lives being
-  client- not server-authoritative (v1.41(a)), accepting the clock exploit
-  (v1.42(e)), and shipping this PR with the out-of-lives gate dormant/unwired
-  (v1.42(a)). Check `git log --oneline feat/9.2-lives` vs `main` to see if
-  it's merged yet. **Known scope gap, intentional:** the out-of-lives gate
+- §9.2 Lives — **merged to `main`** (PRD-amended, v1.41–v1.44). Client-side
+  (MMKV), not server-authoritative — see v1.41(a) for the full reasoning. The
+  operator signed off on all three business decisions the auditor correctly
+  refused to approve itself: lives being client- not server-authoritative
+  (v1.41(a)), shipping this PR with the out-of-lives gate dormant/unwired
+  (v1.42(a)) — and, for the device-clock-manipulation exploit (v1.42(e)),
+  explicitly declined to just accept it and directed a real fix instead. That
+  fix (v1.43, corrected v1.44 after a qa-prd-auditor FAIL) adds
+  `apps/mobile/modules/device-uptime`, a local Expo native module exposing
+  monotonic boot-uptime, and clamps regen credit to it — closing the exploit
+  completely, at the cost of a disclosed fairness-only residual: any device
+  reboot forfeits regen accrued before it (no clock survives a power cycle).
+  **Not yet `[device]`-verified** — this needs a fresh native dev-client
+  build (new native module, autolinking must re-run) before the real
+  on-device clamp is confirmed; JS logic is fully unit-tested. **Known scope
+  gap, intentional:** the out-of-lives gate
   (`canStartLevel`) and refill button are dormant primitives with no UI
   caller yet — a named follow-up PR (`feat/9.2-out-of-lives-sheet`) owns
   wiring them up once §16.1 names the sheet. **Do not turn `flag_economy` on
@@ -70,14 +76,16 @@ without beta data. That's a recorded, deliberate risk, not an oversight.
   the win-streak x5+ "+200" bonus (pre-approved in PRD, small isolated
   addition, just not built yet — see v1.37(viii)/v1.40(xii)).
 - §9.4 Fail→Continue flow — **engine half merged** (`reliefClear`, the
-  "clear cells + redraw tray" continue grant). **Client half NOT started**:
-  FailScreen changes, `OutOfCoinsSheet`, wiring `reliefClear` + `spendCoins`
-  together. The spec is FULLY ruled already (PRD §9.4 + changelog v1.38–v1.39
-  cover the densest-region algorithm, revival semantics, continue-tier
-  pricing, Second-chance-vs-Continue distinction) — this is ready to build
-  against, not ready to guess at. The lives-interaction piece specifically
-  depends on §9.2's refund ruling (v1.41(b)), which needs the operator
-  sign-off above before it's final.
+  "clear cells + redraw tray" continue grant). **Client half in progress**
+  on `feat/9.4-continue-flow`: FailScreen changes, `OutOfCoinsSheet`, wiring
+  `reliefClear` + `spendCoins` together. The spec was FULLY ruled already
+  (PRD §9.4 + changelog v1.38–v1.39 cover the densest-region algorithm,
+  revival semantics, continue-tier pricing, Second-chance-vs-Continue
+  distinction) before this branch started. §9.2's refund ruling it depends on
+  (v1.41(b)) is now final (lives merged). Check
+  `git log --oneline feat/9.4-continue-flow` vs `main` for current status —
+  it still needs a rebase onto `main`'s lives commits and a qa-prd-auditor
+  pass before merge (it spends real coins via `spendCoins`).
 - §10.1–§10.3 (rewarded ads, interstitials, IAP catalog) — **not started at
   all.** And can't fully complete: no AdMob account, no RevenueCat account
   exist yet (operator/business task, see `BUILD_STATE.md`'s AWAITING HUMAN
