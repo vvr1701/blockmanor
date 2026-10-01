@@ -16,6 +16,7 @@ import {
   livesRules,
   watchLivesSync,
 } from '../src/services/lives';
+import { resetTrustedClock } from '../src/services/trustedClock';
 import { useConfigStore } from '../src/state/useConfigStore';
 import {
   selectAdLivesLeft,
@@ -69,6 +70,7 @@ beforeEach(() => {
   vi.mocked(track).mockClear();
   resetFirebaseMock();
   resetConnectivity();
+  resetTrustedClock();
   firebaseMock.configured = true;
   firebaseMock.currentUser = { uid: 'alice' };
   useConfigStore.setState({ snapshot: { ...D, flag_economy: true }, fetchedAt: null });

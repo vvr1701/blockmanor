@@ -13,8 +13,13 @@ coverage/
 *.mobileprovision
 *.orig.*
 web-build/
-android/
-ios/
+# Scoped to the generated prebuild dirs, not local Expo modules under
+# apps/mobile/modules/*/android|ios, which are real committed source.
+apps/mobile/android/
+apps/mobile/ios/
+# Stray root-level prebuild output from an errant `expo prebuild` cwd.
+/android/
+/ios/
 
 # Secrets — PRD §16: never in the repo
 .env

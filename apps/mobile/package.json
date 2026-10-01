@@ -26,6 +26,7 @@
     "@react-native-firebase/messaging": "26.4.0",
     "@react-native-firebase/remote-config": "26.4.0",
     "@shopify/react-native-skia": "2.6.2",
+    "device-uptime": "file:./modules/device-uptime",
     "expo": "~57.0.22",
     "expo-application": "~57.0.3",
     "expo-build-properties": "~57.0.17",

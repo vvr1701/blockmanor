@@ -48,6 +48,7 @@ import {
 } from '../services/boosters';
 import { grantCoins } from '../services/wallet';
 import { forfeitLife, lifeOnWin } from '../services/lives';
+import { trustedNow } from '../services/trustedClock';
 import { getInstalledVersion } from '../services/appInfo';
 import { requestReview, shouldPromptReview } from '../services/reviewPrompt';
 import { useBoosterStore } from '../state/useBoosterStore';
@@ -323,9 +324,9 @@ export function LevelSession({
       // §9.2 lives: forfeit at the threshold or on death, refunded by a win.
       const runKey = levelRunSeed(json.id, attempt);
       if (state.status === 'won' || state.status === 'completed') {
-        lifeOnWin(state, runKey, Date.now());
+        lifeOnWin(state, runKey, trustedNow());
       } else {
-        forfeitLife(state, runKey, Date.now());
+        forfeitLife(state, runKey, trustedNow());
       }
       // §8.2/§4.3: `'won'` (a goal reached 0) and `'completed'` (a fixed
       // `pieceSequence` ran dry with the board still alive — goal-less

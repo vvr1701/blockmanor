@@ -1,0 +1,8 @@
+{
+  "name": "device-uptime",
+  "version": "1.0.0",
+  "description": "Local Expo module: milliseconds since device boot, a monotonic clock unaffected by the wall clock. Used to defend §9.2 lives regen against a forward-set-clock exploit.",
+  "main": "index.ts",
+  "types": "index.ts",
+  "license": "UNLICENSED"
+}

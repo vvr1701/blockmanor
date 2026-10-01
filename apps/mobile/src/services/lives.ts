@@ -4,6 +4,7 @@ import { useConfigStore } from '../state/useConfigStore';
 import { selectLives, useLivesStore, type LivesRules } from '../state/useLivesStore';
 import { track } from './analytics';
 import { onReconnect } from './connectivity';
+import { trustedNow } from './trustedClock';
 import { spendCoins } from './wallet';
 
 /**
@@ -129,10 +130,12 @@ export async function flushPendingRefill(now: number): Promise<RefillOutcome | n
 /**
  * App-lifetime: persist a clock-set-backwards restart at launch (§0 v1.41(e)),
  * then resolve a lost refill now, when Remote Config lands, and on reconnect.
+ * Uses `trustedNow` (§0 v1.43), not the raw wall clock, so a forward-jumped
+ * clock can't mint regen here either.
  */
 export function watchLivesSync(): () => void {
-  useLivesStore.getState().settle(Date.now(), livesRules());
-  const flush = () => void flushPendingRefill(Date.now());
+  useLivesStore.getState().settle(trustedNow(), livesRules());
+  const flush = () => void flushPendingRefill(trustedNow());
   flush();
   const stopConfig = useConfigStore.subscribe((s, prev) => {
     if (s.fetchedAt !== prev.fetchedAt) flush();
