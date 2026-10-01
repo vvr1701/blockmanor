@@ -158,7 +158,7 @@ describe('§9.2 regen: +1 per life_regen_minutes, capped at lives_max', () => {
     watchLivesSync()();
     clock.mockRestore();
 
-    expect(selectLives(useLivesStore.getState(), trustedNow(), RULES).lives).toBe(0);
+    expect(selectLives(useLivesStore.getState(), trustedNow(T0 + 3 * PERIOD), RULES).lives).toBe(0);
   });
 });
 
