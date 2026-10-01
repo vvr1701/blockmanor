@@ -11,9 +11,18 @@ import { MMKV } from 'react-native-mmkv';
  * longer mints lives, while a real offline period (both clocks agree) still
  * credits correctly.
  *
- * Residual, disclosed gap: a real device reboot resets uptime near zero, so a
- * clock change made in the same window as a reboot falls back to trusting the
- * wall clock for that one transition (§0 v1.43).
+ * Residual, disclosed gap (§0 v1.44 — corrects v1.43's "narrowly-timed"
+ * claim, which a qa-prd-auditor review showed was wrong): a real device
+ * reboot resets uptime near zero, so the gap BEFORE a reboot can never be
+ * verified and is never credited — not "a clock change timed to coincide
+ * with a reboot", but every reboot, unconditionally. This costs an honest
+ * player regen they are "owed" for time spent fully powered off (there is no
+ * clock of any kind that survives a power cycle), but it is SAFE: nothing
+ * about a reboot ever credits MORE than the uptime actually accrued since
+ * that reboot, so it cannot be used to mint extra lives. An earlier version
+ * of this function instead measured the reboot-crossing gap against the
+ * wall clock, which let a stale backward-clock adjustment get "cashed in" at
+ * the next reboot, however much later — that is the bug v1.44 fixes.
  */
 
 const storage = new MMKV({ id: 'blockmanor' });
@@ -36,10 +45,12 @@ export function trustedNow(wallNow: number = Date.now()): number {
     storage.set(KEY, JSON.stringify({ wall: wallNow, uptime }));
     return wallNow;
   }
-  const wallElapsed = wallNow - anchor.wall;
   const uptimeElapsed = uptime - anchor.uptime;
   const rebooted = uptimeElapsed < 0;
-  const credited = rebooted ? wallElapsed : Math.min(wallElapsed, uptimeElapsed);
+  // A reboot breaks the uptime chain, so nothing before it is verifiable —
+  // credit only the time since THIS boot (never the wall-clock gap, which
+  // may carry a stale lag from an earlier backward-clock adjustment).
+  const credited = rebooted ? uptime : Math.min(wallNow - anchor.wall, uptimeElapsed);
   const trusted = anchor.wall + credited;
   storage.set(KEY, JSON.stringify({ wall: trusted, uptime }));
   return trusted;

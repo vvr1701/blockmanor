@@ -16,7 +16,7 @@ import {
   livesRules,
   watchLivesSync,
 } from '../src/services/lives';
-import { resetTrustedClock } from '../src/services/trustedClock';
+import { resetTrustedClock, trustedNow } from '../src/services/trustedClock';
 import { useConfigStore } from '../src/state/useConfigStore';
 import {
   selectAdLivesLeft,
@@ -25,6 +25,7 @@ import {
   useLivesStore,
 } from '../src/state/useLivesStore';
 import { useWalletStore } from '../src/state/useWalletStore';
+import { resetMockUptime, setMockUptime } from './mocks/device-uptime';
 import { firebaseMock, resetFirebaseMock } from './mocks/react-native-firebase';
 
 /**
@@ -71,6 +72,7 @@ beforeEach(() => {
   resetFirebaseMock();
   resetConnectivity();
   resetTrustedClock();
+  resetMockUptime();
   firebaseMock.configured = true;
   firebaseMock.currentUser = { uid: 'alice' };
   useConfigStore.setState({ snapshot: { ...D, flag_economy: true }, fetchedAt: null });
@@ -143,6 +145,20 @@ describe('§9.2 regen: +1 per life_regen_minutes, capped at lives_max', () => {
       snapshot: { ...D, flag_economy: true, lives_max: 3, life_regen_minutes: 1 },
     });
     expect(livesRules()).toEqual({ max: 3, regenMs: 60_000 });
+  });
+
+  it('watchLivesSync credits regen through trustedNow, not the raw wall clock (§0 v1.43/v1.44)', () => {
+    useLivesStore.setState({ missing: MAX, regenFrom: T0 });
+    let clock = vi.spyOn(Date, 'now').mockReturnValue(T0);
+    watchLivesSync()();
+    clock.mockRestore();
+
+    setMockUptime(5_000); // 5 real seconds pass
+    clock = vi.spyOn(Date, 'now').mockReturnValue(T0 + 3 * PERIOD); // clock jumped far forward
+    watchLivesSync()();
+    clock.mockRestore();
+
+    expect(selectLives(useLivesStore.getState(), trustedNow(), RULES).lives).toBe(0);
   });
 });
 

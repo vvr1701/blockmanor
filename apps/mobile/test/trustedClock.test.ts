@@ -53,11 +53,22 @@ describe('trustedNow', () => {
     expect(trustedNow(DAY - 5 * 60_000)).toBe(DAY - 5 * 60_000);
   });
 
-  it('disclosed residual: a reboot (uptime resets) coincident with a clock jump falls back to trusting the wall clock', () => {
+  it('disclosed residual: a reboot credits only the time since that reboot, never the broken wall-clock gap (§0 v1.44)', () => {
     trustedNow(0);
     setMockUptime(5_000);
-    trustedNow(5_000); // anchors at uptime=5_000
+    trustedNow(5_000); // anchors at wall=5_000, uptime=5_000
     setMockUptime(100); // device rebooted — uptime dropped below the anchor
-    expect(trustedNow(3 * DAY)).toBe(3 * DAY);
+    expect(trustedNow(3 * DAY)).toBe(5_000 + 100); // uptime-since-reboot only, not the 3-day gap
+  });
+
+  it('a stale backward-clock lag is never laundered into extra credit at a LATER reboot (§0 v1.44, qa-prd-auditor finding)', () => {
+    trustedNow(100_000); // anchors at wall=100_000, uptime=0
+    setMockUptime(1_000);
+    trustedNow(97_000); // clock set BACK 3_000ms — restarts the period, anchor.wall drops to 97_000
+    setMockUptime(100); // a real reboot, much later, with no further tampering
+    const credited = trustedNow(100_000 + 48 * 3_600_000); // 48h later, real wall time
+    // A wall-clock-based reboot credit would pay out ~48h + the stale 3_000ms
+    // lag here; the fix credits only uptime-since-reboot, same as any reboot.
+    expect(credited).toBe(97_000 + 100);
   });
 });
