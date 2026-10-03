@@ -1,6 +1,6 @@
 # HANDOFF — Block Manor, to a new coding agent
 
-Written 2026-09-30, updated 2026-10-03, at PRD v1.48, `main` @ `d0d37d5`. This project was built
+Written 2026-09-30, updated 2026-10-03, at PRD v1.49, `main` @ `b24712f`. This project was built
 by a human operator (vvr1701) working with Claude Code. It's changing hands to
 a different coding agent (a GPT-based tool) to build the remaining stages
 through launch. This file is the onboarding brief — read it first, then read
@@ -79,10 +79,15 @@ without beta data. That's a recorded, deliberate risk, not an oversight.
   real, not a client change. `flag_economy` is still off — this follow-up
   was ONE of the two named reasons (§9.1's Shop-tab/`ShopScreen` gap above is
   the other, still unresolved).
-- §9.3 Boosters — **merged, engine + client, both audited.** `hammer`/
-  `broom`/`hourglass` fully usable. NOT wired: `GameConfig.startScore` for
-  the win-streak x5+ "+200" bonus (pre-approved in PRD, small isolated
-  addition, just not built yet — see v1.37(viii)/v1.40(xii)).
+- §9.3 Boosters — **fully merged, nothing left in this subsection.**
+  `hammer`/`broom`/`hourglass`, the showcase grants, the pre-level slot, and
+  (as of `feat/9.3-startscore-bonus`, PRD v1.49) the win-streak x5+
+  "+200" start-score bonus — all engine + client, both audited. No new `[RC]`
+  key: the bonus was already encoded in `winstreak_thresholds`'s own
+  `"5:2+200"` syntax. Read v1.49's changelog row before touching this area —
+  the first audit round caught a real bug (an unvalidated `pendingStartScore`
+  read could crash every level permanently from a bad RC value or a corrupted
+  MMKV blob), fixed by sanitizing at the read.
 - §9.4 Fail→Continue flow — **merged** (engine `reliefClear` + client:
   `ContinueSheet`, `OutOfCoinsSheet`, `continueFlow.ts`). PRD-amended to
   v1.46. Two qa-prd-auditor rounds: round 1 FAILed on a reproduced

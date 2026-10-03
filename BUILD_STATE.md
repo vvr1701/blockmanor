@@ -1205,6 +1205,58 @@ already correct. Fix BLOCKERs and MAJORs; defer NITs to a follow-up list.
 Applies from the §12.1 branch onward. The §8.5 re-audit already in flight
 stands — it is daily-board, i.e. mandated.
 
+### S27 — §9.3 win-streak start-score bonus merged to main; the only §9.3 gap left is now closed (2026-10-03)
+
+- **`feat/9.3-startscore-bonus` merged** (→ `main` @ `b24712f`, PRD v1.49).
+  The last unbuilt piece of §9.3: `GameConfig.startScore` (pre-approved
+  v1.37(viii)/v1.40(xii), deliberately not built until a client PR needed
+  it) and its wiring into the x5+ win-streak grant. Engine half built by the
+  `engine-architect` subagent (CLAUDE.md's engine-ownership rule); client
+  half built solo, same "don't spawn subagents unnecessarily" posture as
+  §9.2's follow-up.
+- **No new `[RC]` key needed** — a genuinely nice find: the +200 was already
+  living inside the EXISTING `winstreak_thresholds` string's own
+  `"5:2+200"` syntax, parsed since v1.40 into `WinstreakTier.bonus` and
+  simply never applied by any caller. Zero new Remote Config surface.
+- **Round 1 FAIL caught a real bug, not just a test gap.** An unvalidated
+  `pendingStartScore` read could crash every level PERMANENTLY: a
+  `winstreak_thresholds` RC typo overflowing past a safe integer, or a
+  corrupted MMKV blob, hit `createGame`'s own trust-boundary throw INSIDE
+  render — before `beginRun` ever ran to clear it, so it was never cleared
+  and every later mount crashed identically. A real §12.9 dead end, caught
+  by an auditor who tried the exact kind of garbage value a careless RC
+  edit or a truncated blob could produce, not just the happy path. Fixed by
+  sanitizing at the read, same guard shape `nextAttempt` already uses for
+  `attempts`. The other 3 MAJORs were test gaps around ALREADY-correct
+  code: every assertion checked `GameplayScreen.props.initialState.score`
+  (the settled prop) rather than what's actually rendered —
+  `GameplayScreen` seeds its own internal state via a plain
+  `useState(initialState)` that only consults the prop on that component's
+  OWN first render, so a one-frame-late bug (same class v1.48(e) already
+  fixed for the lives gate) could leave the prop eventually right while the
+  board the player actually sees stays wrong. The x5+ tier's own booster
+  grant was ALSO masking this by delaying `GameplayScreen`'s first mount
+  behind the pre-level sheet. Fixed: assertions now read rendered text, and
+  a cold-mount-zero-boosters test removes the masking.
+- **Round 2, PASS with conditions: the new "continue doesn't double-apply
+  the bonus" test was itself half-vacuous.** Its dying state carried
+  exactly the +200 bonus and nothing else, so a mutant that discarded
+  `continuedState` and rebuilt a fresh board (re-applying the bonus)
+  happened to read back the identical number. Closed by self-verification
+  per the re-audit's own explicit note that a third round wasn't needed —
+  gave the dying state extra score beyond the bare bonus so a genuine
+  continue and a fresh rebuild stop coincidentally agreeing.
+- **Still open, documented not fixed:** `level_complete{score,stars}`
+  silently includes the +200 with no analytics param naming it — a
+  strong-streaking player's star data is inflated for §7.9 balance
+  purposes with no way to subtract it in a query. Not a code defect (coins
+  pay once per level id regardless, stars are cosmetic today); flagged for
+  a future `level_complete` param if it ever matters enough to retune
+  around.
+- §9.3 is now fully shipped — the booster system, the showcase grants, the
+  pre-level slot, AND the win-streak score bonus. Nothing left in this
+  subsection.
+
 ### S26 — §9.2 out-of-lives sheet merged to main; v1.47(d) fix caught shipping a worse bug (2026-10-03)
 
 - **`feat/9.2-out-of-lives-sheet` merged** (→ `main` @ `d0d37d5`, PRD v1.48).
