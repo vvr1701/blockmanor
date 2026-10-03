@@ -227,5 +227,17 @@
   "booster.tooltip.hourglass": "New! Hourglass — tap it to redraw your whole tray.",
   "booster.preLevel.title": "Bring a booster?",
   "booster.preLevel.confirm": "Bring it",
-  "booster.preLevel.skip": "Skip"
+  "booster.preLevel.skip": "Skip",
+  "continue.streak": "🔥 x{{streak}} streak",
+  "continue.cta": "Continue — {{price}} 🪙",
+  "continue.secondChance": "Second chance 📺 free",
+  "continue.giveUp": "Give up",
+  "continue.giveUpConfirm.title": "Give up?",
+  "continue.giveUpConfirm.body": "Your x{{streak}} streak will end.",
+  "continue.giveUpConfirm.keepTrying": "Keep trying",
+  "continue.giveUpConfirm.leave": "Leave anyway",
+  "oob.title": "Out of coins",
+  "oob.body": "You need {{price}} 🪙 to continue — grab a bundle to top up.",
+  "oob.covers": "Covers your continue",
+  "oob.cancel": "Cancel"
 }

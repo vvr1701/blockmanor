@@ -1,15 +1,28 @@
 /**
- * `FailScreen` — PRD §7.5 / §16.1: "'Out of space!' + goal progress shown
- * ('Crates 9/12 — so close!') + Retry (free, unlimited in Stage 1) +
- * 'Level map' ghost. NO monetization yet, but layout MUST reserve the
- * continue-button slot (§9.4 drops in without redesign)."
+ * `FailScreen` — PRD §7.5 / §9.4 / §16.1: "'Out of space!' + goal progress
+ * shown ('Crates 9/12 — so close!') + Retry (free, unlimited in Stage 1) +
+ * 'Level map' ghost" — Stage 1's baseline layout, kept byte-identical when
+ * `continueOffer` is omitted (`flag_economy` off, or §9.4 has nothing to
+ * offer — see `LevelSession`).
  *
  * Mockup: `docs/design/spec/Block Manor Production Spec.dc.html`, panel "3.6
  * Fail / Continue" (cream card over the darkened dead board, title + goal
- * line + primary-CTA slot + tiny exit link). That panel's Continue/
- * second-chance/streak content is Stage-2 §9.4 — reproduced here only as an
- * EMPTY reserved slot (`CONTINUE_SLOT_RESERVED_HEIGHT`), never rendered,
- * never reading Stage-2 state (CLAUDE.md rule 1 / §0 rule 2a).
+ * line + primary-CTA slot + tiny exit link) — that panel draws the §9.4
+ * Continue/second-chance/streak content as part of THIS ONE card, not a
+ * second sheet stacked on top of it, which is why `ContinueSheet` (§16.1)
+ * renders INLINE in the reserved slot (`CONTINUE_SLOT_RESERVED_HEIGHT`,
+ * `failTokens.ts`) rather than as its own backdrop. `LevelSession` decides
+ * whether an offer exists at all (the `reliefClear` dry run, the per-attempt
+ * continue cap, the daily second-chance cap, §0 v1.43) — this screen stays a
+ * pure function of its props either way (CLAUDE.md rule 1 / §0 rule 2a: the
+ * slot still renders nothing and reads no Stage-2 state when `continueOffer`
+ * is absent).
+ *
+ * While an offer stands, Retry/"Level map" step aside for it — §9.4's own
+ * listed content for this screen is flame/goal/Continue/Second-chance/Give-up,
+ * with no Retry or Level-map button in the same breath, and showing a free
+ * Retry next to a priced Continue would undercut the paid option on sight.
+ * "Give up" is this screen's way back to the familiar Retry/Level-map pair.
  *
  * No loading/error/offline states (CLAUDE.md screen checklist): a pure
  * synchronous function of the terminal `GameState` the caller already holds
@@ -23,6 +36,7 @@ import { GoldButton } from '../../components/GoldButton';
 import { colors, fontSize, radius, spacing, withAlpha } from '../../components/tokens';
 import { GOAL_LABEL_KEY, goalProgressPct, type GoalBarEntry } from '../../game/goalBar';
 import { t } from '../../i18n';
+import { ContinueSheet, type ContinueSheetProps } from '../ContinueSheet';
 import { CONTINUE_SLOT_RESERVED_HEIGHT } from './failTokens';
 
 /** §7.5 audit mn-3: "So close!" read as mockery at 0% goal progress (§1 P6
@@ -59,6 +73,13 @@ export interface FailScreenProps {
   goals: readonly GoalBarEntry[];
   onRetry: () => void;
   onLevelMap: () => void;
+  /** §9.4: when present, this slot shows the real `ContinueSheet` content
+   * instead of its reserved empty gap, and Retry/"Level map" step aside for
+   * it (see the top-of-file doc comment). `undefined` (the default) keeps
+   * Stage-1 behaviour byte-identical — `flag_economy` off, or `LevelSession`
+   * has nothing to offer (the dry run stays `'lost'`, or both the paid and
+   * free revival options are exhausted for this attempt). */
+  continueOffer?: ContinueSheetProps;
 }
 
 function GoalLine({ goal }: { goal: GoalBarEntry }): React.JSX.Element {
@@ -75,6 +96,7 @@ export function FailScreen({
   goals,
   onRetry,
   onLevelMap,
+  continueOffer,
 }: FailScreenProps): React.JSX.Element {
   const soClose = goals.length > 0 && goalProgressPct(goals) >= SO_CLOSE_MIN_PROGRESS_PCT;
   return (
@@ -92,14 +114,25 @@ export function FailScreen({
           </View>
         ) : null}
 
-        {/* §9.4 continue-button slot reservation — renders nothing, reads no
-            Stage-2 state. See `failTokens.ts`. */}
-        <View style={{ height: CONTINUE_SLOT_RESERVED_HEIGHT }} />
+        {continueOffer ? (
+          // §9.4: the reserved slot's real content — see this file's top
+          // doc comment for why Retry/"Level map" step aside while it stands.
+          <View style={styles.continueSlot}>
+            <ContinueSheet {...continueOffer} />
+          </View>
+        ) : (
+          <>
+            {/* §9.4 continue-button slot reservation — renders nothing, reads
+                no Stage-2 state. See `failTokens.ts`. */}
+            <View style={{ height: CONTINUE_SLOT_RESERVED_HEIGHT }} />
 
-        <GoldButton label={t('fail.retry')} onPress={onRetry} size="lg" style={styles.retry} />
-        {/* §7.5 audit M-3: this ghost sits on the cream card, not the night
-            background — `onLight` is the variant with real contrast here. */}
-        <GhostButton label={t('fail.levelMap')} onPress={onLevelMap} variant="onLight" />
+            <GoldButton label={t('fail.retry')} onPress={onRetry} size="lg" style={styles.retry} />
+            {/* §7.5 audit M-3: this ghost sits on the cream card, not the
+                night background — `onLight` is the variant with real
+                contrast here. */}
+            <GhostButton label={t('fail.levelMap')} onPress={onLevelMap} variant="onLight" />
+          </>
+        )}
       </View>
     </View>
   );
@@ -138,4 +171,5 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   retry: { width: '100%', marginTop: spacing.sm },
+  continueSlot: { width: '100%', marginTop: spacing.sm },
 });

@@ -190,6 +190,18 @@ export const REMOTE_CONFIG_BOUNDS = {
   life_forfeit_min_moves: { min: 1, max: 1_000, integer: true },
   life_refill_price: { min: 1, max: 1_000_000, integer: true },
   rv_life_daily_cap: { min: 0, max: 100, integer: true },
+  // §9.4 continue/relief-clear — first read by `feat/9.4-continue-flow` (§0
+  // v1.24: bound in the PR that adds the reader). Prices floor at 1 like
+  // `life_refill_price` (`spendRequestSchema` refuses a 0 spend); the two
+  // caps floor at 0 ("no paid continues"/"no second chances today" is a
+  // legal config, not a typo); `relief_clear_cells` floors at 1 — `reliefClear`
+  // itself throws on a non-positive count — and caps at the 100-cell board.
+  continue_price_1: { min: 1, max: 1_000_000, integer: true },
+  continue_price_2: { min: 1, max: 1_000_000, integer: true },
+  continue_price_3: { min: 1, max: 1_000_000, integer: true },
+  continue_max_per_attempt: { min: 0, max: 20, integer: true },
+  second_chance_daily_cap: { min: 0, max: 100, integer: true },
+  relief_clear_cells: { min: 1, max: 100, integer: true },
 } as const satisfies Partial<Record<RemoteConfigKey, NumberBound>>;
 
 /** True unless `key` has a bound that `value` violates. Unbounded keys pass. */

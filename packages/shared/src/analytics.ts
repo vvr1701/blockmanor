@@ -38,11 +38,10 @@ export interface FtueCompleteParams {
  * stored per level id in the §4.4 MMKV meta store, advanced once per run
  * STARTED — including an abandoned run and the first run after an app
  * relaunch, so `attempt: 1` means the genuine first run of that level on that
- * install. §7.5's free/unlimited Stage-1 Retry bumps it. `continues`/
- * `boosters_used` are named as permanent §14 API ahead of their Stage-2
- * mechanics (§9.4/§9.3) — `boosters_used` now counts real §9.3 usage
- * (this session's client-wiring PR); `continues` stays `0` until §9.4 lands,
- * never omitted either way.
+ * install. §7.5's free/unlimited Stage-1 Retry bumps it. `continues` now
+ * counts real §9.4 `continues_used` for the attempt that won (0 for an
+ * attempt that never used one, as before); `boosters_used` counts real §9.3
+ * usage — both never omitted.
  */
 export interface LevelStartParams {
   id: number;
@@ -55,7 +54,7 @@ export interface LevelCompleteParams {
   /** 1-3, §7.5: star 1 = win, stars 2/3 = the level's `s2`/`s3` score thresholds. */
   stars: number;
   duration_s: number;
-  /** Stage-2 §9.4 continue count — always 0 until that lands (no continue behavior yet). */
+  /** §9.4 `continues_used` for the attempt this `level_complete` reports on. */
   continues: number;
   /** §9.3: count of successful `applyBooster` calls this run. */
   boosters_used: number;
@@ -175,6 +174,34 @@ export interface CoinsSpentParams {
 /** §9.2 a level start was refused for want of a life. §14 lists no params. */
 export type LifeBlockedParams = Record<never, never>;
 
+/**
+ * §9.4 fail -> continue flow (§14 `continue_shown/accepted/declined
+ * {level,price,balance}`). ONE param shape covers all three, for both the
+ * paid Continue and the free Second chance (§0 v1.39(a) keeps them separate
+ * resources, but §14 names no second event for the free path) — `price: 0`
+ * is the discriminator a priced continue can never produce
+ * (`spendRequestSchema.amount.min(1)`), §0 v1.45(c). `balance` is the shown
+ * coin balance (server-confirmed + any optimistic delta) at the moment of
+ * the event, never re-derived afterward.
+ */
+export interface ContinueFlowParams {
+  level: number;
+  /** The tier price this event concerns; `0` marks the free Second chance. */
+  price: number;
+  balance: number;
+}
+
+/** §9.4 `OutOfCoinsSheet` opened — an unaffordable Continue tap. §14 lists no params. */
+export type OobSheetShownParams = Record<never, never>;
+
+/**
+ * §9.4 `OutOfCoinsSheet` led to a purchase. §14 lists no params. Unreachable
+ * this PR (§0 v1.45(e)): §10.3's IAP/`ShopScreen`/RevenueCat purchase path
+ * doesn't exist yet, so nothing ever calls `track('oob_sheet_converted', ...)`
+ * today — the typed event exists so §10.3 has it ready to fire into.
+ */
+export type OobSheetConvertedParams = Record<never, never>;
+
 /** Keyed by §14 event name; extend per-section as each PRD subsection lands. */
 export interface AnalyticsEvents {
   ftue_step: FtueStepParams;
@@ -195,6 +222,11 @@ export interface AnalyticsEvents {
   booster_used: BoosterUsedParams;
   coins_spent: CoinsSpentParams;
   life_blocked: LifeBlockedParams;
+  continue_shown: ContinueFlowParams;
+  continue_accepted: ContinueFlowParams;
+  continue_declined: ContinueFlowParams;
+  oob_sheet_shown: OobSheetShownParams;
+  oob_sheet_converted: OobSheetConvertedParams;
 }
 
 export type AnalyticsEventName = keyof AnalyticsEvents;

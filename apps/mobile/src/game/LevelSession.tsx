@@ -20,6 +20,7 @@
 import {
   createGame,
   fillRatio,
+  reliefClear,
   starsFor,
   type BoosterType,
   type EngineTuning,
@@ -39,6 +40,8 @@ import {
 } from '../screens/GameplayScreen';
 import { WinScreen } from '../screens/WinScreen';
 import { FailScreen } from '../screens/FailScreen';
+import type { ContinueSheetProps } from '../screens/ContinueSheet';
+import { OutOfCoinsSheet } from '../screens/OutOfCoinsSheet';
 import { track } from '../services/analytics';
 import {
   BOOSTER_SHOWCASE_LEVELS,
@@ -46,6 +49,14 @@ import {
   randomBoosterType,
   winstreakGrantFor,
 } from '../services/boosters';
+import {
+  buyContinue,
+  claimSecondChance,
+  continuePrice,
+  continuesExhausted,
+  reliefWouldRevive,
+  secondChanceAvailable,
+} from '../services/continueFlow';
 import { grantCoins } from '../services/wallet';
 import { forfeitLife, lifeOnWin } from '../services/lives';
 import { trustedNow } from '../services/trustedClock';
@@ -54,6 +65,7 @@ import { requestReview, shouldPromptReview } from '../services/reviewPrompt';
 import { useBoosterStore } from '../state/useBoosterStore';
 import { useConfigStore } from '../state/useConfigStore';
 import { useMetaStore } from '../state/useMetaStore';
+import { selectBalance, useWalletStore } from '../state/useWalletStore';
 
 /** `attempt` tags the engine seed too (not just analytics) — a Stage-1 free
  * Retry (§7.5, normative as of §0 v1.17) deals a FRESH tray rather than
@@ -101,6 +113,23 @@ interface TerminalResult {
   score: number;
   stars: number;
   goals: readonly GoalBarEntry[];
+  /** §9.4: the terminal `GameState` itself — present only for a `'lost'`
+   * result. `ContinueSheet`'s dry run and the real `reliefClear` grant both
+   * need the actual engine state, not the derived `goals`/`score` above. */
+  state?: GameState;
+  /** §0 v1.45(a): `winStreak` captured the instant BEFORE `recordLevelFail`
+   * unconditionally zeroes it — display only (the fail-screen flame, the
+   * give-up confirm copy); continuing does not restore the live counter. */
+  streakAtDeath?: number;
+}
+
+/** §9.4: `ContinueSheet`'s offer, computed once per fail (see the `offer`
+ * effect below) — kept separate from `ContinueSheetProps` because the
+ * callbacks are rebuilt from the latest closures on every render while the
+ * priced/capped facts only change when a NEW fail happens. */
+interface ContinueOffer {
+  price: number;
+  secondChanceOffered: boolean;
 }
 
 export interface LevelSessionProps {
@@ -151,6 +180,28 @@ export function LevelSession({
   const [phase, setPhase] = useState<Phase>('playing');
   const [result, setResult] = useState<TerminalResult | null>(null);
 
+  // --- §9.4 continue flow ------------------------------------------------
+  // `continuedState` seeds the NEXT `GameplayScreen` mount after an accepted
+  // continue/second-chance — the SAME attempt/run, just past `reliefClear`'s
+  // grant. Falls back to the normal fresh-attempt `initialState` below.
+  const [continuedState, setContinuedState] = useState<GameState | null>(null);
+  // `continues_used` / the price tier (§0 v1.39(b)): scoped to THIS attempt,
+  // reset in the run-start effect — no separate persisted counter is needed
+  // because any relaunch already mints a brand-new `attempt` (§0 v1.17), so
+  // plain component state already satisfies "resets on a new attempt".
+  const [continuesUsed, setContinuesUsed] = useState(0);
+  const [continueBusy, setContinueBusy] = useState(false);
+  // Set by "Give up" — this attempt's fail screens revert to the Stage-1
+  // Retry/Level-map layout for the rest of THIS attempt (a later continue
+  // death still re-evaluates `offer` below, but §0 v1.45(b) and the caps
+  // below usually close it anyway by the time a player gives up).
+  const [offerDeclined, setOfferDeclined] = useState(false);
+  const [showOutOfCoins, setShowOutOfCoins] = useState(false);
+  // §9.4 step 1's priced/capped facts, computed once per fail (the effect
+  // below) — null when nothing is offered (flag off, dry run stays `'lost'`,
+  // caps exhausted, or Give-up already declined this attempt's offer).
+  const [offer, setOffer] = useState<ContinueOffer | null>(null);
+
   // --- §9.3 boosters ---------------------------------------------------
   // The pre-level slot's resolved choice for the level CURRENTLY being
   // attempted — spans retries of that same level (unset only by leaving it,
@@ -167,9 +218,12 @@ export function LevelSession({
   const boostersUsedRef = useRef(0);
 
   const json = useMemo(() => getLevel(currentLevel), [currentLevel]);
+  // §9.4: a continued/second-chanced run reseeds `GameplayScreen` from
+  // `reliefClear`'s own output rather than a fresh `buildLevelGameState` —
+  // same attempt, same run, just past the grant.
   const initialState = useMemo(
-    () => (json ? buildLevelGameState(json, tuning, attempt) : null),
-    [json, tuning, attempt],
+    () => continuedState ?? (json ? buildLevelGameState(json, tuning, attempt) : null),
+    [continuedState, json, tuning, attempt],
   );
 
   // Wall-clock duration for `level_complete.duration_s` (§14) — app-layer
@@ -204,6 +258,15 @@ export function LevelSession({
     setResult(null);
     quitFiredRef.current = false;
     boostersUsedRef.current = 0;
+    // §9.4: a genuinely new attempt (this effect's own trigger, §0 v1.17)
+    // resets continues_used/tier to zero/tier-1 and clears any continued
+    // seed/decline from the attempt that just ended (§0 v1.39(b)).
+    setContinuedState(null);
+    setContinuesUsed(0);
+    setContinueBusy(false);
+    setOfferDeclined(false);
+    setShowOutOfCoins(false);
+    setOffer(null);
     clearPhaseTimer();
     if (json) {
       // Advanced at run START, not on fail and not on the Retry tap: an
@@ -356,7 +419,7 @@ export function LevelSession({
           score: won.score,
           stars: won.stars,
           duration_s,
-          continues: 0,
+          continues: continuesUsed,
           boosters_used: boostersUsedRef.current,
         });
         persistStars(json.id, won.stars);
@@ -380,7 +443,7 @@ export function LevelSession({
           score: state.score,
           stars,
           duration_s,
-          continues: 0,
+          continues: continuesUsed,
           boosters_used: boostersUsedRef.current,
         });
         persistStars(json.id, stars);
@@ -394,13 +457,17 @@ export function LevelSession({
         }, WIN_HOLD_MS);
       } else if (state.status === 'lost') {
         const goals = deriveGoalBar(state);
+        // §0 v1.45(a): the streak §9.4's flame/give-up-confirm display, read
+        // BEFORE `recordLevelFail` unconditionally zeroes it (§9.3). Display
+        // only — a later continue does not restore the live counter.
+        const streakAtDeath = useMetaStore.getState().winStreak;
         track('level_fail', {
           id: json.id,
           goal_progress_pct: goalProgressPct(goals),
           fill_ratio: fillRatio(state.board),
         });
         recordLevelFail(Date.now());
-        setResult({ score: state.score, stars: 0, goals });
+        setResult({ score: state.score, stars: 0, goals, state, streakAtDeath });
         clearPhaseTimer();
         phaseTimerRef.current = setTimeout(() => setPhase('lost'), FAIL_HOLD_MS);
       }
@@ -414,6 +481,7 @@ export function LevelSession({
       recordWin,
       promptReview,
       recordLevelFail,
+      continuesUsed,
     ],
   );
 
@@ -467,6 +535,125 @@ export function LevelSession({
     [json, onLevelMap, onExit],
   );
 
+  // --- §9.4 continue flow --------------------------------------------------
+  // Computed once per fail (not at render time, unlike the booster pre-level
+  // gate below): it fires `continue_shown`, a real analytics event, which a
+  // render-time computation would re-fire on every unrelated re-render.
+  useEffect(() => {
+    if (phase !== 'lost' || !json || !result?.state || offerDeclined) {
+      setOffer(null);
+      return;
+    }
+    const config = useConfigStore.getState();
+    if (!config.value('flag_economy') || continuesExhausted(continuesUsed)) {
+      setOffer(null);
+      return;
+    }
+    // §0 v1.38(iii): offered only if it revives — reliefClear's own refusal
+    // rules ARE this gate (never Endless/Daily/FTUE/already-not-lost).
+    if (!reliefWouldRevive(result.state, config.value('relief_clear_cells'))) {
+      setOffer(null);
+      return;
+    }
+    const price = continuePrice(continuesUsed);
+    setOffer({ price, secondChanceOffered: secondChanceAvailable(Date.now()) });
+    track('continue_shown', {
+      level: json.id,
+      price,
+      balance: selectBalance(useWalletStore.getState(), config.value('starting_coin_balance')),
+    });
+  }, [phase, json, result, offerDeclined, continuesUsed]);
+
+  // One call does the clear AND the redraw (§0 v1.38(ii)) and returns to
+  // `'playing'` -> back to `GameplayScreen`, same run, same attempt. Shared by
+  // both acceptance paths below; only their OWN bookkeeping (tier advance,
+  // analytics price) differs, per §0 v1.39(a).
+  const finishContinue = useCallback(
+    (newState: GameState) => {
+      setContinuedState(newState);
+      setResult(null);
+      setOffer(null);
+      setShowOutOfCoins(false);
+      clearPhaseTimer();
+      setPhase('playing');
+    },
+    [clearPhaseTimer],
+  );
+
+  const applyContinueGrant = useCallback(
+    (price: number) => {
+      if (!json || !result?.state) return;
+      const config = useConfigStore.getState();
+      const { state: newState } = reliefClear(result.state, config.value('relief_clear_cells'));
+      const balance = selectBalance(
+        useWalletStore.getState(),
+        config.value('starting_coin_balance'),
+      );
+      track('continue_accepted', { level: json.id, price, balance });
+      // §0 v1.39(b): advances the tier for this attempt's NEXT paid continue.
+      setContinuesUsed((n) => n + 1);
+      finishContinue(newState);
+    },
+    [json, result, finishContinue],
+  );
+
+  const handleContinuePress = useCallback(() => {
+    if (!json || !offer || continueBusy) return;
+    const config = useConfigStore.getState();
+    const balance = selectBalance(useWalletStore.getState(), config.value('starting_coin_balance'));
+    // §9.4 step 3: checked against the shown balance BEFORE ever touching the
+    // engine or the server — `reliefClear` is irreversible (§0 v1.39(e)'s
+    // client-trusted pricing is about the AMOUNT, not about skipping this).
+    if (balance < offer.price) {
+      track('oob_sheet_shown', {});
+      setShowOutOfCoins(true);
+      return;
+    }
+    const price = offer.price;
+    const runKey = levelRunSeed(json.id, attempt);
+    setContinueBusy(true);
+    // Awaited, not optimistic (`services/continueFlow.ts`'s own doc comment):
+    // a rejected spend must never have already cleared the board.
+    void buyContinue(price, runKey, Date.now()).then((outcome) => {
+      setContinueBusy(false);
+      if (outcome === 'spent') applyContinueGrant(price);
+      else if (outcome === 'rejected') {
+        track('oob_sheet_shown', {});
+        setShowOutOfCoins(true);
+      }
+      // 'failed' (offline/server fault): the intent stays pending; re-tapping
+      // Continue replays the SAME key rather than minting a new one.
+    });
+  }, [json, offer, continueBusy, attempt, applyContinueGrant]);
+
+  const handleSecondChancePress = useCallback(() => {
+    if (!json || !offer?.secondChanceOffered || !result?.state) return;
+    // Defensive: the cap could in principle race out between render and tap
+    // (another tab/device is not a thing here, but a stale `offer` surviving
+    // a slow re-render is cheap to guard anyway).
+    if (!claimSecondChance(Date.now())) return;
+    const config = useConfigStore.getState();
+    const balance = selectBalance(useWalletStore.getState(), config.value('starting_coin_balance'));
+    // §0 v1.45(c): Second chance reuses `continue_accepted` with `price: 0` —
+    // §14 names no separate event for the free path, and `continues_used`/the
+    // tier are NOT advanced here (§0 v1.39(a)).
+    track('continue_accepted', { level: json.id, price: 0, balance });
+    const { state: newState } = reliefClear(result.state, config.value('relief_clear_cells'));
+    finishContinue(newState);
+  }, [json, offer, result, finishContinue]);
+
+  const handleGiveUp = useCallback(() => {
+    if (!json) return;
+    const config = useConfigStore.getState();
+    const price = offer?.price ?? continuePrice(continuesUsed);
+    const balance = selectBalance(useWalletStore.getState(), config.value('starting_coin_balance'));
+    track('continue_declined', { level: json.id, price, balance });
+    setOfferDeclined(true);
+    setShowOutOfCoins(false);
+  }, [json, offer, continuesUsed]);
+
+  const handleOutOfCoinsCancel = useCallback(() => setShowOutOfCoins(false), []);
+
   // §12.2 restart is `handleRetry` ITSELF, not a copy of it. Both start a new
   // run of the same level, and §0 v1.17 (i) defines `attempt` by runs
   // STARTED, not by which button started them — so re-seeding through one
@@ -493,13 +680,30 @@ export function LevelSession({
     );
   }
   if (phase === 'lost' && result) {
+    const continueOffer: ContinueSheetProps | undefined = offer
+      ? {
+          streakAtDeath: result.streakAtDeath ?? 0,
+          price: offer.price,
+          secondChanceOffered: offer.secondChanceOffered,
+          busy: continueBusy,
+          onContinue: handleContinuePress,
+          onSecondChance: handleSecondChancePress,
+          onGiveUp: handleGiveUp,
+        }
+      : undefined;
     return (
-      <FailScreen
-        levelId={json.id}
-        goals={result.goals}
-        onRetry={handleRetry}
-        onLevelMap={onLevelMap ?? onExit}
-      />
+      <>
+        <FailScreen
+          levelId={json.id}
+          goals={result.goals}
+          onRetry={handleRetry}
+          onLevelMap={onLevelMap ?? onExit}
+          {...(continueOffer ? { continueOffer } : {})}
+        />
+        {showOutOfCoins && offer ? (
+          <OutOfCoinsSheet price={offer.price} onCancel={handleOutOfCoinsCancel} />
+        ) : null}
+      </>
     );
   }
 
