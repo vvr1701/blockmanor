@@ -7,6 +7,7 @@ import { ivyCount } from '../src/obstacles';
 import { hasAnyLegalAnchor } from '../src/placement';
 import { createRng } from '../src/rng';
 import {
+  EngineConfigError,
   MAX_TRAY_REDRAWS,
   TRAY_SIZE,
   applyPlacement,
@@ -456,5 +457,63 @@ describe('per-level ivy tuning (PRD §7.7, §7.8)', () => {
       state = play(state, 0, 7, i % BOARD_SIZE).state;
     }
     expect(ivyCount(state.board)).toBe(3);
+  });
+});
+
+describe('start score (PRD §9.3 x5+ win streak, §0 v1.37(viii))', () => {
+  it('defaults to 0 when startScore is omitted — every other test relies on this', () => {
+    expect(createGame(config('endless'), 'ss-default').score).toBe(0);
+    expect(createGame(config('level', { level: level() }), 'ss-default').score).toBe(0);
+  });
+
+  it('begins the run at startScore, and placements/clears add on top normally', () => {
+    const state = createGame(config('endless', { startScore: 200 }), 'ss-200');
+    expect(state.score).toBe(200);
+
+    state.board = boardFrom(['#######.', '#.......', ...Array<string>(6).fill('........')]);
+    setTray(state, ['P01', 'P01', 'P01']);
+    const { state: next, events } = play(state, 0, 0, 7);
+    // 1 placement point + 10 × 8 cells × combo 1.0, no perfect clear (a block survives).
+    expect(next.score).toBe(200 + 1 + 10 * 8);
+    expect(eventsOf(events, 'LINES_CLEARED')[0]?.points).toBe(80);
+  });
+
+  it('counts toward stars and the terminal score like any other point (§7.5)', () => {
+    const win = (startScore?: number) => {
+      const state = createGame(
+        config('level', {
+          ...(startScore === undefined ? {} : { startScore }),
+          level: level({ goals: [{ type: 'crate', count: 1 }], stars: { s2: 250, s3: 1000 } }),
+        }),
+        'ss-stars',
+      );
+      state.board = boardFrom(['c######.', '#.......', ...Array<string>(6).fill('........')]);
+      setTray(state, ['P01', 'P01', 'P01']);
+      return play(state, 0, 0, 7);
+    };
+    const base = win();
+    const boosted = win(200);
+    expect(base.state.status).toBe('won');
+    expect(boosted.state.status).toBe('won');
+    expect(boosted.state.score).toBe(base.state.score + 200);
+    expect(base.state.score).toBeLessThan(250); // 1 star without the bonus ...
+    expect(finalResult(base.state).stars).toBe(1);
+    expect(eventsOf(boosted.events, 'LEVEL_WON')[0]).toMatchObject({
+      score: base.state.score + 200,
+      stars: 2, // ... 2 stars with it
+    });
+  });
+
+  it('is part of the deterministic replay — simulate() reproduces it', () => {
+    const cfg = config('endless', { startScore: 200 });
+    expect(simulate(cfg, 'ss-sim', []).score).toBe(200);
+  });
+
+  it('rejects a negative, fractional or non-finite startScore at the trust boundary', () => {
+    for (const bad of [-1, 0.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => createGame(config('endless', { startScore: bad }), 'ss-bad')).toThrow(
+        EngineConfigError,
+      );
+    }
   });
 });

@@ -84,13 +84,19 @@ import { selectBalance, useWalletStore } from '../state/useWalletStore';
  * silently replaying the exact same loss: the level's own `seedSalt` still
  * pins ITS identity within the seed string below, `attempt` is the part that
  * varies the run. §1 P2 — never punish without an exit. */
-function buildLevelGameState(json: LevelJson, tuning: EngineTuning, attempt: number): GameState {
+function buildLevelGameState(
+  json: LevelJson,
+  tuning: EngineTuning,
+  attempt: number,
+  startScore: number,
+): GameState {
   return createGame(
     {
       mode: 'level',
       tuning,
       level: parseLevel(json),
       ...(json.pieceSequence ? { pieceSequence: json.pieceSequence } : {}),
+      ...(startScore > 0 ? { startScore } : {}),
     },
     levelRunSeed(json.id, attempt),
   );
@@ -254,6 +260,12 @@ export function LevelSession({
   // choice (or "no boosters owned, nothing to ask") belongs to.
   const [armedForLevel, setArmedForLevel] = useState<BoosterType | null>(null);
   const [preLevelResolvedFor, setPreLevelResolvedFor] = useState<number | null>(null);
+  // §9.3 x5+ win-streak "start-score +200" (§0 v1.49): the NEXT fresh
+  // attempt's starting score, resolved render-time below (same mechanism and
+  // same reason as `livesBlocked`) so `buildLevelGameState` never builds a
+  // run with a stale 0 that a later effect would have to correct after
+  // `GameplayScreen` already mounted with it.
+  const [startScoreBonus, setStartScoreBonus] = useState(0);
   const boosterCounts = useBoosterStore((s) => s.counts);
   const boosterPreSelected = useBoosterStore((s) => s.preSelected);
   // §14 `level_complete.boosters_used`: count of successful `applyBooster`
@@ -282,14 +294,33 @@ export function LevelSession({
     lastGateKeyRef.current = gateKey;
     const blocked = json ? !hasLifeFor(json.id, trustedNow()) : false;
     if (blocked !== livesBlocked) setLivesBlocked(blocked);
+    // §9.3 (§0 v1.49(d)): a READ, never a store mutation, during render —
+    // the actual one-shot consume lives in `beginRun`'s side effects below,
+    // which this same `[json.id, attempt]` transition also triggers.
+    //
+    // qa-prd-auditor MAJOR, §0 v1.49(f): sanitized the same way `nextAttempt`
+    // above already guards a corrupt/hand-edited MMKV read — an unvalidated
+    // value here (a `winstreak_thresholds` typo overflowing past a safe
+    // integer, or a truncated MMKV blob) reached `createGame`'s own trust-
+    // boundary check unguarded, which THROWS — and since that throw happens
+    // inside this component's render, `beginRun` never runs to clear the bad
+    // value, so every future mount of every level crashed the same way
+    // forever: a §12.9 dead end, worse than the "quietly wrecked run"
+    // `EngineConfigError` exists to prevent. A bad value sanitizes to 0 here
+    // (never reaches the engine) and `beginRun`'s existing unconditional
+    // "clear if positive" still wipes it once a run proceeds normally.
+    const rawBonus = json ? useBoosterStore.getState().pendingStartScore : 0;
+    const bonus = Number.isSafeInteger(rawBonus) && rawBonus >= 0 ? rawBonus : 0;
+    if (bonus !== startScoreBonus) setStartScoreBonus(bonus);
   }
 
   // §9.4: a continued/second-chanced run reseeds `GameplayScreen` from
   // `reliefClear`'s own output rather than a fresh `buildLevelGameState` —
   // same attempt, same run, just past the grant.
   const initialState = useMemo(
-    () => continuedState ?? (json ? buildLevelGameState(json, tuning, attempt) : null),
-    [continuedState, json, tuning, attempt],
+    () =>
+      continuedState ?? (json ? buildLevelGameState(json, tuning, attempt, startScoreBonus) : null),
+    [continuedState, json, tuning, attempt, startScoreBonus],
   );
 
   // Wall-clock duration for `level_complete.duration_s` (§14) — app-layer
@@ -349,6 +380,13 @@ export function LevelSession({
       // so re-running this on every retry of a showcase level is harmless.
       const showcase = BOOSTER_SHOWCASE_LEVELS[level.id];
       if (showcase) useBoosterStore.getState().grantShowcase(showcase);
+      // §9.3 (§0 v1.49(d)): one-shot consume of the win-streak score bonus —
+      // the render-time block above already captured it into `startScoreBonus`
+      // for THIS run's `buildLevelGameState` call, so clearing it here can
+      // never race that read.
+      if (useBoosterStore.getState().pendingStartScore > 0) {
+        useBoosterStore.getState().setPendingStartScore(0);
+      }
     },
     [persistAttempt],
   );
@@ -460,9 +498,8 @@ export function LevelSession({
     (stars: number): string | null => {
       recordLevelWin();
       const meta = useMetaStore.getState();
-      // §9.3 win-streak booster grants: x2 -> 1 random booster "pre-filled
-      // next level", x3 -> 2, x5+ -> 2 (+200 start-score, NOT built this PR —
-      // §0 v1.37(viii) needs `GameConfig.startScore`, deferred; see report).
+      // §9.3 win-streak grants: x2 -> 1 random booster "pre-filled next
+      // level", x3 -> 2, x5+ -> 2 + start-score +200 (§0 v1.49: wired).
       // `winstreakGrantFor`'s own doc explains the exact-vs-"N+" tier match.
       const tiers = parseWinstreakThresholds(
         useConfigStore.getState().value('winstreak_thresholds'),
@@ -478,6 +515,9 @@ export function LevelSession({
         // "Pre-filled next level": arms the pre-level sheet's default choice
         // for whichever level this player reaches next.
         if (lastGranted) boosterStore.setPreSelected(lastGranted);
+      }
+      if (grantTier && grantTier.bonus > 0) {
+        useBoosterStore.getState().setPendingStartScore(grantTier.bonus);
       }
       const installedVersion = getInstalledVersion();
       const eligible = shouldPromptReview({

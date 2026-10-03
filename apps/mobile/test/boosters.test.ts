@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { mmkvStorage } from '../src/state/persist';
 import {
   BOOSTER_SHOWCASE_LEVELS,
   parseWinstreakThresholds,
@@ -90,6 +91,7 @@ describe('§9.3 useBoosterStore', () => {
       showcaseGranted: { hammer: false, broom: false, hourglass: false },
       tooltip: null,
       preSelected: null,
+      pendingStartScore: 0,
     });
   });
 
@@ -127,5 +129,24 @@ describe('§9.3 useBoosterStore', () => {
     expect(useBoosterStore.getState().preSelected).toBe('broom');
     useBoosterStore.getState().setPreSelected(null);
     expect(useBoosterStore.getState().preSelected).toBeNull();
+  });
+
+  it('setPendingStartScore records the §9.3 x5+ win-streak score bonus (§0 v1.49)', () => {
+    useBoosterStore.getState().setPendingStartScore(200);
+    expect(useBoosterStore.getState().pendingStartScore).toBe(200);
+    useBoosterStore.getState().setPendingStartScore(0);
+    expect(useBoosterStore.getState().pendingStartScore).toBe(0);
+  });
+
+  it('pendingStartScore round-trips through the REAL persist/rehydrate path, not an in-memory assertion (qa-prd-auditor MAJOR, §0 v1.49(h))', async () => {
+    useBoosterStore.getState().setPendingStartScore(200);
+    const image = mmkvStorage.getItem('boosters');
+    expect(typeof image).toBe('string');
+
+    useBoosterStore.setState({ pendingStartScore: 0 });
+    mmkvStorage.setItem('boosters', String(image));
+    await useBoosterStore.persist.rehydrate();
+
+    expect(useBoosterStore.getState().pendingStartScore).toBe(200);
   });
 });

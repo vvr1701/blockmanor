@@ -31,6 +31,11 @@ interface BoosterState {
    * consumed (cleared) once `LevelSession` hands it to that level's
    * `GameplayScreen`. */
   preSelected: BoosterType | null;
+  /** §9.3 x5+ win-streak "start-score +200" (§0 v1.49): the next level
+   * attempt's starting score, same one-shot pre-arm lifecycle as
+   * `preSelected` — granted by `recordWin`, consumed by `LevelSession`'s
+   * `beginRun` the moment that attempt actually starts. */
+  pendingStartScore: number;
   grant: (type: BoosterType, count: number) => void;
   /** True if `type` was actually spent (count was > 0). */
   consume: (type: BoosterType) => boolean;
@@ -39,6 +44,7 @@ interface BoosterState {
   grantShowcase: (type: BoosterType) => boolean;
   dismissTooltip: () => void;
   setPreSelected: (type: BoosterType | null) => void;
+  setPendingStartScore: (score: number) => void;
 }
 
 export const useBoosterStore = create<BoosterState>()(
@@ -48,6 +54,7 @@ export const useBoosterStore = create<BoosterState>()(
       showcaseGranted: { hammer: false, broom: false, hourglass: false },
       tooltip: null,
       preSelected: null,
+      pendingStartScore: 0,
       grant: (type, count) =>
         set((s) => ({ counts: { ...s.counts, [type]: s.counts[type] + count } })),
       consume: (type) => {
@@ -66,15 +73,17 @@ export const useBoosterStore = create<BoosterState>()(
       },
       dismissTooltip: () => set({ tooltip: null }),
       setPreSelected: (preSelected) => set({ preSelected }),
+      setPendingStartScore: (pendingStartScore) => set({ pendingStartScore }),
     }),
     {
       name: 'boosters',
       storage: createJSONStorage(() => mmkvStorage),
       version: 1,
-      partialize: ({ counts, showcaseGranted, preSelected }) => ({
+      partialize: ({ counts, showcaseGranted, preSelected, pendingStartScore }) => ({
         counts,
         showcaseGranted,
         preSelected,
+        pendingStartScore,
       }),
     },
   ),

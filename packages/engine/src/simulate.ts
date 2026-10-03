@@ -91,6 +91,11 @@ export interface GameConfig {
    * §8.2 Cloud Function.
    */
   pieceSequence?: readonly PieceId[];
+  /**
+   * §9.3 x5+ win-streak "start-score +200" (§0 v1.37(viii)): the score the run
+   * begins at, default 0. Counts toward stars like any other point (§7.5).
+   */
+  startScore?: number;
 }
 
 export interface TraySlot {
@@ -287,6 +292,9 @@ export function createGame(config: GameConfig, seed: string): GameState {
     if (!(id in PIECE_BY_ID))
       throw new EngineConfigError(`Unknown piece id "${id}" in pieceSequence`);
   }
+  const startScore = config.startScore ?? 0;
+  if (!Number.isSafeInteger(startScore) || startScore < 0)
+    throw new EngineConfigError(`startScore must be a non-negative integer, got ${startScore}`);
 
   // §7.7 `seedSalt` makes the same run seed produce a different piece stream per level.
   const rng = createRng(config.level ? `${seed}|${config.level.seedSalt}` : seed);
@@ -300,7 +308,7 @@ export function createGame(config: GameConfig, seed: string): GameState {
     board,
     tray: [],
     rng,
-    score: 0,
+    score: startScore,
     combo: 0,
     missStreak: 0,
     goals: (config.level?.goals ?? []).map((g) => ({ type: g.type, remaining: g.count })),
