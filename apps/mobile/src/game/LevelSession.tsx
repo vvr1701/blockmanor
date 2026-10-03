@@ -42,6 +42,8 @@ import { WinScreen } from '../screens/WinScreen';
 import { FailScreen } from '../screens/FailScreen';
 import type { ContinueSheetProps } from '../screens/ContinueSheet';
 import { OutOfCoinsSheet } from '../screens/OutOfCoinsSheet';
+import { RetryToast } from '../components/RetryToast';
+import { t } from '../i18n';
 import { track } from '../services/analytics';
 import {
   BOOSTER_SHOWCASE_LEVELS,
@@ -197,6 +199,9 @@ export function LevelSession({
   // below usually close it anyway by the time a player gives up).
   const [offerDeclined, setOfferDeclined] = useState(false);
   const [showOutOfCoins, setShowOutOfCoins] = useState(false);
+  // §12.8: a 'failed' spend (offline/server fault) must not be swallowed —
+  // the pending intent stays alive for the toast's own Retry to replay.
+  const [continueFailedToast, setContinueFailedToast] = useState(false);
   // §9.4 step 1's priced/capped facts, computed once per fail (the effect
   // below) — null when nothing is offered (flag off, dry run stays `'lost'`,
   // caps exhausted, or Give-up already declined this attempt's offer).
@@ -266,6 +271,7 @@ export function LevelSession({
     setContinueBusy(false);
     setOfferDeclined(false);
     setShowOutOfCoins(false);
+    setContinueFailedToast(false);
     setOffer(null);
     clearPhaseTimer();
     if (json) {
@@ -311,9 +317,14 @@ export function LevelSession({
     [json],
   );
 
+  // §0 v1.45: a continued/second-chanced run remounts `GameplayScreen` (via
+  // FailScreen in between) with the SAME `armedForLevel` still set, which
+  // would otherwise re-fire the mount-only pre-arm for free on every continue
+  // — `continuedState` is non-null only on that remount, never on a genuine
+  // new attempt (Retry mints a fresh attempt and clears `continuedState`).
   const boosterControls: BoosterControls = useMemo(
-    () => ({ preArmed: armedForLevel, onUsed: handleBoosterUsed }),
-    [armedForLevel, handleBoosterUsed],
+    () => ({ preArmed: continuedState ? null : armedForLevel, onUsed: handleBoosterUsed }),
+    [continuedState, armedForLevel, handleBoosterUsed],
   );
 
   // §12.10: a win advances the win-streak FIRST — this win counts toward the
@@ -556,7 +567,10 @@ export function LevelSession({
       return;
     }
     const price = continuePrice(continuesUsed);
-    setOffer({ price, secondChanceOffered: secondChanceAvailable(Date.now()) });
+    // §0 v1.45: trustedNow, not the raw wall clock — the daily cap below is a
+    // real, live-wired source of free continues, not dormant like the ad-life
+    // cap (§0 v1.42(d)), so it needs the same clock-exploit defense as lives.
+    setOffer({ price, secondChanceOffered: secondChanceAvailable(trustedNow()) });
     track('continue_shown', {
       level: json.id,
       price,
@@ -612,26 +626,35 @@ export function LevelSession({
     const price = offer.price;
     const runKey = levelRunSeed(json.id, attempt);
     setContinueBusy(true);
+    setContinueFailedToast(false);
     // Awaited, not optimistic (`services/continueFlow.ts`'s own doc comment):
     // a rejected spend must never have already cleared the board.
-    void buyContinue(price, runKey, Date.now()).then((outcome) => {
+    void buyContinue(price, runKey, trustedNow()).then((outcome) => {
       setContinueBusy(false);
       if (outcome === 'spent') applyContinueGrant(price);
       else if (outcome === 'rejected') {
         track('oob_sheet_shown', {});
         setShowOutOfCoins(true);
+      } else {
+        // 'failed' (offline/server fault): the intent stays pending — the
+        // toast's own Retry replays the SAME key, never mints a new one
+        // (§12.8: a failed callable gets a toast, never silence).
+        setContinueFailedToast(true);
       }
-      // 'failed' (offline/server fault): the intent stays pending; re-tapping
-      // Continue replays the SAME key rather than minting a new one.
     });
   }, [json, offer, continueBusy, attempt, applyContinueGrant]);
 
+  // §0 v1.45: guarded on `continueBusy` — without this, a tap on Second
+  // chance or Give Up while a paid Continue's spend is still in flight could
+  // revive the board (or leave the attempt) out from under the stale
+  // `applyContinueGrant` closure the spend's `.then` runs when it resolves,
+  // charging coins for a grant nothing is left to apply. `ContinueSheet`
+  // also disables all three controls while `busy` for the same reason, but
+  // the handler guard is the real fix — the UI disable is only the visible
+  // half of it.
   const handleSecondChancePress = useCallback(() => {
-    if (!json || !offer?.secondChanceOffered || !result?.state) return;
-    // Defensive: the cap could in principle race out between render and tap
-    // (another tab/device is not a thing here, but a stale `offer` surviving
-    // a slow re-render is cheap to guard anyway).
-    if (!claimSecondChance(Date.now())) return;
+    if (!json || !offer?.secondChanceOffered || !result?.state || continueBusy) return;
+    if (!claimSecondChance(trustedNow())) return;
     const config = useConfigStore.getState();
     const balance = selectBalance(useWalletStore.getState(), config.value('starting_coin_balance'));
     // §0 v1.45(c): Second chance reuses `continue_accepted` with `price: 0` —
@@ -640,19 +663,25 @@ export function LevelSession({
     track('continue_accepted', { level: json.id, price: 0, balance });
     const { state: newState } = reliefClear(result.state, config.value('relief_clear_cells'));
     finishContinue(newState);
-  }, [json, offer, result, finishContinue]);
+  }, [json, offer, result, continueBusy, finishContinue]);
 
   const handleGiveUp = useCallback(() => {
-    if (!json) return;
+    if (!json || continueBusy) return;
     const config = useConfigStore.getState();
+    // §0 v1.45: one event per Give-up at the current paid-tier price — Give
+    // Up declines Continue AND Second chance in the same action, so there is
+    // no separate "declined just the free option" event to discriminate with
+    // price:0 (unlike acceptance, where accepting IS a distinct per-option
+    // choice).
     const price = offer?.price ?? continuePrice(continuesUsed);
     const balance = selectBalance(useWalletStore.getState(), config.value('starting_coin_balance'));
     track('continue_declined', { level: json.id, price, balance });
     setOfferDeclined(true);
     setShowOutOfCoins(false);
-  }, [json, offer, continuesUsed]);
+  }, [json, offer, continuesUsed, continueBusy]);
 
   const handleOutOfCoinsCancel = useCallback(() => setShowOutOfCoins(false), []);
+  const handleContinueToastDismiss = useCallback(() => setContinueFailedToast(false), []);
 
   // §12.2 restart is `handleRetry` ITSELF, not a copy of it. Both start a new
   // run of the same level, and §0 v1.17 (i) defines `attempt` by runs
@@ -702,6 +731,13 @@ export function LevelSession({
         />
         {showOutOfCoins && offer ? (
           <OutOfCoinsSheet price={offer.price} onCancel={handleOutOfCoinsCancel} />
+        ) : null}
+        {continueFailedToast ? (
+          <RetryToast
+            message={t('continue.error.offline')}
+            onDismiss={handleContinueToastDismiss}
+            onRetry={handleContinuePress}
+          />
         ) : null}
       </>
     );

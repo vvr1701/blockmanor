@@ -12,7 +12,6 @@ import {
   continuesExhausted,
   reliefWouldRevive,
   secondChanceAvailable,
-  watchContinueFlowSync,
 } from '../src/services/continueFlow';
 import { resetConnectivity } from '../src/services/connectivity';
 import { useConfigStore } from '../src/state/useConfigStore';
@@ -147,6 +146,20 @@ describe('§0 v1.39(a)/v1.45(b) second-chance cap — independent of continues_u
     expect(secondChanceAvailable(tomorrow)).toBe(true);
   });
 
+  it('§0 v1.46: a backward (or sideways) clock change does NOT reset the cap — the day only ratchets forward', () => {
+    useConfigStore.setState({ snapshot: { ...D, flag_economy: true, second_chance_daily_cap: 1 } });
+    expect(claimSecondChance(T0)).toBe(true);
+    expect(secondChanceAvailable(T0)).toBe(false);
+
+    const yesterday = Date.UTC(2026, 8, 28, 12);
+    expect(secondChanceAvailable(yesterday)).toBe(false);
+    expect(claimSecondChance(yesterday)).toBe(false);
+
+    // Still capped back on the original day too — a backward excursion must
+    // not have corrupted the stored day either.
+    expect(secondChanceAvailable(T0)).toBe(false);
+  });
+
   it('a 0 cap never offers it, even fresh', () => {
     useConfigStore.setState({ snapshot: { ...D, flag_economy: true, second_chance_daily_cap: 0 } });
     expect(secondChanceAvailable(T0)).toBe(false);
@@ -172,7 +185,7 @@ describe('§0 v1.39(a)/v1.45(b) second-chance cap — independent of continues_u
   });
 });
 
-describe('§9.4 buyContinue — persist-before-call / replay-on-reconnect (mirrors services/lives.ts)', () => {
+describe('§9.4 buyContinue — persist-before-call, in-session replay only (§0 v1.46: no background flush)', () => {
   it('spends continue_price via spendCoins and fires coins_spent once applied', async () => {
     firebaseMock.callables['spendCoins'] = () => served(D.continue_price_1);
     await expect(buyContinue(D.continue_price_1, 'run-1', T0)).resolves.toBe('spent');
@@ -204,6 +217,30 @@ describe('§9.4 buyContinue — persist-before-call / replay-on-reconnect (mirro
     expect(useContinueStore.getState().pendingContinue).toBeNull();
   });
 
+  it('§0 v1.46: a pending intent is NEVER auto-replayed in the background — reconnect and an RC fetch do nothing', async () => {
+    firebaseMock.callables['spendCoins'] = () => {
+      throw unavailable();
+    };
+    await expect(buyContinue(D.continue_price_1, 'run-1', T0)).resolves.toBe('failed');
+    expect(useContinueStore.getState().pendingContinue).not.toBeNull();
+    const callsAfterFirstAttempt = firebaseMock.calls.length;
+
+    firebaseMock.callables['spendCoins'] = () => served(D.continue_price_1, false);
+    const { reportNetworkResult } = await import('../src/services/connectivity');
+    reportNetworkResult(false);
+    reportNetworkResult(true);
+    useConfigStore.getState().applySnapshot({ flag_economy: true }, 1);
+    await flush();
+    // A background replay here would clear the intent while the dead board
+    // sits in front of the player, un-revived — exactly the double-charge
+    // the auditor reproduced before this fix: it settles with the server but
+    // never tells LevelSession, so the next tap mints a NEW key and pays
+    // again. No call beyond the one made above must fire until the player's
+    // own re-tap does.
+    expect(firebaseMock.calls).toHaveLength(callsAfterFirstAttempt);
+    expect(useContinueStore.getState().pendingContinue).not.toBeNull();
+  });
+
   it('a server rejection clears the intent and charges nothing', async () => {
     firebaseMock.callables['spendCoins'] = () => {
       throw rejection('insufficient-funds');
@@ -227,36 +264,5 @@ describe('§9.4 buyContinue — persist-before-call / replay-on-reconnect (mirro
     expect(firebaseMock.calls[0]?.data).toMatchObject({
       idempotencyKey: expect.stringMatching(/^continue:run-2-/),
     });
-  });
-});
-
-describe('watchContinueFlowSync — settles a stray pending continue (ledger only, never revives)', () => {
-  it('replays on reconnect and clears the pending record', async () => {
-    useContinueStore.setState({
-      pendingContinue: { key: 'continue:run-1-x', amount: 900, runKey: 'run-1' },
-    });
-    firebaseMock.callables['spendCoins'] = () => served(900, false);
-    const stop = watchContinueFlowSync();
-    // `onReconnect` only fires on an OFFLINE -> online transition; `beforeEach`
-    // already leaves `online: true`, so dip offline first to exercise it.
-    const { reportNetworkResult } = await import('../src/services/connectivity');
-    reportNetworkResult(false);
-    reportNetworkResult(true);
-    await flush();
-    expect(firebaseMock.calls).toHaveLength(1);
-    expect(useContinueStore.getState().pendingContinue).toBeNull();
-    stop();
-  });
-
-  it('replays when Remote Config lands', async () => {
-    useContinueStore.setState({
-      pendingContinue: { key: 'continue:run-1-x', amount: 900, runKey: 'run-1' },
-    });
-    firebaseMock.callables['spendCoins'] = () => served(900, false);
-    const stop = watchContinueFlowSync();
-    useConfigStore.getState().applySnapshot({ flag_economy: true }, 1);
-    await flush();
-    expect(firebaseMock.calls).toHaveLength(1);
-    stop();
   });
 });

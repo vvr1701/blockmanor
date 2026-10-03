@@ -11,7 +11,6 @@ import { LevelSession } from './game/LevelSession';
 import { DailySession } from './game/DailySession';
 import { watchDailyReconnectFlush } from './game/dailyResult';
 import { getInstalledVersion, isBelowMinVersion } from './services/appInfo';
-import { watchContinueFlowSync } from './services/continueFlow';
 import { initFirebase, syncRemoteConfig } from './services/firebase';
 import { watchWalletSync } from './services/wallet';
 import { watchLivesSync } from './services/lives';
@@ -77,10 +76,6 @@ export default function App(): React.JSX.Element {
   useEffect(() => watchWalletSync(), []);
   // §9.2: a coin refill whose answer was lost still yields its lives.
   useEffect(() => watchLivesSync(), []);
-  // §9.4: settle a stray pending continue from a run that no longer exists
-  // (see `services/continueFlow.ts`'s own doc comment on the gap this closes
-  // vs. the one it deliberately doesn't).
-  useEffect(() => watchContinueFlowSync(), []);
   // §12.1: Home's HUD gear AND (via `LevelSession`) `PauseSheet`'s settings
   // shortcut both reach the same local-state seam. Rendered as an OVERLAY
   // sibling (like `AnalyticsDebugOverlay`), not a replacement branch of the

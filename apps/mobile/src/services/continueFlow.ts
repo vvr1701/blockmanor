@@ -5,7 +5,6 @@ import {
   useContinueStore,
   type PendingContinue,
 } from '../state/useContinueStore';
-import { onReconnect } from './connectivity';
 import { spendCoins, type SpendOutcome } from './wallet';
 
 /**
@@ -98,6 +97,22 @@ async function settleContinue(replay: boolean): Promise<SpendOutcome> {
  * "Continue" is the retry, and it replays the SAME key via the
  * `pendingContinue?.runKey === runKey` branch below rather than minting a
  * new one, so nothing is ever charged twice.
+ *
+ * DELIBERATELY NO background flush (§0 v1.46, a qa-prd-auditor finding): an
+ * earlier version of this file replayed any pending continue on reconnect or
+ * RC fetch, including the CURRENT run's — a `'spent'` answer arriving that
+ * way clears the intent without ever telling `LevelSession`, so the board
+ * stays dead and the player's next tap mints a fresh key and pays again.
+ * Unlike a life refill (`lives.ts`'s `flushPendingRefill`), a lost continue
+ * answer has no later moment where it can still be delivered — the revive it
+ * would grant is this fail screen, right now — so there is nothing a
+ * background flush could correctly do with it. A pending intent for a run
+ * that's gone (the player relaunched, or a NEW continue overwrites it below)
+ * is simply abandoned, never settled: if that charge in fact landed
+ * server-side, it is spent and not compensated — the same known, accepted
+ * shape as v1.41(g)'s refill corner, just with no follow-up PR to close it,
+ * because (per the paragraph above) there is no reachable moment to close it
+ * in.
  */
 export async function buyContinue(
   amount: number,
@@ -114,27 +129,4 @@ export async function buyContinue(
   };
   store.setPendingContinue(pending);
   return settleContinue(false);
-}
-
-/**
- * App-lifetime: settle a stray pending continue left over from a run that no
- * longer exists (the player relaunched before an answer came back, or left
- * the fail screen some other way) — this only clears the ledger/local state
- * so the key is never silently replayed twice; it never attempts to revive a
- * run, matching `flushPendingRefill`'s own documented gap for the same reason
- * (§0 v1.42(a)'s refill corner): a charge that lands here is spent and not
- * compensated, because the run it would have revived is already gone by
- * construction (any relaunch mints a new `attempt`/`runKey`, §0 v1.17) — the
- * in-session retry path above is what covers the reachable case.
- */
-export function watchContinueFlowSync(): () => void {
-  const flush = () => void settleContinue(true);
-  const stopConfig = useConfigStore.subscribe((s, prev) => {
-    if (s.fetchedAt !== prev.fetchedAt) flush();
-  });
-  const stopReconnect = onReconnect(flush);
-  return () => {
-    stopConfig();
-    stopReconnect();
-  };
 }

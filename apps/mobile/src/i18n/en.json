@@ -233,11 +233,12 @@
   "continue.secondChance": "Second chance 📺 free",
   "continue.giveUp": "Give up",
   "continue.giveUpConfirm.title": "Give up?",
-  "continue.giveUpConfirm.body": "Your x{{streak}} streak will end.",
+  "continue.giveUpConfirm.body": "Your x{{streak}} streak is already gone — give up on this run too?",
   "continue.giveUpConfirm.keepTrying": "Keep trying",
   "continue.giveUpConfirm.leave": "Leave anyway",
   "oob.title": "Out of coins",
   "oob.body": "You need {{price}} 🪙 to continue — grab a bundle to top up.",
   "oob.covers": "Covers your continue",
-  "oob.cancel": "Cancel"
+  "oob.cancel": "Cancel",
+  "continue.error.offline": "Couldn't reach the server — your board is unchanged."
 }

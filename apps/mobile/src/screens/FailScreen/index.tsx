@@ -13,7 +13,7 @@
  * renders INLINE in the reserved slot (`CONTINUE_SLOT_RESERVED_HEIGHT`,
  * `failTokens.ts`) rather than as its own backdrop. `LevelSession` decides
  * whether an offer exists at all (the `reliefClear` dry run, the per-attempt
- * continue cap, the daily second-chance cap, §0 v1.43) — this screen stays a
+ * continue cap, the daily second-chance cap, §0 v1.45) — this screen stays a
  * pure function of its props either way (CLAUDE.md rule 1 / §0 rule 2a: the
  * slot still renders nothing and reads no Stage-2 state when `continueOffer`
  * is absent).

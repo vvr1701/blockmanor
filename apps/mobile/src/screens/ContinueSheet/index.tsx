@@ -10,7 +10,7 @@
  * confirm layer is the precedent), because it needs to interrupt the whole
  * screen, not just this slot.
  *
- * `LevelSession` decides WHETHER this renders at all (§0 v1.43's gating: the
+ * `LevelSession` decides WHETHER this renders at all (§0 v1.45's gating: the
  * engine `reliefClear` dry run, `continue_max_per_attempt`, caps) — this
  * component only renders what it is told to, same boundary `FailScreen`
  * itself already keeps (CLAUDE.md: a pure function of its props).
@@ -101,12 +101,14 @@ export function ContinueSheet({
           onPress={onSecondChance}
           variant="onLight"
           style={styles.full}
+          disabled={busy}
         />
       ) : null}
 
       <Pressable
         style={styles.giveUp}
         onPress={handleGiveUpPress}
+        disabled={busy}
         accessibilityRole="button"
         accessibilityLabel={t('continue.giveUp')}
         hitSlop={8}

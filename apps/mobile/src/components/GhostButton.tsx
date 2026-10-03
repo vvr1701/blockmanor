@@ -55,6 +55,7 @@ export interface GhostButtonProps {
   variant?: GhostButtonVariant;
   accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
+  disabled?: boolean;
 }
 
 const MIN_TOUCH_TARGET = 44;
@@ -65,6 +66,7 @@ export function GhostButton({
   variant = 'onDark',
   accessibilityLabel,
   style,
+  disabled,
 }: GhostButtonProps): React.JSX.Element {
   const c = VARIANT_COLORS[variant];
   // §15.1 "btn_tap (all buttons, subtle)" — the ONE seam every button-press
@@ -76,6 +78,7 @@ export function GhostButton({
   return (
     <Pressable
       onPress={handlePress}
+      disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
       hitSlop={8}
@@ -83,6 +86,7 @@ export function GhostButton({
         styles.base,
         { borderColor: c.border },
         pressed ? styles.pressed : null,
+        disabled ? styles.disabled : null,
         style,
       ]}
     >
@@ -102,5 +106,6 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   pressed: { opacity: 0.6 },
+  disabled: { opacity: 0.4 },
   label: { fontSize: fontSize.sm, fontWeight: '700' },
 });

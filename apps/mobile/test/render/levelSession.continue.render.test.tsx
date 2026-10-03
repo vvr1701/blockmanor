@@ -25,8 +25,10 @@ import { REMOTE_CONFIG_DEFAULTS, type WalletResult } from '@blockmanor/shared';
 import React from 'react';
 import TestRenderer, { act, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { BoosterPreLevelSheet } from '../../src/game/BoosterPreLevelSheet';
 import { DragLayer } from '../../src/game/DragLayer';
 import { FAIL_HOLD_MS } from '../../src/game/juice';
+import { RetryToast } from '../../src/components/RetryToast';
 import { ContinueSheet } from '../../src/screens/ContinueSheet';
 import { OutOfCoinsSheet } from '../../src/screens/OutOfCoinsSheet';
 import { GameplayScreen } from '../../src/screens/GameplayScreen';
@@ -105,6 +107,7 @@ vi.mock('@blockmanor/content', async (importOriginal) => {
   return { ...actual, getLevel: (id: number) => byId[id] };
 });
 
+import { reliefClear } from '@blockmanor/engine';
 import { LevelSession, levelRunSeed } from '../../src/game/LevelSession';
 import { track } from '../../src/services/analytics';
 
@@ -156,6 +159,22 @@ async function toFailScreen(renderer: ReactTestRenderer): Promise<void> {
   await flushAsync();
 }
 
+/** A SECOND death on the SAME continued run, for tests that need a tier
+ * advance or a second cap check without re-engineering this fixture's
+ * one-safe-placement board (see the top-of-file doc comment): the revived
+ * state the mocked `reliefClear` returned IS a real engine `GameState`, so
+ * flipping its `status` back to `'lost'` through the exposed `onEvent` prop
+ * simulates dying again, same `FAIL_HOLD_MS` hold as a real one. */
+async function secondDeath(renderer: ReactTestRenderer): Promise<void> {
+  const gameplay = renderer.root.findByType(GameplayScreen);
+  const lostAgain = { ...(gameplay.props.initialState as object), status: 'lost' };
+  act(() => {
+    (gameplay.props.onEvent as (e: unknown[], s: unknown) => void)([], lostAgain);
+  });
+  advance(FAIL_HOLD_MS);
+  await flushAsync();
+}
+
 const served = (amount: number, applied = true): WalletResult => ({
   coins: 50_000 - amount,
   rev: 1,
@@ -201,7 +220,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('§0 v1.43 / §9.4 — FailScreen offers nothing while flag_economy is off', () => {
+describe('§0 v1.45 / §9.4 — FailScreen offers nothing while flag_economy is off', () => {
   it('Stage-1 byte-identical: no ContinueSheet, no OutOfCoinsSheet', async () => {
     useConfigStore.setState({ snapshot: { ...D } }); // flag_economy defaults false
     const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
@@ -219,6 +238,10 @@ describe('§9.4 the offer (dry run, tier pricing, continue_shown)', () => {
     const sheet = renderer.root.findByType(ContinueSheet);
     expect(sheet.props.price).toBe(D.continue_price_1);
     expect(sheet.props.secondChanceOffered).toBe(true);
+    // §0 v1.45(a): captured BEFORE §9.3's `recordLevelFail` zeroes the live
+    // `winStreak` — this fixture's `beforeEach` seeds `winStreak: 3`, so a
+    // post-reset read would wrongly show 0 here.
+    expect(sheet.props.streakAtDeath).toBe(3);
     expect(trackMock).toHaveBeenCalledWith('continue_shown', {
       level: 11,
       price: D.continue_price_1,
@@ -309,6 +332,67 @@ describe('§9.4 paid Continue — real spendCoins, tier advance, resumes play', 
   });
 });
 
+describe('§0 v1.38(iii) dry-run gate — never offered when reliefClear would stay lost', () => {
+  it('neither Continue nor Second chance renders; no coins or ad view are ever spent on a dead board', async () => {
+    vi.mocked(reliefClear).mockReturnValueOnce({
+      state: { status: 'lost' } as unknown as ReturnType<typeof reliefClear>['state'],
+      events: [],
+    });
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
+    await toFailScreen(renderer);
+    expect(renderer.root.findAllByType(ContinueSheet).length).toBe(0);
+    expect(renderer.root.findAllByType(FailScreen).length).toBe(1);
+    expect(firebaseMock.calls).toEqual([]);
+  });
+});
+
+describe('§0 v1.39(b) tier advance — a second paid continue costs the next tier', () => {
+  it('prices the SECOND paid continue (same attempt) at continue_price_2, not price_1 again', async () => {
+    useConfigStore.setState({
+      snapshot: { ...D, flag_economy: true, continue_max_per_attempt: 2 },
+    });
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
+    await toFailScreen(renderer);
+    await act(async () => {
+      renderer.root.findByType(ContinueSheet).props.onContinue();
+      await flushAsync();
+    });
+    expect(renderer.root.findAllByType(GameplayScreen).length).toBe(1);
+
+    await secondDeath(renderer);
+
+    const secondSheet = renderer.root.findByType(ContinueSheet);
+    expect(secondSheet.props.price).toBe(D.continue_price_2);
+    await act(async () => {
+      secondSheet.props.onContinue();
+      await flushAsync();
+    });
+    expect(firebaseMock.calls[1]?.data).toMatchObject({
+      sink: 'continue',
+      amount: D.continue_price_2,
+    });
+  });
+
+  it('continue_max_per_attempt gates off BOTH options mid-attempt, not just at a 0 cap (§0 v1.45(b))', async () => {
+    useConfigStore.setState({
+      snapshot: { ...D, flag_economy: true, continue_max_per_attempt: 1 },
+    });
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
+    await toFailScreen(renderer);
+    await act(async () => {
+      renderer.root.findByType(ContinueSheet).props.onContinue();
+      await flushAsync();
+    });
+
+    await secondDeath(renderer);
+
+    // The ONE paid continue this attempt's cap allows is already spent —
+    // neither Continue nor Second chance (still unused today) is offered.
+    expect(renderer.root.findAllByType(ContinueSheet).length).toBe(0);
+    expect(renderer.root.findAllByType(FailScreen).length).toBe(1);
+  });
+});
+
 describe('§0 v1.39(a)/v1.45(c) Second chance — free, separate cap, no tier advance', () => {
   it('accepting does not spend coins, fires continue_accepted{price:0}, and resumes play', async () => {
     const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
@@ -343,6 +427,101 @@ describe('§0 v1.39(a)/v1.45(c) Second chance — free, separate cap, no tier ad
     const sheet = renderer.root.findByType(ContinueSheet);
     expect(sheet.props.secondChanceOffered).toBe(false);
     expect(sheet.props.price).toBe(D.continue_price_1); // Continue is unaffected
+  });
+});
+
+describe('§0 v1.46(c) race guard — Second chance / Give Up are no-ops while a paid continue is in flight', () => {
+  it('a tap on Second chance or Give Up mid-spend does nothing; the pending spend still resolves exactly once', async () => {
+    let resolveSpend!: (value: WalletResult) => void;
+    firebaseMock.callables['spendCoins'] = () =>
+      new Promise<WalletResult>((resolve) => {
+        resolveSpend = resolve;
+      });
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
+    await toFailScreen(renderer);
+
+    act(() => {
+      renderer.root.findByType(ContinueSheet).props.onContinue();
+    });
+    const busySheet = renderer.root.findByType(ContinueSheet);
+    expect(busySheet.props.busy).toBe(true);
+
+    // Reproduces the auditor's finding: without the guard, either of these
+    // could revive the board (or leave the attempt) out from under the
+    // pending spend's own stale closure.
+    act(() => {
+      busySheet.props.onSecondChance();
+      busySheet.props.onGiveUp();
+    });
+    expect(renderer.root.findAllByType(GameplayScreen).length).toBe(0);
+    expect(renderer.root.findAllByType(ContinueSheet).length).toBe(1);
+    expect(useContinueStore.getState().secondChance.count).toBe(0);
+
+    await act(async () => {
+      resolveSpend(served(D.continue_price_1));
+      await flushAsync();
+    });
+    expect(renderer.root.findAllByType(GameplayScreen).length).toBe(1);
+    expect(firebaseMock.calls).toHaveLength(1); // exactly one spend, not two charges
+    expect(trackMock.mock.calls.filter(([name]) => name === 'continue_accepted')).toHaveLength(1);
+  });
+});
+
+describe('§0 v1.46(e) a failed (offline/server-fault) spend gets a retry toast, never silence', () => {
+  it('shows RetryToast on a failed spend; its own Retry replays the SAME pending key', async () => {
+    firebaseMock.callables['spendCoins'] = () => {
+      throw Object.assign(new Error('x'), { code: 'functions/unavailable' });
+    };
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
+    await toFailScreen(renderer);
+    await act(async () => {
+      renderer.root.findByType(ContinueSheet).props.onContinue();
+      await flushAsync();
+    });
+    const toast = renderer.root.findByType(RetryToast);
+    expect(toast).toBeTruthy();
+    expect(renderer.root.findAllByType(GameplayScreen).length).toBe(0);
+
+    firebaseMock.callables['spendCoins'] = () => served(D.continue_price_1, false); // already applied
+    await act(async () => {
+      toast.props.onRetry?.();
+      await flushAsync();
+    });
+    const key = (firebaseMock.calls[0]?.data as { idempotencyKey: string }).idempotencyKey;
+    expect(firebaseMock.calls.map((c) => c.data)).toEqual([
+      expect.objectContaining({ idempotencyKey: key }),
+      expect.objectContaining({ idempotencyKey: key }),
+    ]);
+    expect(renderer.root.findAllByType(GameplayScreen).length).toBe(1);
+  });
+});
+
+describe('§0 v1.46(d) a continue does not re-fire the pre-level booster slot', () => {
+  it('a pre-armed booster carried into the continued run is NOT re-targeted on the remount', async () => {
+    useBoosterStore.setState({
+      counts: { hammer: 1, broom: 0, hourglass: 0 },
+      showcaseGranted: { hammer: true, broom: true, hourglass: true },
+      tooltip: null,
+      preSelected: null,
+    });
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
+    act(() => {
+      renderer.root.findByType(BoosterPreLevelSheet).props.onConfirm('hammer');
+    });
+    expect(
+      (renderer.root.findByType(GameplayScreen).props as { boosters: { preArmed: unknown } })
+        .boosters.preArmed,
+    ).toBe('hammer');
+    await toFailScreen(renderer);
+    await act(async () => {
+      renderer.root.findByType(ContinueSheet).props.onContinue();
+      await flushAsync();
+    });
+    const gameplay = renderer.root.findByType(GameplayScreen);
+    // §0 v1.46(d): `continuedState` is set, so `preArmed` must be null on
+    // this remount — the booster is NOT re-armed just because the screen
+    // mounted again.
+    expect((gameplay.props.boosters as { preArmed: unknown }).preArmed).toBeNull();
   });
 });
 

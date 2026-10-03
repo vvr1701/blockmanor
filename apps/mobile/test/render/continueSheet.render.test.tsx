@@ -97,7 +97,11 @@ describe('ContinueSheet (PRD §9.4)', () => {
 
     pressByLabel(renderer, 'Give up');
     expect(onGiveUp).not.toHaveBeenCalled(); // confirm first, not immediate
-    expect(textsOf(renderer)).toContain('Your x4 streak will end.');
+    // §0 v1.46(b): never worded as if paying for a continue would save it —
+    // the streak is already gone by the time this dialog can show.
+    expect(textsOf(renderer)).toContain(
+      'Your x4 streak is already gone — give up on this run too?',
+    );
 
     // Default action is "keep trying" — confirming does NOT call onGiveUp.
     pressByLabel(renderer, 'Keep trying');
