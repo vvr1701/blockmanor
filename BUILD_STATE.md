@@ -1205,6 +1205,39 @@ already correct. Fix BLOCKERs and MAJORs; defer NITs to a follow-up list.
 Applies from the §12.1 branch onward. The §8.5 re-audit already in flight
 stands — it is daily-board, i.e. mandated.
 
+### S25 — §9.4 continue-flow client merged to main (2026-10-03)
+
+- **§9.4 continue-flow merged** (`feat/9.4-continue-flow` → `main` @
+  `a28d23c`). Picked up a stopped subagent's in-progress work (killed
+  mid-run by the operator, not crashed) — reviewed it cold, found it
+  genuinely solid, committed it, rebased onto `main`'s lives merge
+  (renumbering the branch's PRD row v1.43→v1.45, same collision-renumbering
+  precedent as S24), then ran it through two qa-prd-auditor rounds:
+  - **Round 1 FAIL**: a BLOCKER (a background replay could double-charge a
+    live run — reproduced, 2 charges for 1 revive) plus an operator-decision
+    item (the Give-up confirm implied paying saves the win-streak, which it
+    doesn't) and 4 more MAJORs (a double-tap race, a free pre-level-booster
+    re-fire, a silent failed spend, a resettable-by-clock free-continue cap).
+    All fixed in one pass (PRD v1.46); operator ruled: reword the confirm
+    copy, don't move §9.3's reset timing.
+  - **Round 2 PASS WITH CONDITIONS**: all 7 fixes verified correct via
+    mutation testing, but 2 of the NEW regression tests didn't actually
+    exercise what they claimed to guard (one never mounted `App`, where the
+    real bug was wired; one only covered half the clock-exploit fix). Closed
+    both, self-verified via the same mutation-and-revert technique rather
+    than dispatching a third audit — **operator ruling this session: "for
+    every small change, no need of re audit, one audit is enough."** Also
+    got an explicit operator ruling to keep the step-1 guttering flame as
+    specced (a disclosed design question, not a defect).
+- **Stage 2 status**: §9.1 wallet, §9.2 lives, §9.3 boosters, §9.4 continue
+  flow are all merged. Remaining: `feat/9.2-out-of-lives-sheet` (named
+  follow-up, not started — needed before `flag_economy` can go on),
+  §9.3's `GameConfig.startScore` win-streak bonus (tracked incompleteness,
+  not started), §9.5's economy-validation bot harness (not started), and
+  §10.1–§10.3 (ads/IAP — genuinely blocked on missing AdMob/RevenueCat
+  accounts, though the code-side integration points can still be built
+  dormant, same posture as §9.1 shipped).
+
 ### S24 — §9.2 lives merged to main; §9.4 continue-flow client in progress (2026-10-01)
 
 - **§9.2 lives merged** (`feat/9.2-lives` → `main` @ `4c1f23c`). Operator

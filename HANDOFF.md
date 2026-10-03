@@ -1,6 +1,6 @@
 # HANDOFF — Block Manor, to a new coding agent
 
-Written 2026-09-30, updated 2026-10-01, at PRD v1.44, `main` @ `4c1f23c`. This project was built
+Written 2026-09-30, updated 2026-10-03, at PRD v1.46, `main` @ `a28d23c`. This project was built
 by a human operator (vvr1701) working with Claude Code. It's changing hands to
 a different coding agent (a GPT-based tool) to build the remaining stages
 through launch. This file is the onboarding brief — read it first, then read
@@ -75,17 +75,18 @@ without beta data. That's a recorded, deliberate risk, not an oversight.
   `broom`/`hourglass` fully usable. NOT wired: `GameConfig.startScore` for
   the win-streak x5+ "+200" bonus (pre-approved in PRD, small isolated
   addition, just not built yet — see v1.37(viii)/v1.40(xii)).
-- §9.4 Fail→Continue flow — **engine half merged** (`reliefClear`, the
-  "clear cells + redraw tray" continue grant). **Client half in progress**
-  on `feat/9.4-continue-flow`: FailScreen changes, `OutOfCoinsSheet`, wiring
-  `reliefClear` + `spendCoins` together. The spec was FULLY ruled already
-  (PRD §9.4 + changelog v1.38–v1.39 cover the densest-region algorithm,
-  revival semantics, continue-tier pricing, Second-chance-vs-Continue
-  distinction) before this branch started. §9.2's refund ruling it depends on
-  (v1.41(b)) is now final (lives merged). Check
-  `git log --oneline feat/9.4-continue-flow` vs `main` for current status —
-  it still needs a rebase onto `main`'s lives commits and a qa-prd-auditor
-  pass before merge (it spends real coins via `spendCoins`).
+- §9.4 Fail→Continue flow — **merged** (engine `reliefClear` + client:
+  `ContinueSheet`, `OutOfCoinsSheet`, `continueFlow.ts`). PRD-amended to
+  v1.46. Two qa-prd-auditor rounds: round 1 FAILed on a reproduced
+  double-charge BLOCKER plus 4 MAJORs (all fixed); round 2 passed the code
+  but found 2 of the new regression tests didn't exercise what they claimed
+  — closed, self-verified (no third audit — see `CLAUDE.md`'s current
+  operator guidance: one audit is enough for a small fix). Second chance's
+  daily cap and the Give-up confirm copy both got explicit operator rulings
+  along the way (v1.46(b)/(f)) — read that changelog row before touching
+  this subsection, it has real traps (a background-flush pattern that looks
+  reasonable but double-charges; a day-boundary cap that looks reasonable but
+  resets via the clock).
 - §10.1–§10.3 (rewarded ads, interstitials, IAP catalog) — **not started at
   all.** And can't fully complete: no AdMob account, no RevenueCat account
   exist yet (operator/business task, see `BUILD_STATE.md`'s AWAITING HUMAN
