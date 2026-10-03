@@ -1,5 +1,5 @@
 /**
- * `LevelSession` §9.3 x5+ win-streak "start-score +200" (§0 v1.49/v1.50). The
+ * `LevelSession` §9.3 x5+ win-streak "start-score +200" (§0 v1.49). The
  * booster half of this same win-streak grant (x2/x3/x5+ counts) is proven at
  * the pure-function level in `test/boosters.test.ts` and the screen-wiring
  * level in `levelSession.boosters.render.test.tsx`; this file proves the
@@ -14,7 +14,7 @@
  * not a full placement — this file's subject is the GRANT, not the engine's
  * own win detection.
  *
- * qa-prd-auditor MAJOR (§0 v1.50(g)): every assertion here checks the
+ * qa-prd-auditor MAJOR (§0 v1.49(g)): every assertion here checks the
  * RENDERED score text inside `GameplayScreen`, never just its `initialState`
  * PROP. `GameplayScreen` seeds its own internal engine state from that prop
  * with a plain `useState(initialState)` (not a lazy initializer keyed to
@@ -307,9 +307,17 @@ describe('§9.3 x5+ win-streak start-score bonus', () => {
     // this same attempt is the real adversarial case, not a vacuous one.
 
     // Fail with goals unmet and accept the offered paid Continue.
+    //
+    // qa-prd-auditor MAJOR (§0 v1.49(i) re-audit): the dying state must carry
+    // SOME score beyond the bare +200 bonus (simulating real placements
+    // during the run), or this test can't tell a genuinely continued run
+    // apart from a mutant that discards `continuedState` and rebuilds a
+    // FRESH board with the bonus re-applied — both would coincidentally
+    // read back as exactly 200 otherwise.
     const gameplay = renderer.root.findByType(GameplayScreen);
     const preDeathState = gameplay.props.initialState as { score: number };
-    const lost = { ...preDeathState, status: 'lost' };
+    const scoreAtDeath = preDeathState.score + 137;
+    const lost = { ...preDeathState, score: scoreAtDeath, status: 'lost' };
     act(() => {
       (gameplay.props.onEvent as (e: unknown[], s: unknown) => void)([], lost);
     });
@@ -323,10 +331,11 @@ describe('§9.3 x5+ win-streak start-score bonus', () => {
     });
 
     // Back on GameplayScreen, revived by the (stubbed) reliefClear — its
-    // score must be exactly the pre-death score, never that plus another 200.
+    // score must be exactly the score AT DEATH, never that plus another 200
+    // (which a fresh rebuild ignoring `continuedState` would produce).
     const revived = renderer.root.findByType(GameplayScreen);
     const revivedScore = (revived.props.initialState as { score: number }).score;
-    expect(revivedScore).toBe(preDeathState.score);
-    expect(revivedScore).not.toBe(preDeathState.score + 200);
+    expect(revivedScore).toBe(scoreAtDeath);
+    expect(revivedScore).not.toBe(scoreAtDeath + 200);
   });
 });

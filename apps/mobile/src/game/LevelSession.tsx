@@ -298,7 +298,7 @@ export function LevelSession({
     // the actual one-shot consume lives in `beginRun`'s side effects below,
     // which this same `[json.id, attempt]` transition also triggers.
     //
-    // qa-prd-auditor MAJOR, §0 v1.50(g): sanitized the same way `nextAttempt`
+    // qa-prd-auditor MAJOR, §0 v1.49(f): sanitized the same way `nextAttempt`
     // above already guards a corrupt/hand-edited MMKV read — an unvalidated
     // value here (a `winstreak_thresholds` typo overflowing past a safe
     // integer, or a truncated MMKV blob) reached `createGame`'s own trust-
