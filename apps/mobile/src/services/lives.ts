@@ -56,7 +56,7 @@ export function lifeOnWin(state: GameState, runKey: string, now: number): void {
 
 /**
  * Side-effect-free half of the out-of-lives gate — no `track` call, so a
- * caller that needs the gate's ANSWER without its ANALYTICS (§0 v1.47(e):
+ * caller that needs the gate's ANSWER without its ANALYTICS (§0 v1.48(e):
  * `LevelSession` reads this during render, to decide what to paint on the
  * very first frame of a blocked run, before the authoritative `canStartLevel`
  * call in its effect fires `life_blocked`) can call this instead without

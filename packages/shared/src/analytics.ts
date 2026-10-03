@@ -192,7 +192,7 @@ export interface ContinueFlowParams {
 }
 
 /**
- * `OutOfCoinsSheet` opened — an unaffordable spend tap. `sink` (§0 v1.47(f),
+ * `OutOfCoinsSheet` opened — an unaffordable spend tap. `sink` (§0 v1.48(h),
  * added when `OutOfLivesSheet`'s Refill became this sheet's second caller):
  * §9.5's economy harness reports "% hitting zero-balance moment and WHERE" —
  * a bare, sink-less event could never tell a continue-insufficient-balance

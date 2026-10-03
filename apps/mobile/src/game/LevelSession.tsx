@@ -198,6 +198,16 @@ export function LevelSession({
   // the ONE choke point every entry path (Home CTA, map, Next, Retry,
   // restart) already funnels through (§0 v1.47(b)).
   const [livesBlocked, setLivesBlocked] = useState(false);
+  // §0 v1.48, qa-prd-auditor NIT: a refill's spend can resolve AFTER the run
+  // already started some other way (natural regen, or the player simply
+  // waited out the poll) — `handleRefillPress`'s `.then()` closure captured
+  // whatever `livesBlocked` was at TAP time (always `true`, since the sheet
+  // is only reachable while blocked), so it can't see that by the time the
+  // answer comes back. A ref mirrors the LATEST value for that async check;
+  // reading `livesBlocked` state itself here would read the stale tap-time
+  // closure, not the current one.
+  const livesBlockedRef = useRef(livesBlocked);
+  livesBlockedRef.current = livesBlocked;
   const [refillBusy, setRefillBusy] = useState(false);
   const [refillOutOfCoins, setRefillOutOfCoins] = useState(false);
   const [refillFailedToast, setRefillFailedToast] = useState(false);
@@ -253,7 +263,7 @@ export function LevelSession({
 
   const json = useMemo(() => getLevel(currentLevel), [currentLevel]);
 
-  // §9.2 out-of-lives gate (qa-prd-auditor MAJOR, §0 v1.47(e)): corrected
+  // §9.2 out-of-lives gate (qa-prd-auditor MAJOR, §0 v1.48(e)): corrected
   // DURING render, not only in the effect below — without this, the FIRST
   // render after a new `[json.id, attempt]` (including the very first mount)
   // still carries the OLD `livesBlocked` value, so a blocked run would paint
@@ -313,7 +323,7 @@ export function LevelSession({
   // or a refill) — factored out so neither path can drift from the other.
   //
   // Guarded by `runStartedKeyRef`, keyed on `level.id:attemptNum` (qa-prd-auditor
-  // MAJOR, §0 v1.47): a refill's spend resolving and the regen-poll's next
+  // MAJOR, §0 v1.48(c)): a refill's spend resolving and the regen-poll's next
   // tick can both decide to unblock the SAME run within the same instant (the
   // poll calls this directly; a refill success calls it from a promise
   // `.then()` that can land on either side of the poll's own tick) — each is
@@ -808,7 +818,7 @@ export function LevelSession({
   // pre-flight balance check, then an awaited (never optimistic) spend, with
   // the same three-way outcome handling.
   //
-  // qa-prd-auditor MAJOR, §0 v1.47(e): the pre-flight check is skipped
+  // qa-prd-auditor MAJOR, §0 v1.48(d): the pre-flight check is skipped
   // entirely when a `pendingRefill` already exists. §9.2's acceptance
   // requires a lost answer to be "replayed with the same key and amount and
   // still deliver its lives … even when the balance has fallen below it" —
@@ -843,7 +853,17 @@ export function LevelSession({
           setLivesBlocked(false);
           beginRun(json, attempt);
         }
-      } else if (outcome === 'rejected') {
+        return;
+      }
+      // qa-prd-auditor NIT, §0 v1.48: the run may have already started by
+      // the time this answer lands (regen, or the player simply waited) —
+      // popping `OutOfCoinsSheet`/the failed-spend toast now would surface
+      // mid-gameplay over a sheet that is no longer showing, and would
+      // inflate §9.5's zero-balance-moment count with a refusal nobody is
+      // looking at. Nothing to show; the spend itself already resolved
+      // correctly either way (replayed if lost, never double-charged).
+      if (!livesBlockedRef.current) return;
+      if (outcome === 'rejected') {
         track('oob_sheet_shown', { sink: 'life_refill' });
         setRefillOutOfCoins(true);
       } else if (outcome === 'pending') {

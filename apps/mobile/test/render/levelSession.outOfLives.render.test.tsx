@@ -254,6 +254,10 @@ describe('§9.2 "Refill 🪙" from the sheet (§0 v1.47(c)) — real spendCoins'
     const sheet = renderer.root.findByType(OutOfCoinsSheet);
     expect(sheet.props.body).toContain('refill a life');
     expect(firebaseMock.calls).toEqual([]);
+    // qa-prd-auditor NIT, §0 v1.48(h): the VALUE matters, not just that some
+    // `sink` was passed — this is the whole point of the param (§9.5's
+    // zero-balance "where" breakdown).
+    expect(trackMock).toHaveBeenCalledWith('oob_sheet_shown', { sink: 'life_refill' });
   });
 
   it('a server rejection also opens OutOfCoinsSheet', async () => {
@@ -314,6 +318,89 @@ describe('§9.2 "Refill 🪙" from the sheet (§0 v1.47(c)) — real spendCoins'
       firebaseMock.calls.map((c) => (c.data as { idempotencyKey: string }).idempotencyKey),
     ).toEqual([firstKey, firstKey]);
     expect(renderer.root.findAllByType(GameplayScreen).length).toBe(1);
+  });
+
+  it('replays a pending refill rather than re-checking the shown balance, even when it has fallen below the price (qa-prd-auditor MAJOR)', async () => {
+    blockedLives();
+    useLivesStore.setState({
+      pendingRefill: { key: 'life_refill:prev', amount: D.life_refill_price },
+    });
+    useWalletStore.setState({ coins: 10 }); // far below the pending intent's own amount
+    firebaseMock.callables['spendCoins'] = () => served(10, false); // not (yet) applied
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
+    await act(async () => {
+      renderer.root.findByType(OutOfLivesSheet).props.onRefill();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    // The real fix: the server was actually asked (not short-circuited by
+    // the shown balance), with the SAME key the earlier, lost attempt used.
+    expect(firebaseMock.calls).toHaveLength(1);
+    expect(firebaseMock.calls[0]?.data).toMatchObject({ idempotencyKey: 'life_refill:prev' });
+    expect(renderer.root.findAllByType(OutOfCoinsSheet).length).toBe(0);
+    expect(renderer.root.findAllByType(GameplayScreen).length).toBe(1);
+  });
+
+  it('does not double-fire level_start when a refill success and the regen-poll race to unblock the SAME run (qa-prd-auditor MAJOR)', async () => {
+    useConfigStore.setState({ snapshot: { ...D, flag_economy: true, life_regen_minutes: 1 } });
+    blockedLives();
+    let resolveSpend!: (result: WalletResult) => void;
+    firebaseMock.callables['spendCoins'] = () =>
+      new Promise<WalletResult>((resolve) => {
+        resolveSpend = resolve;
+      });
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
+    trackMock.mockClear();
+    act(() => {
+      renderer.root.findByType(OutOfLivesSheet).props.onRefill();
+    });
+
+    // The regen poll fires FIRST and unblocks the run naturally, while the
+    // refill spend above is still in flight.
+    advance(60_000 + 1_000);
+    expect(renderer.root.findAllByType(GameplayScreen).length).toBe(1);
+    expect(trackMock.mock.calls.filter(([name]) => name === 'level_start')).toHaveLength(1);
+
+    // The held spend now resolves — successfully — AFTER the run already
+    // started by the other path. Without `beginRun`'s idempotency guard this
+    // re-fires `level_start` a second time for the identical run.
+    await act(async () => {
+      resolveSpend(served(5_000 - D.life_refill_price));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(trackMock.mock.calls.filter(([name]) => name === 'level_start')).toHaveLength(1);
+  });
+
+  it('a refill answer that lands AFTER the run already unblocked some other way shows nothing and fires no phantom oob_sheet_shown (qa-prd-auditor NIT)', async () => {
+    useConfigStore.setState({ snapshot: { ...D, flag_economy: true, life_regen_minutes: 1 } });
+    blockedLives();
+    let resolveSpend!: () => void;
+    firebaseMock.callables['spendCoins'] = () =>
+      new Promise((_resolve, reject) => {
+        resolveSpend = () => reject(rejection('insufficient-funds'));
+      });
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
+    act(() => {
+      renderer.root.findByType(OutOfLivesSheet).props.onRefill();
+    });
+
+    advance(60_000 + 1_000); // regen poll unblocks the run while the spend is still in flight
+    expect(renderer.root.findAllByType(GameplayScreen).length).toBe(1);
+    trackMock.mockClear();
+
+    await act(async () => {
+      resolveSpend();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    // The spend itself still resolves correctly (rejected, nothing charged) —
+    // but with no blocked sheet left to answer FOR, nothing pops up over the
+    // board the player is already playing, and no stray analytics event
+    // claims a zero-balance moment nobody is looking at.
+    expect(renderer.root.findAllByType(OutOfCoinsSheet).length).toBe(0);
+    expect(renderer.root.findAllByType(RetryToast).length).toBe(0);
+    expect(trackMock).not.toHaveBeenCalled();
   });
 });
 
