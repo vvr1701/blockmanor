@@ -317,7 +317,7 @@ export function LevelSession({
     [json],
   );
 
-  // §0 v1.45: a continued/second-chanced run remounts `GameplayScreen` (via
+  // §0 v1.46(d): a continued/second-chanced run remounts `GameplayScreen` (via
   // FailScreen in between) with the SAME `armedForLevel` still set, which
   // would otherwise re-fire the mount-only pre-arm for free on every continue
   // — `continuedState` is non-null only on that remount, never on a genuine
@@ -567,7 +567,7 @@ export function LevelSession({
       return;
     }
     const price = continuePrice(continuesUsed);
-    // §0 v1.45: trustedNow, not the raw wall clock — the daily cap below is a
+    // §0 v1.46(f): trustedNow, not the raw wall clock — the daily cap below is a
     // real, live-wired source of free continues, not dormant like the ad-life
     // cap (§0 v1.42(d)), so it needs the same clock-exploit defense as lives.
     setOffer({ price, secondChanceOffered: secondChanceAvailable(trustedNow()) });
@@ -644,7 +644,7 @@ export function LevelSession({
     });
   }, [json, offer, continueBusy, attempt, applyContinueGrant]);
 
-  // §0 v1.45: guarded on `continueBusy` — without this, a tap on Second
+  // §0 v1.46(c): guarded on `continueBusy` — without this, a tap on Second
   // chance or Give Up while a paid Continue's spend is still in flight could
   // revive the board (or leave the attempt) out from under the stale
   // `applyContinueGrant` closure the spend's `.then` runs when it resolves,
@@ -668,16 +668,21 @@ export function LevelSession({
   const handleGiveUp = useCallback(() => {
     if (!json || continueBusy) return;
     const config = useConfigStore.getState();
-    // §0 v1.45: one event per Give-up at the current paid-tier price — Give
-    // Up declines Continue AND Second chance in the same action, so there is
-    // no separate "declined just the free option" event to discriminate with
-    // price:0 (unlike acceptance, where accepting IS a distinct per-option
-    // choice).
+    // §0 v1.46(b)/(g): one event per Give-up at the current paid-tier price —
+    // Give Up declines Continue AND Second chance in the same action, so
+    // there is no separate "declined just the free option" event to
+    // discriminate with price:0 (unlike acceptance, where accepting IS a
+    // distinct per-option choice).
     const price = offer?.price ?? continuePrice(continuesUsed);
     const balance = selectBalance(useWalletStore.getState(), config.value('starting_coin_balance'));
     track('continue_declined', { level: json.id, price, balance });
     setOfferDeclined(true);
     setShowOutOfCoins(false);
+    // NIT from the §9.4 re-audit: a failed-spend toast left standing from a
+    // PRIOR Continue attempt this same offer must not survive into the
+    // Stage-1 layout Give-up reverts to — its own Retry would then no-op
+    // forever (`handleContinuePress` returns early with no `offer`).
+    setContinueFailedToast(false);
   }, [json, offer, continuesUsed, continueBusy]);
 
   const handleOutOfCoinsCancel = useCallback(() => setShowOutOfCoins(false), []);

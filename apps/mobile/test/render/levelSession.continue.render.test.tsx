@@ -34,6 +34,8 @@ import { OutOfCoinsSheet } from '../../src/screens/OutOfCoinsSheet';
 import { GameplayScreen } from '../../src/screens/GameplayScreen';
 import { FailScreen } from '../../src/screens/FailScreen';
 import { resetConnectivity } from '../../src/services/connectivity';
+import { resetTrustedClock } from '../../src/services/trustedClock';
+import { resetMockUptime, setMockUptime } from '../mocks/device-uptime';
 import { useBoosterStore } from '../../src/state/useBoosterStore';
 import { useConfigStore } from '../../src/state/useConfigStore';
 import { useContinueStore } from '../../src/state/useContinueStore';
@@ -187,6 +189,8 @@ beforeEach(() => {
   trackMock.mockClear();
   resetFirebaseMock();
   resetConnectivity();
+  resetTrustedClock();
+  resetMockUptime();
   firebaseMock.configured = true;
   firebaseMock.currentUser = { uid: 'alice' };
   useMetaStore.setState({
@@ -522,6 +526,39 @@ describe('§0 v1.46(d) a continue does not re-fire the pre-level booster slot', 
     // this remount — the booster is NOT re-armed just because the screen
     // mounted again.
     expect((gameplay.props.boosters as { preArmed: unknown }).preArmed).toBeNull();
+  });
+});
+
+describe('§0 v1.46(f) second-chance cap resists a forward clock jump — proves LevelSession really uses trustedNow', () => {
+  it('a wall-clock jump to "tomorrow" does not free up a fresh second chance when real uptime barely moved', async () => {
+    const { trustedNow } = await import('../../src/services/trustedClock');
+    const START = Date.UTC(2026, 8, 29, 12);
+    useConfigStore.setState({
+      snapshot: { ...D, flag_economy: true, second_chance_daily_cap: 1 },
+    });
+
+    // Establish the trustedClock anchor at START (uptime 0), matching the
+    // day the cap below is exhausted for.
+    let clock = vi.spyOn(Date, 'now').mockReturnValue(START);
+    setMockUptime(0);
+    trustedNow();
+    useContinueStore.setState({
+      secondChance: { day: new Date(START).toISOString().slice(0, 10), count: 1 },
+      pendingContinue: null,
+    });
+    clock.mockRestore();
+
+    // Jump the WALL clock forward a full day; only 5 REAL seconds of uptime
+    // pass — a raw `Date.now()` read would see "tomorrow" and free up a
+    // fresh second chance; `trustedNow()` must clamp it to ~5s, same day.
+    setMockUptime(5_000);
+    clock = vi.spyOn(Date, 'now').mockReturnValue(START + 25 * 3_600_000);
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
+    await toFailScreen(renderer);
+    clock.mockRestore();
+
+    const sheet = renderer.root.findByType(ContinueSheet);
+    expect(sheet.props.secondChanceOffered).toBe(false);
   });
 });
 
