@@ -1,6 +1,6 @@
 # HANDOFF — Block Manor, to a new coding agent
 
-Written 2026-09-30, updated 2026-10-03, at PRD v1.46, `main` @ `a28d23c`. This project was built
+Written 2026-09-30, updated 2026-10-03, at PRD v1.48, `main` @ `d0d37d5`. This project was built
 by a human operator (vvr1701) working with Claude Code. It's changing hands to
 a different coding agent (a GPT-based tool) to build the remaining stages
 through launch. This file is the onboarding brief — read it first, then read
@@ -64,13 +64,21 @@ without beta data. That's a recorded, deliberate risk, not an oversight.
   reboot forfeits regen accrued before it (no clock survives a power cycle).
   **Not yet `[device]`-verified** — this needs a fresh native dev-client
   build (new native module, autolinking must re-run) before the real
-  on-device clamp is confirmed; JS logic is fully unit-tested. **Known scope
-  gap, intentional:** the out-of-lives gate
-  (`canStartLevel`) and refill button are dormant primitives with no UI
-  caller yet — a named follow-up PR (`feat/9.2-out-of-lives-sheet`) owns
-  wiring them up once §16.1 names the sheet. **Do not turn `flag_economy` on
-  before that follow-up lands** — until then lives would drain with nothing
-  that ever blocks or shows them.
+  on-device clamp is confirmed; JS logic is fully unit-tested. **The
+  out-of-lives gate is wired — `feat/9.2-out-of-lives-sheet` merged** (PRD
+  v1.47–v1.48): `OutOfLivesSheet` (§16.1), `canStartLevel` gating every entry
+  point (Home CTA, map, Next, Retry, restart) through one choke point in
+  `LevelSession`'s run-start effect rather than five call sites, and
+  `buyLifeRefill` wired to the sheet's Refill button. Two qa-prd-auditor
+  rounds — read v1.48's changelog row before touching this area, it has a
+  real trap: v1.47(d) tried closing v1.41(g)'s refill-compensation gap by
+  always replaying a lost refill intent, which the second look showed
+  OVERCHARGES full players in the common offline-tap case (the server can't
+  tell "never sent" from "sent, answer lost") — reverted, **v1.41(g) is OPEN
+  again** and needs a server lookup-without-spend primitive to close for
+  real, not a client change. `flag_economy` is still off — this follow-up
+  was ONE of the two named reasons (§9.1's Shop-tab/`ShopScreen` gap above is
+  the other, still unresolved).
 - §9.3 Boosters — **merged, engine + client, both audited.** `hammer`/
   `broom`/`hourglass` fully usable. NOT wired: `GameConfig.startScore` for
   the win-streak x5+ "+200" bonus (pre-approved in PRD, small isolated

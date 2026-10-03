@@ -1205,6 +1205,71 @@ already correct. Fix BLOCKERs and MAJORs; defer NITs to a follow-up list.
 Applies from the §12.1 branch onward. The §8.5 re-audit already in flight
 stands — it is daily-board, i.e. mandated.
 
+### S26 — §9.2 out-of-lives sheet merged to main; v1.47(d) fix caught shipping a worse bug (2026-10-03)
+
+- **`feat/9.2-out-of-lives-sheet` merged** (→ `main` @ `d0d37d5`, PRD v1.48).
+  The named follow-up from v1.42(a)/(c): wires the two dormant §9.2
+  primitives, `canStartLevel` and `buyLifeRefill`, into a real `OutOfLivesSheet`
+  (§16.1 name ruled this PR — low-stakes, matched `ContinueSheet`/
+  `OutOfCoinsSheet` precedent). Built solo (no implementer subagent — the
+  user's "don't use subagents unnecessarily" guidance), self-reviewed, then
+  sent for the mandatory qa-prd-auditor gate since it spends real coins.
+- **Architecture call, not in the PRD's literal text: ONE gate, not five.**
+  v1.42(a) names five entry points (Home CTA, map, Next, Retry, restart) that
+  must each refuse a 0-life start. All five already funnel through
+  `LevelSession`'s single run-start effect (keyed on `[json, attempt]`), so
+  the gate lives there once rather than at five call sites that could drift.
+  The second audit round confirmed this holds architecturally (no resume/
+  restore path exists that could skip it) — the real gaps it found were in
+  the TIMING of that one check, not its coverage.
+- **Round 1: FAIL, 2 BLOCKERs + 5 MAJORs.** The one worth remembering: my own
+  "fix" for a known, disclosed compensation gap (v1.41(g) — a refill charge
+  that lands, whose answer is lost, going uncompensated once lives regenerate
+  to full) made it WORSE. I reasoned "always replay the pending intent,
+  it's idempotent and cheap, no downside" — true for the replay call itself,
+  false for the conclusion: the server's idempotency key can't distinguish
+  "this request was never sent" from "this request was sent and the answer
+  was lost," so unconditionally replaying also charges the common case (an
+  offline tap that never left the device) once the player reconnects,
+  directly violating §9.2's own "never charges a full player" acceptance
+  clause — to close a gap that was rarer and lower-stakes than the bug it
+  introduced. Reverted outright; v1.41(g) is explicitly reopened rather than
+  re-claimed closed, with the real fix named (a server lookup-without-spend
+  primitive) and flagged as backend work, out of this PR's scope. The other
+  4 MAJORs were real but more ordinary: a `beginRun` double-fire race between
+  the regen-poll and an in-flight refill resolving, a pre-flight balance
+  check that blocked a legitimate replay, `GameplayScreen` committing for one
+  real frame on a refused start (fixed via React's render-time state-
+  adjustment pattern; proven with a `BackHandler.addEventListener` SPY, not
+  `__count()` — a mount-then-immediate-unmount within one `act()` leaves
+  `__count()` at 0 either way, so a count-only check can't see the bug it's
+  meant to catch), and untested Retry/Next entry points.
+- **Round 2: PASS with conditions, 2 MAJORs ("the fix is correct but no test
+  guards it").** Mutation testing (delete the fix, see if the suite notices)
+  caught that the `beginRun` guard and the pre-flight-skip fix were both
+  correct in the code but unproven — deleting either left all 793 tests
+  green. Added one regression test per guard, each confirmed (by deleting the
+  guard) to fail without it. Also caught, in passing, a genuine small bug: a
+  refill answer landing AFTER the run had already unblocked some other way
+  could still pop a sheet/toast over a board already back in play and fire a
+  phantom analytics event — fixed with a ref mirroring the latest
+  `livesBlocked` value, since the async callback's own closure only ever sees
+  "blocked" (captured true, at tap time).
+- **Closed without a third audit round.** The re-audit's own text said so
+  ("a quick check of those two tests is enough; a full re-audit isn't
+  needed"), matching the operator's standing "one audit is enough for a
+  small fix" guidance (S-ruling, see memory) — self-verified via the exact
+  mutations the re-audit itself prescribed.
+- **Still open, by design:** v1.41(g) (refill-compensation gap, needs backend
+  work); v1.42(d) (ad-life vs §10.1 server-verification, owned by §10.1);
+  Home's HUD lives icon stays the reserved no-op slot it always was (not in
+  this PR's named scope).
+- `feat/9.2-out-of-lives-sheet` (v1.42(a)'s named blocker) is no longer a
+  reason to keep `flag_economy` off — but it is NOT the only one. §9.1 already
+  noted `flag_economy` also gates the Shop nav tab, and `ShopScreen` (§10.3)
+  still doesn't exist (v1.35(e)/v1.36). Don't flip the flag on the strength of
+  this entry alone.
+
 ### S25 — §9.4 continue-flow client merged to main (2026-10-03)
 
 - **§9.4 continue-flow merged** (`feat/9.4-continue-flow` → `main` @
