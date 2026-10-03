@@ -52,7 +52,14 @@ vi.mock('../../src/services/wallet', async (importOriginal) => {
   return { ...actual, grantCoins: vi.fn() };
 });
 // §9.2: proven in test/lives.test.ts; here only the call.
-vi.mock('../../src/services/lives', () => ({ forfeitLife: vi.fn(), lifeOnWin: vi.fn() }));
+vi.mock('../../src/services/lives', () => ({
+  forfeitLife: vi.fn(),
+  lifeOnWin: vi.fn(),
+  // §0 v1.47: always lets a run start — this file is not testing the gate.
+  canStartLevel: vi.fn(() => true),
+  buyLifeRefill: vi.fn(),
+  livesRules: vi.fn(() => ({ max: 5, regenMs: 1_800_000 })),
+}));
 
 // See the top-of-file doc comment: a deterministic stub, not a re-prediction
 // of the real engine rule. Clears the `used` flag on every tray slot (same

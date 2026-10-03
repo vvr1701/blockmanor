@@ -240,5 +240,10 @@
   "oob.body": "You need {{price}} 🪙 to continue — grab a bundle to top up.",
   "oob.covers": "Covers your continue",
   "oob.cancel": "Cancel",
-  "continue.error.offline": "Couldn't reach the server — your board is unchanged."
+  "continue.error.offline": "Couldn't reach the server — your board is unchanged.",
+  "lives.title": "Out of lives",
+  "lives.body": "Next life in {{time}}",
+  "lives.cta": "Refill — {{price}} 🪙",
+  "lives.oobBody": "You need {{price}} 🪙 to refill a life — grab a bundle to top up.",
+  "lives.oobCovers": "Covers your refill"
 }

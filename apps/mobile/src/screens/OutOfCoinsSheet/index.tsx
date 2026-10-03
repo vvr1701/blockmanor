@@ -13,6 +13,12 @@
  * rejects, and `HomeScreen`'s own nav already omits links to screens that
  * don't exist yet rather than wiring a no-op. "Cancel" is the only real
  * control, exactly as the PRD line names it.
+ *
+ * §0 v1.47(c): `OutOfLivesSheet`'s "Refill" button is the exact same shape of
+ * problem (not enough coins for a priced thing) and reuses this component
+ * rather than forking it — `body`/`coversLabel` are overridable so that
+ * caller can say "to refill a life" instead of "to continue" without a
+ * second, near-identical sheet.
  */
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
@@ -29,13 +35,22 @@ const BUNDLE_MID = { sku: 'coins_m', coins: 3_600, priceInr: 269 } as const;
 const BUNDLES = [BUNDLE_SMALL, BUNDLE_MID] as const;
 
 export interface OutOfCoinsSheetProps {
-  /** The continue price that couldn't be covered — decides which bundle gets
-   * the "covers your continue" badge. */
+  /** The price that couldn't be covered — decides which bundle gets the
+   * "covers" badge. */
   price: number;
   onCancel: () => void;
+  /** Pre-rendered body text; defaults to §9.4's own continue copy. */
+  body?: string;
+  /** Pre-rendered "covers" badge label; defaults to §9.4's own continue copy. */
+  coversLabel?: string;
 }
 
-export function OutOfCoinsSheet({ price, onCancel }: OutOfCoinsSheetProps): React.JSX.Element {
+export function OutOfCoinsSheet({
+  price,
+  onCancel,
+  body,
+  coversLabel,
+}: OutOfCoinsSheetProps): React.JSX.Element {
   // The SMALLEST bundle that covers the price, per the PRD's own wording —
   // not always the first/cheapest bundle shown (§13 defaults: `coins_s`
   // covers only `continue_price_1`; `continue_price_2`/`_3` need `coins_m`).
@@ -44,7 +59,7 @@ export function OutOfCoinsSheet({ price, onCancel }: OutOfCoinsSheetProps): Reac
   return (
     <ModalSheet sheetAlign="center">
       <Text style={styles.title}>{t('oob.title')}</Text>
-      <Text style={styles.body}>{t('oob.body', { price: formatScore(price) })}</Text>
+      <Text style={styles.body}>{body ?? t('oob.body', { price: formatScore(price) })}</Text>
 
       <View style={styles.bundles}>
         {BUNDLES.map((b) => (
@@ -52,7 +67,9 @@ export function OutOfCoinsSheet({ price, onCancel }: OutOfCoinsSheetProps): Reac
             key={b.sku}
             style={[styles.bundle, b.sku === coveringSku ? styles.bundleCovers : null]}
           >
-            {b.sku === coveringSku ? <Text style={styles.coversTag}>{t('oob.covers')}</Text> : null}
+            {b.sku === coveringSku ? (
+              <Text style={styles.coversTag}>{coversLabel ?? t('oob.covers')}</Text>
+            ) : null}
             <Text style={styles.bundleCoins}>{`${formatScore(b.coins)} 🪙`}</Text>
             <Text style={styles.bundlePrice}>{`₹${b.priceInr}`}</Text>
           </View>

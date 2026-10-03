@@ -81,6 +81,7 @@ export function GhostButton({
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ disabled }}
       hitSlop={8}
       style={({ pressed }) => [
         styles.base,

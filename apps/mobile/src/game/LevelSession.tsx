@@ -42,8 +42,10 @@ import { WinScreen } from '../screens/WinScreen';
 import { FailScreen } from '../screens/FailScreen';
 import type { ContinueSheetProps } from '../screens/ContinueSheet';
 import { OutOfCoinsSheet } from '../screens/OutOfCoinsSheet';
+import { OutOfLivesSheet } from '../screens/OutOfLivesSheet';
 import { RetryToast } from '../components/RetryToast';
 import { t } from '../i18n';
+import { formatScore } from '../i18n/format';
 import { track } from '../services/analytics';
 import {
   BOOSTER_SHOWCASE_LEVELS,
@@ -60,7 +62,8 @@ import {
   secondChanceAvailable,
 } from '../services/continueFlow';
 import { grantCoins } from '../services/wallet';
-import { forfeitLife, lifeOnWin } from '../services/lives';
+import { buyLifeRefill, canStartLevel, forfeitLife, lifeOnWin, livesRules } from '../services/lives';
+import { selectLives, useLivesStore } from '../state/useLivesStore';
 import { trustedNow } from '../services/trustedClock';
 import { getInstalledVersion } from '../services/appInfo';
 import { requestReview, shouldPromptReview } from '../services/reviewPrompt';
@@ -182,6 +185,21 @@ export function LevelSession({
   const [phase, setPhase] = useState<Phase>('playing');
   const [result, setResult] = useState<TerminalResult | null>(null);
 
+  // --- §9.2 out-of-lives gate (§0 v1.47) ---------------------------------
+  // True between a refused `canStartLevel` and the player either regenerating
+  // a life or buying a refill — set by the run-start effect below, which is
+  // the ONE choke point every entry path (Home CTA, map, Next, Retry,
+  // restart) already funnels through (§0 v1.47(b)).
+  const [livesBlocked, setLivesBlocked] = useState(false);
+  const [refillBusy, setRefillBusy] = useState(false);
+  const [refillOutOfCoins, setRefillOutOfCoins] = useState(false);
+  const [refillFailedToast, setRefillFailedToast] = useState(false);
+  // Ticks the blocked sheet's countdown and re-checks for a regenerated life,
+  // entirely through a plain `selectLives` read — never `canStartLevel`
+  // again, which would refire `life_blocked` once per tick instead of once
+  // per refusal.
+  const [blockedNow, setBlockedNow] = useState(() => trustedNow());
+
   // --- §9.4 continue flow ------------------------------------------------
   // `continuedState` seeds the NEXT `GameplayScreen` mount after an accepted
   // continue/second-chance — the SAME attempt/run, just past `reliefClear`'s
@@ -257,6 +275,26 @@ export function LevelSession({
   // effect below, so a restart-then-quit still reports.
   const quitFiredRef = useRef(false);
 
+  // The real "entering a run" side effects, shared by the run-start effect
+  // below AND by whatever later un-gates a blocked run (a regenerated life
+  // or a refill) — factored out so neither path can drift from the other.
+  const beginRun = useCallback(
+    (level: LevelJson, attemptNum: number) => {
+      // Advanced at run START, not on fail and not on the Retry tap: an
+      // ABANDONED run is exactly the shape of a quit (§3's per-level quit
+      // rate) and must count, and the first run after a relaunch is a new
+      // run. §0 v1.17.
+      persistAttempt(level.id, attemptNum);
+      track('level_start', { id: level.id, attempt: attemptNum });
+      // §9.3 first-grant showcase (L12 hammer / L18 broom / L26 hourglass):
+      // idempotent (`grantShowcase` only fires once per booster type, ever),
+      // so re-running this on every retry of a showcase level is harmless.
+      const showcase = BOOSTER_SHOWCASE_LEVELS[level.id];
+      if (showcase) useBoosterStore.getState().grantShowcase(showcase);
+    },
+    [persistAttempt],
+  );
+
   useEffect(() => {
     startedAtRef.current = Date.now();
     setPhase('playing');
@@ -273,21 +311,51 @@ export function LevelSession({
     setShowOutOfCoins(false);
     setContinueFailedToast(false);
     setOffer(null);
+    // §9.2 (§0 v1.47): same per-attempt reset discipline as the continue
+    // flow's state just above.
+    setRefillBusy(false);
+    setRefillOutOfCoins(false);
+    setRefillFailedToast(false);
     clearPhaseTimer();
-    if (json) {
-      // Advanced at run START, not on fail and not on the Retry tap: an
-      // ABANDONED run is exactly the shape of a quit (§3's per-level quit
-      // rate) and must count, and the first run after a relaunch is a new
-      // run. §0 v1.17.
-      persistAttempt(json.id, attempt);
-      track('level_start', { id: json.id, attempt });
-      // §9.3 first-grant showcase (L12 hammer / L18 broom / L26 hourglass):
-      // idempotent (`grantShowcase` only fires once per booster type, ever),
-      // so re-running this on every retry of a showcase level is harmless.
-      const showcase = BOOSTER_SHOWCASE_LEVELS[json.id];
-      if (showcase) useBoosterStore.getState().grantShowcase(showcase);
+    if (!json) {
+      setLivesBlocked(false);
+      return;
     }
-  }, [json, attempt, clearPhaseTimer, persistAttempt]);
+    // §9.2 out-of-lives gate (§0 v1.47(b)): the ONE check point every entry
+    // path (Home CTA, map, Next, Retry, restart) already funnels through —
+    // a refused start never mints this attempt or fires `level_start`.
+    if (!canStartLevel(json.id, trustedNow())) {
+      setLivesBlocked(true);
+      setBlockedNow(trustedNow());
+      return;
+    }
+    setLivesBlocked(false);
+    beginRun(json, attempt);
+  }, [json, attempt, clearPhaseTimer, beginRun]);
+
+  // While blocked: ticks the sheet's countdown and watches for a regenerated
+  // life through a plain `selectLives` read — never `canStartLevel` again,
+  // which would refire `life_blocked` every tick instead of once per refusal
+  // (§0 v1.47(b)).
+  useEffect(() => {
+    if (!livesBlocked || !json) return;
+    const id = setInterval(() => {
+      const nowTick = trustedNow();
+      setBlockedNow(nowTick);
+      if (selectLives(useLivesStore.getState(), nowTick, livesRules()).lives > 0) {
+        // Clears itself BEFORE `beginRun` rather than waiting for the next
+        // commit's cleanup — several ticks can fire back-to-back before
+        // React gets a chance to re-render (e.g. a batch of fake-timer ticks
+        // in a test, or a slow commit on a real device), and each one would
+        // otherwise see the same still-stale `livesBlocked` closure and
+        // mint a SEPARATE run.
+        clearInterval(id);
+        setLivesBlocked(false);
+        beginRun(json, attempt);
+      }
+    }, 1000);
+    return () => clearInterval(id);
+  }, [livesBlocked, json, attempt, beginRun]);
 
   // Past the shipped range (or a corrupt save) — nothing honest to play;
   // exit rather than render a dead end (§12.9).
@@ -688,6 +756,42 @@ export function LevelSession({
   const handleOutOfCoinsCancel = useCallback(() => setShowOutOfCoins(false), []);
   const handleContinueToastDismiss = useCallback(() => setContinueFailedToast(false), []);
 
+  // §9.2 (§0 v1.47(c)): mirrors `handleContinuePress`'s exact shape — a
+  // pre-flight balance check, then an awaited (never optimistic) spend, with
+  // the same three-way outcome handling.
+  const handleRefillPress = useCallback(() => {
+    if (refillBusy) return;
+    const config = useConfigStore.getState();
+    const price = config.value('life_refill_price');
+    const balance = selectBalance(useWalletStore.getState(), config.value('starting_coin_balance'));
+    if (balance < price) {
+      setRefillOutOfCoins(true);
+      return;
+    }
+    setRefillBusy(true);
+    setRefillFailedToast(false);
+    void buyLifeRefill(trustedNow()).then((outcome) => {
+      setRefillBusy(false);
+      if (outcome === 'refilled') {
+        setRefillOutOfCoins(false);
+        if (json) {
+          setLivesBlocked(false);
+          beginRun(json, attempt);
+        }
+      } else if (outcome === 'rejected') {
+        setRefillOutOfCoins(true);
+      } else if (outcome === 'pending') {
+        // No answer yet (offline/server fault): the intent stays pending —
+        // the toast's own Retry replays the SAME key (§12.8).
+        setRefillFailedToast(true);
+      }
+      // 'full' cannot happen here — this gate only shows at 0 lives.
+    });
+  }, [refillBusy, json, attempt, beginRun]);
+
+  const handleRefillOutOfCoinsCancel = useCallback(() => setRefillOutOfCoins(false), []);
+  const handleRefillToastDismiss = useCallback(() => setRefillFailedToast(false), []);
+
   // §12.2 restart is `handleRetry` ITSELF, not a copy of it. Both start a new
   // run of the same level, and §0 v1.17 (i) defines `attempt` by runs
   // STARTED, not by which button started them — so re-seeding through one
@@ -702,6 +806,37 @@ export function LevelSession({
   );
 
   if (!json || !initialState) return null;
+
+  if (livesBlocked) {
+    const price = useConfigStore.getState().value('life_refill_price');
+    return (
+      <>
+        <OutOfLivesSheet
+          now={blockedNow}
+          nextLifeAt={selectLives(useLivesStore.getState(), blockedNow, livesRules()).nextLifeAt}
+          price={price}
+          busy={refillBusy}
+          onRefill={handleRefillPress}
+          onCancel={onLevelMap ?? onExit}
+        />
+        {refillOutOfCoins ? (
+          <OutOfCoinsSheet
+            price={price}
+            body={t('lives.oobBody', { price: formatScore(price) })}
+            coversLabel={t('lives.oobCovers')}
+            onCancel={handleRefillOutOfCoinsCancel}
+          />
+        ) : null}
+        {refillFailedToast ? (
+          <RetryToast
+            message={t('toast.callableFailed')}
+            onDismiss={handleRefillToastDismiss}
+            onRetry={handleRefillPress}
+          />
+        ) : null}
+      </>
+    );
+  }
 
   if (phase === 'won' && result) {
     return (

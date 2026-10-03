@@ -108,22 +108,18 @@ export async function buyLifeRefill(now: number): Promise<RefillOutcome> {
 }
 
 /**
- * Resolves a refill whose answer was lost. If lives regenerated to full in the
- * meantime the intent is dropped unsent, never charged fresh.
- *
- * TODO(§0 v1.42(a) follow-up gate+sheet PR): in that full case a charge that
- * DID land is not compensated (lost response AND a full regen before
- * reconnect). Unreachable while `buyLifeRefill` has no caller; the PR that
- * gives it one must close this gap — e.g. replay anyway and, on
- * `applied: false`, credit the coins back or bank the refill.
+ * Resolves a refill whose answer was lost — ALWAYS by replaying, even once
+ * lives have regenerated to full in the meantime (§0 v1.47(d), closing
+ * v1.41(g)'s gap). A short-circuit that dropped the intent unsent there used
+ * to mean a charge that actually landed server-side (response lost, lives
+ * then regenerated to full before reconnect) was never found out about, let
+ * alone compensated — the player paid real coins for nothing. Replaying is
+ * idempotent and cheap (§9.1), and `settleRefill`'s `store.refill()` on an
+ * `applied` answer is a harmless no-op when already full, so there is no
+ * upside to the short-circuit left to keep.
  */
-export async function flushPendingRefill(now: number): Promise<RefillOutcome | null> {
-  const store = useLivesStore.getState();
-  if (!livesOn() || !store.pendingRefill) return null;
-  if (selectLives(store, now, livesRules()).lives >= livesRules().max) {
-    store.setPendingRefill(null);
-    return 'full';
-  }
+export async function flushPendingRefill(): Promise<RefillOutcome | null> {
+  if (!livesOn() || !useLivesStore.getState().pendingRefill) return null;
   return settleRefill(true);
 }
 
@@ -135,7 +131,7 @@ export async function flushPendingRefill(now: number): Promise<RefillOutcome | n
  */
 export function watchLivesSync(): () => void {
   useLivesStore.getState().settle(trustedNow(), livesRules());
-  const flush = () => void flushPendingRefill(trustedNow());
+  const flush = () => void flushPendingRefill();
   flush();
   const stopConfig = useConfigStore.subscribe((s, prev) => {
     if (s.fetchedAt !== prev.fetchedAt) flush();

@@ -339,7 +339,7 @@ describe('§9.2 "Refill 🪙" at life_refill_price via §9.1 spendCoins', () => 
     useConfigStore.setState({ snapshot: { ...D, flag_economy: true, life_refill_price: 1 } });
     useWalletStore.setState({ coins: 10 });
     firebaseMock.callables['spendCoins'] = () => served(10, false);
-    await expect(flushPendingRefill(T0 + 1)).resolves.toBe('refilled');
+    await expect(flushPendingRefill()).resolves.toBe('refilled');
     expect(firebaseMock.calls.map((c) => c.data)).toEqual([
       { sink: 'life_refill', amount: D.life_refill_price, idempotencyKey: pending?.key },
       { sink: 'life_refill', amount: D.life_refill_price, idempotencyKey: pending?.key },
@@ -375,10 +375,23 @@ describe('§9.2 "Refill 🪙" at life_refill_price via §9.1 spendCoins', () => 
     stop();
   });
 
-  it('drops a pending intent unsent once lives have regenerated to full', async () => {
-    useLivesStore.setState({ pendingRefill: { key: 'life_refill:k', amount: 900 } });
-    await expect(flushPendingRefill(T0 + MAX * PERIOD)).resolves.toBe('full');
-    expect(firebaseMock.calls).toEqual([]);
+  it('still replays once lives have regenerated to full (§0 v1.47(d)) — a charge that DID land is not silently eaten', async () => {
+    useLivesStore.setState({ missing: 0, regenFrom: 0, pendingRefill: { key: 'life_refill:k', amount: 900 } });
+    firebaseMock.callables['spendCoins'] = () => served(4_100);
+    await expect(flushPendingRefill()).resolves.toBe('refilled');
+    expect(firebaseMock.calls).toHaveLength(1);
+    expect(firebaseMock.calls[0]?.data).toMatchObject({ idempotencyKey: 'life_refill:k' });
+    expect(useLivesStore.getState().pendingRefill).toBeNull();
+    // Already full: refill() is a harmless no-op, not a mint above max.
+    expect(lives()).toBe(MAX);
+  });
+
+  it('a replay that finds the original charge never landed is rejected cleanly, even at full', async () => {
+    useLivesStore.setState({ missing: 0, regenFrom: 0, pendingRefill: { key: 'life_refill:k', amount: 900 } });
+    firebaseMock.callables['spendCoins'] = () => {
+      throw rejection('insufficient-funds');
+    };
+    await expect(flushPendingRefill()).resolves.toBe('rejected');
     expect(useLivesStore.getState().pendingRefill).toBeNull();
   });
 });
