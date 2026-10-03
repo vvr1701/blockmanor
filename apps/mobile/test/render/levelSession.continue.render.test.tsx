@@ -57,6 +57,7 @@ vi.mock('../../src/services/lives', () => ({
   lifeOnWin: vi.fn(),
   // §0 v1.47: always lets a run start — this file is not testing the gate.
   canStartLevel: vi.fn(() => true),
+  hasLifeFor: vi.fn(() => true),
   buyLifeRefill: vi.fn(),
   livesRules: vi.fn(() => ({ max: 5, regenMs: 1_800_000 })),
 }));
@@ -298,7 +299,7 @@ describe('§9.4 paid Continue — real spendCoins, tier advance, resumes play', 
       renderer.root.findByType(ContinueSheet).props.onContinue();
     });
     expect(firebaseMock.calls).toEqual([]);
-    expect(trackMock).toHaveBeenCalledWith('oob_sheet_shown', {});
+    expect(trackMock).toHaveBeenCalledWith('oob_sheet_shown', { sink: 'continue' });
     const oob = renderer.root.findByType(OutOfCoinsSheet);
     expect(oob.props.price).toBe(D.continue_price_1);
 

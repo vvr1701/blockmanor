@@ -61,6 +61,22 @@ describe('OutOfCoinsSheet (PRD §9.4 step 3)', () => {
     expect(textsOf(renderer)).toContain('You need 1,600 🪙 to continue — grab a bundle to top up.');
   });
 
+  it('a caller can override the body/covers copy (§0 v1.47(c): OutOfLivesSheet reuses this sheet with its own wording)', () => {
+    const renderer = render(
+      <OutOfCoinsSheet
+        price={900}
+        onCancel={vi.fn()}
+        body="You need 900 🪙 to refill a life — grab a bundle to top up."
+        coversLabel="Covers your refill"
+      />,
+    );
+    const texts = textsOf(renderer);
+    expect(texts).toContain('You need 900 🪙 to refill a life — grab a bundle to top up.');
+    expect(texts).not.toContain('to continue');
+    expect(texts).toContain('Covers your refill');
+    expect(texts).not.toContain('Covers your continue');
+  });
+
   it('Cancel is the ONLY interactive control, and it fires onCancel', () => {
     const onCancel = vi.fn();
     const renderer = render(<OutOfCoinsSheet price={900} onCancel={onCancel} />);

@@ -12,13 +12,17 @@
  */
 import { FIRST_POST_FTUE_LEVEL } from '@blockmanor/content';
 import { REMOTE_CONFIG_DEFAULTS, type WalletResult } from '@blockmanor/shared';
+import { BackHandler } from 'react-native';
 import React from 'react';
 import TestRenderer, { act, type ReactTestRenderer } from 'react-test-renderer';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { RetryToast } from '../../src/components/RetryToast';
+import { FAIL_HOLD_MS, WIN_HOLD_MS } from '../../src/game/juice';
+import { FailScreen } from '../../src/screens/FailScreen';
 import { GameplayScreen } from '../../src/screens/GameplayScreen';
 import { OutOfCoinsSheet } from '../../src/screens/OutOfCoinsSheet';
 import { OutOfLivesSheet } from '../../src/screens/OutOfLivesSheet';
+import { WinScreen } from '../../src/screens/WinScreen';
 import { resetConnectivity } from '../../src/services/connectivity';
 import { resetTrustedClock } from '../../src/services/trustedClock';
 import { resetMockUptime, setMockUptime } from '../mocks/device-uptime';
@@ -143,6 +147,25 @@ describe('§9.2 the gate, as ONE choke point (§0 v1.47(b))', () => {
     expect(useMetaStore.getState().attempts?.[String(LEVEL_ID)]).toBeUndefined();
   });
 
+  it('never even TRANSIENTLY commits GameplayScreen on a 0-life mount (qa-prd-auditor MAJOR)', () => {
+    // `BackHandler.addEventListener` only ever fires from GameplayScreen's
+    // own mount effect. A `toHaveBeenCalledTimes` SPY (not `__count()`,
+    // which only reflects the FINAL subscription count) is the point: if the
+    // gate were corrected only in an effect — one commit after the first
+    // paint, mounting then immediately unmounting `GameplayScreen` within
+    // the same `act()` flush — the subscribe-then-unsubscribe pair would
+    // leave `__count()` at 0 too, even though the mount genuinely happened
+    // (and genuinely ran whatever ELSE a real mount effect does that isn't
+    // as neatly reversible as an event subscription, e.g. the pre-armed
+    // booster's single-fire `attemptBooster`). The spy records history a
+    // final-state check cannot un-see.
+    const addListener = vi.spyOn(BackHandler, 'addEventListener');
+    blockedLives();
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
+    expect(addListener).not.toHaveBeenCalled();
+    renderer.unmount();
+  });
+
   it('never gates an FTUE level (id < FIRST_POST_FTUE_LEVEL), even at 0 lives', () => {
     blockedLives();
     useMetaStore.setState({ currentLevel: 1 });
@@ -195,6 +218,27 @@ describe('§9.2 auto-unblock on natural regen', () => {
     expect(renderer.root.findAllByType(GameplayScreen).length).toBe(1);
     expect(trackMock.mock.calls.filter(([name]) => name === 'life_blocked')).toHaveLength(0);
     expect(trackMock.mock.calls.filter(([name]) => name === 'level_start')).toHaveLength(1);
+  });
+
+  it('stays blocked through several poll ticks while truly still at 0 lives (qa-prd-auditor MAJOR — a `lives >= 0` typo would pass every other test here)', () => {
+    useConfigStore.setState({ snapshot: { ...D, flag_economy: true, life_regen_minutes: 30 } });
+    blockedLives();
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
+    trackMock.mockClear();
+    advance(5_000); // 5 poll ticks, nowhere near one 30-minute regen period
+    expect(renderer.root.findAllByType(OutOfLivesSheet).length).toBe(1);
+    expect(renderer.root.findAllByType(GameplayScreen).length).toBe(0);
+    expect(trackMock.mock.calls.filter(([name]) => name === 'level_start')).toHaveLength(0);
+  });
+
+  it('the sheet countdown actually ticks (qa-prd-auditor NIT — a frozen `setBlockedNow` call would ship green otherwise)', () => {
+    useConfigStore.setState({ snapshot: { ...D, flag_economy: true, life_regen_minutes: 30 } });
+    blockedLives();
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
+    const before = renderer.root.findByType(OutOfLivesSheet).props.now;
+    advance(5_000);
+    const after = renderer.root.findByType(OutOfLivesSheet).props.now;
+    expect(after).toBeGreaterThan(before);
   });
 });
 
@@ -266,9 +310,56 @@ describe('§9.2 "Refill 🪙" from the sheet (§0 v1.47(c)) — real spendCoins'
       await Promise.resolve();
       await Promise.resolve();
     });
-    expect(firebaseMock.calls.map((c) => (c.data as { idempotencyKey: string }).idempotencyKey)).toEqual(
-      [firstKey, firstKey],
-    );
+    expect(
+      firebaseMock.calls.map((c) => (c.data as { idempotencyKey: string }).idempotencyKey),
+    ).toEqual([firstKey, firstKey]);
     expect(renderer.root.findAllByType(GameplayScreen).length).toBe(1);
+  });
+});
+
+describe('§9.2 the gate at Retry and Next, not just the initial mount (qa-prd-auditor MAJOR)', () => {
+  it('Retry after a fail, at 0 lives, shows OutOfLivesSheet instead of starting a new attempt', () => {
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
+    const gameplay = renderer.root.findByType(GameplayScreen);
+    const lost = { ...(gameplay.props.initialState as object), status: 'lost' };
+    act(() => {
+      (gameplay.props.onEvent as (e: unknown[], s: unknown) => void)([], lost);
+    });
+    advance(FAIL_HOLD_MS);
+    expect(renderer.root.findAllByType(FailScreen).length).toBe(1);
+
+    blockedLives();
+    trackMock.mockClear();
+    act(() => {
+      renderer.root.findByType(FailScreen).props.onRetry();
+    });
+    expect(renderer.root.findAllByType(OutOfLivesSheet).length).toBe(1);
+    expect(renderer.root.findAllByType(GameplayScreen).length).toBe(0);
+    expect(trackMock.mock.calls.filter(([name]) => name === 'level_start')).toHaveLength(0);
+    expect(trackMock.mock.calls.filter(([name]) => name === 'life_blocked')).toHaveLength(1);
+  });
+
+  it('Next after a win, at 0 lives, shows OutOfLivesSheet instead of starting the next level', () => {
+    const renderer = render(<LevelSession onExit={vi.fn()} onOpenSettings={vi.fn()} />);
+    const gameplay = renderer.root.findByType(GameplayScreen);
+    const initialState = gameplay.props.initialState as { score: number };
+    const won = { ...(gameplay.props.initialState as object), status: 'won' };
+    act(() => {
+      (gameplay.props.onEvent as (e: unknown[], s: unknown) => void)(
+        [{ type: 'LEVEL_WON', score: initialState.score, stars: 1 }],
+        won,
+      );
+    });
+    advance(WIN_HOLD_MS);
+    expect(renderer.root.findAllByType(WinScreen).length).toBe(1);
+
+    blockedLives();
+    trackMock.mockClear();
+    act(() => {
+      renderer.root.findByType(WinScreen).props.onNext();
+    });
+    expect(renderer.root.findAllByType(OutOfLivesSheet).length).toBe(1);
+    expect(renderer.root.findAllByType(GameplayScreen).length).toBe(0);
+    expect(trackMock.mock.calls.filter(([name]) => name === 'level_start')).toHaveLength(0);
   });
 });

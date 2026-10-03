@@ -52,9 +52,7 @@ export function OutOfLivesSheet({
     <ModalSheet sheetAlign="center">
       <Text style={styles.title}>{t('lives.title')}</Text>
       {nextLifeAt !== null ? (
-        <Text style={styles.body}>
-          {t('lives.body', { time: countdown(nextLifeAt - now) })}
-        </Text>
+        <Text style={styles.body}>{t('lives.body', { time: countdown(nextLifeAt - now) })}</Text>
       ) : null}
 
       <GoldButton

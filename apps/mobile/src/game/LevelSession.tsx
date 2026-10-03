@@ -62,7 +62,14 @@ import {
   secondChanceAvailable,
 } from '../services/continueFlow';
 import { grantCoins } from '../services/wallet';
-import { buyLifeRefill, canStartLevel, forfeitLife, lifeOnWin, livesRules } from '../services/lives';
+import {
+  buyLifeRefill,
+  canStartLevel,
+  forfeitLife,
+  hasLifeFor,
+  lifeOnWin,
+  livesRules,
+} from '../services/lives';
 import { selectLives, useLivesStore } from '../state/useLivesStore';
 import { trustedNow } from '../services/trustedClock';
 import { getInstalledVersion } from '../services/appInfo';
@@ -199,6 +206,10 @@ export function LevelSession({
   // again, which would refire `life_blocked` once per tick instead of once
   // per refusal.
   const [blockedNow, setBlockedNow] = useState(() => trustedNow());
+  // Last `[json.id, attempt]` the render-time gate check below has already
+  // corrected `livesBlocked` for — a plain ref, not state: it must never
+  // itself trigger a render, only suppress redundant `setLivesBlocked` calls.
+  const lastGateKeyRef = useRef<string | null>(null);
 
   // --- §9.4 continue flow ------------------------------------------------
   // `continuedState` seeds the NEXT `GameplayScreen` mount after an accepted
@@ -241,6 +252,28 @@ export function LevelSession({
   const boostersUsedRef = useRef(0);
 
   const json = useMemo(() => getLevel(currentLevel), [currentLevel]);
+
+  // §9.2 out-of-lives gate (qa-prd-auditor MAJOR, §0 v1.47(e)): corrected
+  // DURING render, not only in the effect below — without this, the FIRST
+  // render after a new `[json.id, attempt]` (including the very first mount)
+  // still carries the OLD `livesBlocked` value, so a blocked run would paint
+  // `GameplayScreen` (and run ITS OWN mount effects — the back-handler
+  // subscription, the pre-armed-booster auto-fire) for one real frame before
+  // the effect catches up and swaps in `OutOfLivesSheet`. This is React's
+  // documented "adjust state when a dependency changes" pattern: a `setState`
+  // call during render bails out and re-renders before anything commits, so
+  // nothing downstream of `livesBlocked` ever sees the stale value. It reads
+  // the side-effect-free `hasLifeFor`, never `canStartLevel` (no `track`
+  // calls during render) — the effect below still owns firing `life_blocked`
+  // exactly once, and `beginRun`'s own idempotency guard means computing the
+  // same answer twice (here and in the effect) is harmless.
+  const gateKey = json ? `${json.id}:${attempt}` : null;
+  if (lastGateKeyRef.current !== gateKey) {
+    lastGateKeyRef.current = gateKey;
+    const blocked = json ? !hasLifeFor(json.id, trustedNow()) : false;
+    if (blocked !== livesBlocked) setLivesBlocked(blocked);
+  }
+
   // §9.4: a continued/second-chanced run reseeds `GameplayScreen` from
   // `reliefClear`'s own output rather than a fresh `buildLevelGameState` —
   // same attempt, same run, just past the grant.
@@ -278,8 +311,23 @@ export function LevelSession({
   // The real "entering a run" side effects, shared by the run-start effect
   // below AND by whatever later un-gates a blocked run (a regenerated life
   // or a refill) — factored out so neither path can drift from the other.
+  //
+  // Guarded by `runStartedKeyRef`, keyed on `level.id:attemptNum` (qa-prd-auditor
+  // MAJOR, §0 v1.47): a refill's spend resolving and the regen-poll's next
+  // tick can both decide to unblock the SAME run within the same instant (the
+  // poll calls this directly; a refill success calls it from a promise
+  // `.then()` that can land on either side of the poll's own tick) — each is
+  // individually guarded at its own call site too (the poll clears its own
+  // interval first, the refill checks `refillBusy`), but neither guard stops
+  // the OTHER path from also firing. One shared idempotency check here, keyed
+  // on the run itself rather than on how it was reached, is what actually
+  // makes "starts exactly once" true regardless of which paths race.
+  const runStartedKeyRef = useRef<string | null>(null);
   const beginRun = useCallback(
     (level: LevelJson, attemptNum: number) => {
+      const key = `${level.id}:${attemptNum}`;
+      if (runStartedKeyRef.current === key) return;
+      runStartedKeyRef.current = key;
       // Advanced at run START, not on fail and not on the Retry tap: an
       // ABANDONED run is exactly the shape of a quit (§3's per-level quit
       // rate) and must count, and the first run after a relaunch is a new
@@ -687,7 +735,7 @@ export function LevelSession({
     // engine or the server — `reliefClear` is irreversible (§0 v1.39(e)'s
     // client-trusted pricing is about the AMOUNT, not about skipping this).
     if (balance < offer.price) {
-      track('oob_sheet_shown', {});
+      track('oob_sheet_shown', { sink: 'continue' });
       setShowOutOfCoins(true);
       return;
     }
@@ -701,7 +749,7 @@ export function LevelSession({
       setContinueBusy(false);
       if (outcome === 'spent') applyContinueGrant(price);
       else if (outcome === 'rejected') {
-        track('oob_sheet_shown', {});
+        track('oob_sheet_shown', { sink: 'continue' });
         setShowOutOfCoins(true);
       } else {
         // 'failed' (offline/server fault): the intent stays pending — the
@@ -759,14 +807,31 @@ export function LevelSession({
   // §9.2 (§0 v1.47(c)): mirrors `handleContinuePress`'s exact shape — a
   // pre-flight balance check, then an awaited (never optimistic) spend, with
   // the same three-way outcome handling.
+  //
+  // qa-prd-auditor MAJOR, §0 v1.47(e): the pre-flight check is skipped
+  // entirely when a `pendingRefill` already exists. §9.2's acceptance
+  // requires a lost answer to be "replayed with the same key and amount and
+  // still deliver its lives … even when the balance has fallen below it" —
+  // `buyLifeRefill` already honours that (its own `pendingRefill` branch
+  // replays unconditionally, ignoring the shown balance), but this pre-flight
+  // check ran BEFORE that branch ever got a chance to, so a player whose
+  // earlier refill already landed server-side (response merely lost) was
+  // told "you need more coins" for a purchase they had already paid for.
   const handleRefillPress = useCallback(() => {
     if (refillBusy) return;
-    const config = useConfigStore.getState();
-    const price = config.value('life_refill_price');
-    const balance = selectBalance(useWalletStore.getState(), config.value('starting_coin_balance'));
-    if (balance < price) {
-      setRefillOutOfCoins(true);
-      return;
+    const hasPendingIntent = useLivesStore.getState().pendingRefill !== null;
+    if (!hasPendingIntent) {
+      const config = useConfigStore.getState();
+      const price = config.value('life_refill_price');
+      const balance = selectBalance(
+        useWalletStore.getState(),
+        config.value('starting_coin_balance'),
+      );
+      if (balance < price) {
+        track('oob_sheet_shown', { sink: 'life_refill' });
+        setRefillOutOfCoins(true);
+        return;
+      }
     }
     setRefillBusy(true);
     setRefillFailedToast(false);
@@ -779,6 +844,7 @@ export function LevelSession({
           beginRun(json, attempt);
         }
       } else if (outcome === 'rejected') {
+        track('oob_sheet_shown', { sink: 'life_refill' });
         setRefillOutOfCoins(true);
       } else if (outcome === 'pending') {
         // No answer yet (offline/server fault): the intent stays pending —

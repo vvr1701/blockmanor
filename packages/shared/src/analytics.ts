@@ -191,16 +191,29 @@ export interface ContinueFlowParams {
   balance: number;
 }
 
-/** §9.4 `OutOfCoinsSheet` opened — an unaffordable Continue tap. §14 lists no params. */
-export type OobSheetShownParams = Record<never, never>;
+/**
+ * `OutOfCoinsSheet` opened — an unaffordable spend tap. `sink` (§0 v1.47(f),
+ * added when `OutOfLivesSheet`'s Refill became this sheet's second caller):
+ * §9.5's economy harness reports "% hitting zero-balance moment and WHERE" —
+ * a bare, sink-less event could never tell a continue-insufficient-balance
+ * moment apart from a life-refill one, which is exactly the "where" that
+ * acceptance clause needs. Reuses `CoinSink` (`coins_spent`'s own param)
+ * rather than inventing a parallel enum.
+ */
+export interface OobSheetShownParams {
+  sink: CoinSink;
+}
 
 /**
- * §9.4 `OutOfCoinsSheet` led to a purchase. §14 lists no params. Unreachable
- * this PR (§0 v1.45(e)): §10.3's IAP/`ShopScreen`/RevenueCat purchase path
- * doesn't exist yet, so nothing ever calls `track('oob_sheet_converted', ...)`
- * today — the typed event exists so §10.3 has it ready to fire into.
+ * `OutOfCoinsSheet` led to a purchase. Unreachable today (§0 v1.45(e)):
+ * §10.3's IAP/`ShopScreen`/RevenueCat purchase path doesn't exist yet, so
+ * nothing ever calls `track('oob_sheet_converted', ...)` — the typed event
+ * exists so §10.3 has it ready to fire into, already carrying the same `sink`
+ * discriminator `oob_sheet_shown` does.
  */
-export type OobSheetConvertedParams = Record<never, never>;
+export interface OobSheetConvertedParams {
+  sink: CoinSink;
+}
 
 /** Keyed by §14 event name; extend per-section as each PRD subsection lands. */
 export interface AnalyticsEvents {
