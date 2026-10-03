@@ -52,7 +52,15 @@ vi.mock('../../src/services/wallet', async (importOriginal) => {
   return { ...actual, grantCoins: vi.fn() };
 });
 // §9.2: proven in test/lives.test.ts; here only the call.
-vi.mock('../../src/services/lives', () => ({ forfeitLife: vi.fn(), lifeOnWin: vi.fn() }));
+vi.mock('../../src/services/lives', () => ({
+  forfeitLife: vi.fn(),
+  lifeOnWin: vi.fn(),
+  // §0 v1.47: always lets a run start — this file is not testing the gate.
+  canStartLevel: vi.fn(() => true),
+  hasLifeFor: vi.fn(() => true),
+  buyLifeRefill: vi.fn(),
+  livesRules: vi.fn(() => ({ max: 5, regenMs: 1_800_000 })),
+}));
 
 // See the top-of-file doc comment: a deterministic stub, not a re-prediction
 // of the real engine rule. Clears the `used` flag on every tray slot (same
@@ -291,7 +299,7 @@ describe('§9.4 paid Continue — real spendCoins, tier advance, resumes play', 
       renderer.root.findByType(ContinueSheet).props.onContinue();
     });
     expect(firebaseMock.calls).toEqual([]);
-    expect(trackMock).toHaveBeenCalledWith('oob_sheet_shown', {});
+    expect(trackMock).toHaveBeenCalledWith('oob_sheet_shown', { sink: 'continue' });
     const oob = renderer.root.findByType(OutOfCoinsSheet);
     expect(oob.props.price).toBe(D.continue_price_1);
 

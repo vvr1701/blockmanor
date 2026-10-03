@@ -375,7 +375,7 @@ describe('§9.2 "Refill 🪙" at life_refill_price via §9.1 spendCoins', () => 
     stop();
   });
 
-  it('drops a pending intent unsent once lives have regenerated to full', async () => {
+  it('drops a pending intent unsent once lives have regenerated to full (§0 v1.47(d): the OTHER way round — always replaying — overcharges the common offline-tap case; see lives.ts doc comment)', async () => {
     useLivesStore.setState({ pendingRefill: { key: 'life_refill:k', amount: 900 } });
     await expect(flushPendingRefill(T0 + MAX * PERIOD)).resolves.toBe('full');
     expect(firebaseMock.calls).toEqual([]);

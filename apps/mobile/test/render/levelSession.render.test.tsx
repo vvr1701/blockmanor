@@ -47,7 +47,15 @@ vi.mock('../../src/services/analytics', () => ({ track: vi.fn() }));
 // §9.1: the wallet service is proven in test/wallet.test.ts; here only the call.
 vi.mock('../../src/services/wallet', () => ({ grantCoins: vi.fn() }));
 // §9.2: the lives rules are proven in test/lives.test.ts; here only the wiring.
-vi.mock('../../src/services/lives', () => ({ forfeitLife: vi.fn(), lifeOnWin: vi.fn() }));
+vi.mock('../../src/services/lives', () => ({
+  forfeitLife: vi.fn(),
+  lifeOnWin: vi.fn(),
+  // §0 v1.47: always lets a run start — this file is not testing the gate.
+  canStartLevel: vi.fn(() => true),
+  hasLifeFor: vi.fn(() => true),
+  buyLifeRefill: vi.fn(),
+  livesRules: vi.fn(() => ({ max: 5, regenMs: 1_800_000 })),
+}));
 
 // `vi.mock` factories are hoisted above every other top-level statement in
 // this file (including `const` declarations) — `vi.hoisted` is the

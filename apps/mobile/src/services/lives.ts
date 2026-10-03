@@ -55,18 +55,29 @@ export function lifeOnWin(state: GameState, runKey: string, now: number): void {
 }
 
 /**
+ * Side-effect-free half of the out-of-lives gate — no `track` call, so a
+ * caller that needs the gate's ANSWER without its ANALYTICS (§0 v1.48(e):
+ * `LevelSession` reads this during render, to decide what to paint on the
+ * very first frame of a blocked run, before the authoritative `canStartLevel`
+ * call in its effect fires `life_blocked`) can call this instead without
+ * double-counting or miscounting refusals.
+ */
+export function hasLifeFor(levelId: number, now: number): boolean {
+  return (
+    !livesOn() ||
+    levelId < FIRST_POST_FTUE_LEVEL ||
+    selectLives(useLivesStore.getState(), now, livesRules()).lives > 0
+  );
+}
+
+/**
  * The out-of-lives gate for starting a run of `levelId`. False — and §14
- * `life_blocked` — when the player has no life to stake.
- *
- * DORMANT: this PR is ledger + primitives only (§0 v1.42(a)). NOTHING in the
- * app calls this yet — no Home CTA, map, Next, Retry or restart is gated —
- * because the out-of-lives sheet it must route to has no §16.1 name and is
- * not built; gating with nothing to show is a §12.9 dead end. The wiring
- * lands with that sheet in the follow-up PR named in §0 v1.42(a).
+ * `life_blocked` — when the player has no life to stake. Wired at the single
+ * `LevelSession` run-start choke point (§0 v1.47(b)), covering Home CTA, map,
+ * Next, Retry and restart.
  */
 export function canStartLevel(levelId: number, now: number): boolean {
-  if (!livesOn() || levelId < FIRST_POST_FTUE_LEVEL) return true;
-  if (selectLives(useLivesStore.getState(), now, livesRules()).lives > 0) return true;
+  if (hasLifeFor(levelId, now)) return true;
   track('life_blocked', {});
   return false;
 }
@@ -92,8 +103,12 @@ async function settleRefill(replay: boolean): Promise<RefillOutcome> {
  * server never takes the coins twice. `pending` = no answer yet; the UI shows
  * a retry, §12.8. `rejected` with enough shown coins is a server no.
  *
- * DORMANT like `canStartLevel`: its real caller is the out-of-lives sheet's
- * "Refill" button, in the same follow-up PR (§0 v1.42(a)).
+ * Real caller: `OutOfLivesSheet`'s "Refill" button, via `LevelSession`
+ * (§0 v1.47(c)). A caller with a pending intent already set must call this
+ * (or `flushPendingRefill`) directly rather than re-checking the shown
+ * balance first — §9.2's acceptance requires a lost answer to replay "even
+ * when the balance has fallen below it", and this function's own
+ * `pendingRefill` branch already does that unconditionally.
  */
 export async function buyLifeRefill(now: number): Promise<RefillOutcome> {
   if (!livesOn()) return 'rejected';
@@ -108,14 +123,27 @@ export async function buyLifeRefill(now: number): Promise<RefillOutcome> {
 }
 
 /**
- * Resolves a refill whose answer was lost. If lives regenerated to full in the
- * meantime the intent is dropped unsent, never charged fresh.
+ * Resolves a refill whose answer was lost. If lives regenerated to full in
+ * the meantime the intent is dropped unsent, never charged fresh.
  *
- * TODO(§0 v1.42(a) follow-up gate+sheet PR): in that full case a charge that
- * DID land is not compensated (lost response AND a full regen before
- * reconnect). Unreachable while `buyLifeRefill` has no caller; the PR that
- * gives it one must close this gap — e.g. replay anyway and, on
- * `applied: false`, credit the coins back or bank the refill.
+ * §0 v1.47(d) tried replacing this with an unconditional replay, reasoned as
+ * "idempotent and cheap, so there's no downside" — WRONG, caught by
+ * qa-prd-auditor review before merge: the server can't tell "this key was
+ * never sent" from "this key was sent and the answer was lost" (both are the
+ * SAME idempotency-keyed request from the server's point of view), so an
+ * unconditional replay charges the common case too — an offline Refill tap
+ * that never reached the network at all, with lives then regenerating to
+ * full before reconnect — directly violating §9.2's "never charges a full
+ * player" acceptance clause. That is a common, real bug; the gap this
+ * short-circuit leaves (a charge that DID land, answer lost, full before
+ * reconnect — never found out about, never compensated) is rarer and lower
+ * stakes. Reverted to the original safe behavior.
+ *
+ * STILL OPEN (§0 v1.41(g), unclosed — v1.47(d)'s "closed" claim retracted):
+ * closing it for real needs a server primitive that can answer "was this key
+ * ever applied?" WITHOUT attempting a fresh spend when it wasn't (today's
+ * `spendCoins` only distinguishes those two cases by actually spending) — a
+ * backend change, out of this client-only PR's scope. Flagged, not guessed.
  */
 export async function flushPendingRefill(now: number): Promise<RefillOutcome | null> {
   const store = useLivesStore.getState();
