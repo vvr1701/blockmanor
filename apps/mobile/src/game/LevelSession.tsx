@@ -297,7 +297,20 @@ export function LevelSession({
     // §9.3 (§0 v1.49(d)): a READ, never a store mutation, during render —
     // the actual one-shot consume lives in `beginRun`'s side effects below,
     // which this same `[json.id, attempt]` transition also triggers.
-    const bonus = json ? useBoosterStore.getState().pendingStartScore : 0;
+    //
+    // qa-prd-auditor MAJOR, §0 v1.50(g): sanitized the same way `nextAttempt`
+    // above already guards a corrupt/hand-edited MMKV read — an unvalidated
+    // value here (a `winstreak_thresholds` typo overflowing past a safe
+    // integer, or a truncated MMKV blob) reached `createGame`'s own trust-
+    // boundary check unguarded, which THROWS — and since that throw happens
+    // inside this component's render, `beginRun` never runs to clear the bad
+    // value, so every future mount of every level crashed the same way
+    // forever: a §12.9 dead end, worse than the "quietly wrecked run"
+    // `EngineConfigError` exists to prevent. A bad value sanitizes to 0 here
+    // (never reaches the engine) and `beginRun`'s existing unconditional
+    // "clear if positive" still wipes it once a run proceeds normally.
+    const rawBonus = json ? useBoosterStore.getState().pendingStartScore : 0;
+    const bonus = Number.isSafeInteger(rawBonus) && rawBonus >= 0 ? rawBonus : 0;
     if (bonus !== startScoreBonus) setStartScoreBonus(bonus);
   }
 

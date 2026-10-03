@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { mmkvStorage } from '../src/state/persist';
 import {
   BOOSTER_SHOWCASE_LEVELS,
   parseWinstreakThresholds,
@@ -135,5 +136,17 @@ describe('§9.3 useBoosterStore', () => {
     expect(useBoosterStore.getState().pendingStartScore).toBe(200);
     useBoosterStore.getState().setPendingStartScore(0);
     expect(useBoosterStore.getState().pendingStartScore).toBe(0);
+  });
+
+  it('pendingStartScore round-trips through the REAL persist/rehydrate path, not an in-memory assertion (qa-prd-auditor MAJOR, §0 v1.50(g))', async () => {
+    useBoosterStore.getState().setPendingStartScore(200);
+    const image = mmkvStorage.getItem('boosters');
+    expect(typeof image).toBe('string');
+
+    useBoosterStore.setState({ pendingStartScore: 0 });
+    mmkvStorage.setItem('boosters', String(image));
+    await useBoosterStore.persist.rehydrate();
+
+    expect(useBoosterStore.getState().pendingStartScore).toBe(200);
   });
 });
