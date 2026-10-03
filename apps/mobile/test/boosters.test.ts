@@ -90,6 +90,7 @@ describe('§9.3 useBoosterStore', () => {
       showcaseGranted: { hammer: false, broom: false, hourglass: false },
       tooltip: null,
       preSelected: null,
+      pendingStartScore: 0,
     });
   });
 
@@ -127,5 +128,12 @@ describe('§9.3 useBoosterStore', () => {
     expect(useBoosterStore.getState().preSelected).toBe('broom');
     useBoosterStore.getState().setPreSelected(null);
     expect(useBoosterStore.getState().preSelected).toBeNull();
+  });
+
+  it('setPendingStartScore records the §9.3 x5+ win-streak score bonus (§0 v1.49)', () => {
+    useBoosterStore.getState().setPendingStartScore(200);
+    expect(useBoosterStore.getState().pendingStartScore).toBe(200);
+    useBoosterStore.getState().setPendingStartScore(0);
+    expect(useBoosterStore.getState().pendingStartScore).toBe(0);
   });
 });

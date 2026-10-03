@@ -21,7 +21,7 @@ export interface WinstreakTier {
   threshold: number;
   /** Boosters granted (random types). */
   count: number;
-  /** Start-score bonus — always 0 today; see `winstreakGrantFor`'s doc. */
+  /** Start-score bonus — wired §0 v1.49, see `winstreakGrantFor`'s doc. */
   bonus: number;
 }
 
@@ -51,10 +51,11 @@ export function parseWinstreakThresholds(raw: string): WinstreakTier[] {
  * flagged PRD-AMENDMENT-NEEDED (this session's report) since the PRD states
  * the three tiers but not this repeat-vs-once distinction.
  *
- * `bonus` (the x5+ start-score +200) is reported but deliberately UNUSED by
- * any caller in this PR — `GameConfig.startScore` (§0 v1.37(viii)) was not
- * built; see the report for the reasoning. Callers must grant `count`
- * boosters and ignore `bonus` until that lands.
+ * `bonus` (the x5+ start-score +200) is applied by `LevelSession.recordWin`
+ * via `useBoosterStore.pendingStartScore` → `GameConfig.startScore` (§0
+ * v1.49) — a caller granting `count` boosters for a tier must also check
+ * `bonus` separately; the two are independent fields of the same tier, not a
+ * single combined grant.
  */
 export function winstreakGrantFor(
   streak: number,
